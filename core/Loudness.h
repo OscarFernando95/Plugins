@@ -69,11 +69,10 @@ public:
         fs = sampleRate;
         channels = std::clamp (numChannels, 1, 2);
         stepLength = std::max (1, static_cast<int> (std::lround (sampleRate * 0.1)));
-        for (int c = 0; c < 2; ++c)
-        {
-            shelfFilter[c] = KWeighting::shelf (sampleRate);
-            highPassFilter[c] = KWeighting::highPass (sampleRate);
-        }
+        for (auto& f : shelfFilter)
+            f = KWeighting::shelf (sampleRate);
+        for (auto& f : highPassFilter)
+            f = KWeighting::highPass (sampleRate);
         resetState();
     }
 
@@ -91,7 +90,7 @@ public:
         for (int i = 0; i < numSamples; ++i)
         {
             double sum = 0.0;
-            for (int c = 0; c < channels; ++c)
+            for (size_t c = 0; c < static_cast<size_t> (channels); ++c)
             {
                 const double y = highPassFilter[c].process (shelfFilter[c].process (in[c][i]));
                 sum += y * y;
@@ -161,11 +160,10 @@ private:
 
     void resetState() noexcept
     {
-        for (int c = 0; c < 2; ++c)
-        {
-            shelfFilter[c].reset();
-            highPassFilter[c].reset();
-        }
+        for (auto& f : shelfFilter)
+            f.reset();
+        for (auto& f : highPassFilter)
+            f.reset();
         stepSum = 0.0;
         stepCount = 0;
         history.fill (0.0);
@@ -183,7 +181,7 @@ private:
     {
         history[static_cast<size_t> (stepsSeen % stepsPerShort)] = stepMeanSquare;
         ++stepsSeen;
-        elapsed.store (static_cast<float> (stepsSeen * 0.1), std::memory_order_relaxed);
+        elapsed.store (static_cast<float> (static_cast<double> (stepsSeen) * 0.1), std::memory_order_relaxed);
 
         if (stepsSeen >= stepsPerBlock)
         {
