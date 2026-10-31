@@ -103,7 +103,14 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     addKnob (k::input, "ENTRADA", 56, false, 24, 214, 78, db());
     addKnob (k::mix, "MEZCLA", 56, false, 90, 214, 78, percent());
     addKnob (k::output, "SALIDA", 56, false, 156, 214, 78, db());
-    addKnob (k::vuRef, "REF. VU", 44, false, 90, 340, 78, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
+    vuIn = std::make_unique<VuNeedle> (palette, "ENTRADA");
+    vuIn->setFaceBounds ({ 32, 322, 96, 62 });
+    content.addAndMakeVisible (*vuIn);
+    vuOut = std::make_unique<VuNeedle> (palette, "SALIDA");
+    vuOut->setFaceBounds ({ 136, 322, 96, 62 });
+    content.addAndMakeVisible (*vuOut);
+
+    addKnob (k::vuRef, "REF. VU", 44, false, 90, 410, 78, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
 
     // Cuatro módulos de banda.
     const char* names[] = { "CUERPO", "MEDIOS", "PRESENCIA", "AIRE" };
@@ -162,6 +169,12 @@ void DraMcPotiEditor::timerCallback()
     widthKnob->setAlpha (master ? 1.0f : 0.35f);   // Ancho y Mono seguro: solo Master
     monoButton->setAlpha (master ? 1.0f : 0.35f);
     airKnob->setAlpha (era == k::Moderno && voice == 3 ? 1.0f : 0.35f); // Esquina de aire: solo con el carácter Aire
+
+    // Vúmetros: 0 VU = Referencia VU (dBFS), con la balística de 65 ms del motor.
+    const float ref = raw (k::vuRef);
+    const auto toVu = [ref] (float level) { return 20.0f * std::log10 (level + 1.0e-6f) - ref; };
+    vuIn->setValue (toVu (owner.getEngine().inputVuLevel()));
+    vuOut->setValue (toVu (owner.getEngine().outputVuLevel()));
 
     for (size_t b = 0; b < tubes.size(); ++b)
     {

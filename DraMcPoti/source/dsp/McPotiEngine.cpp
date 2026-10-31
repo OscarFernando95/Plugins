@@ -113,6 +113,8 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
     guardRelease = smoothCoeff (fs, 40.0);
     powerCoeff = smoothCoeff (fs, 3000.0);
     guardBuf.assign (size, 1.0f);
+    vuIn.prepare (fs);
+    vuOut.prepare (fs);
     for (auto& c : channels)
         for (size_t k = 0; k < 2; ++k)
         {
@@ -404,6 +406,11 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
     for (int ch = 0; ch < numCh; ++ch)
         data[static_cast<size_t> (ch)] = buffer.getWritePointer (ch) + start;
 
+    std::array<const float*, maxChannels> vuPtr {};
+    for (int ch = 0; ch < numCh; ++ch)
+        vuPtr[static_cast<size_t> (ch)] = data[static_cast<size_t> (ch)];
+    vuIn.process (vuPtr.data(), numCh, n); // la entrada tal como llega, antes de procesar
+
     // Pasada 1 (frecuencia base): cruce, envolventes, control y entrada del generador.
     for (int i = 0; i < n; ++i)
     {
@@ -581,6 +588,10 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         for (int ch = 0; ch < numCh; ++ch)
             data[static_cast<size_t> (ch)][i] = out[static_cast<size_t> (ch)] * matchLin * outGain;
     }
+
+    for (int ch = 0; ch < numCh; ++ch)
+        vuPtr[static_cast<size_t> (ch)] = data[static_cast<size_t> (ch)];
+    vuOut.process (vuPtr.data(), numCh, n);
 
     for (size_t b = 0; b < nb; ++b)
         added[b].store (std::sqrt (addedPower[b]), std::memory_order_relaxed);

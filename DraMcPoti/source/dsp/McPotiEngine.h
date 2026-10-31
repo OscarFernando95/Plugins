@@ -11,6 +11,7 @@
 #include <DelayLine.h>
 #include <Loudness.h>
 #include <OversamplerN.h>
+#include <VuBallistics.h>
 
 namespace mcpoti
 {
@@ -60,6 +61,9 @@ public:
 
     /** Nivel añadido por banda (RMS suavizado, lineal), para las válvulas de la interfaz. */
     /** Ganancia que aplica Igualar, en dB (para la interfaz). */
+    /** Nivel lineal de entrada y de salida con balística de VU (65 ms), para los vúmetros. */
+    float inputVuLevel() const noexcept { return vuIn.level(); }
+    float outputVuLevel() const noexcept { return vuOut.level(); }
     float matchGainDb() const noexcept { return matchDb.load (std::memory_order_relaxed); }
     float addedLevel (int band) const noexcept { return added[static_cast<size_t> (band)].load (std::memory_order_relaxed); }
 
@@ -131,6 +135,7 @@ private:
     // Igualar: sonoridad K de 3 s de la entrada frente a la de la salida.
     float powerDry = 0.0f, powerOut = 0.0f, powerCoeff = 0.0f, matchLin = 1.0f;
     std::atomic<float> matchDb { 0.0f };
+    ferb::VuBallistics vuIn, vuOut;
     std::array<float, 2> tonal {}; // potencia de Medios y de Presencia, promedio de 2 s
 };
 } // namespace mcpoti

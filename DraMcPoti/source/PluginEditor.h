@@ -2,6 +2,7 @@
 
 #include <Controls.h>
 #include <Frame.h>
+#include <Meters.h>
 #include <ScaledEditor.h>
 
 #include "PluginProcessor.h"
@@ -35,6 +36,7 @@ private:
     std::vector<std::unique_ptr<ferb::vintage::VButton>> buttons;
     std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttonAttachments;
     std::vector<std::unique_ptr<Tube>> tubes;
+    std::unique_ptr<ferb::vintage::VuNeedle> vuIn, vuOut;
     juce::Label voiceName;
     juce::Component *guardKnob = nullptr, *widthKnob = nullptr, *airKnob = nullptr, *monoButton = nullptr;
 
