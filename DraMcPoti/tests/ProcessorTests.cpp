@@ -96,3 +96,33 @@ TEST_CASE ("Dra. McPoti: la latencia declarada coincide con la medida con un imp
             CHECK (peakAt == declared);
         }
 }
+
+TEST_CASE ("Dra. McPoti: el cambio de modo aplica su plantilla a lo que no se tocó y respeta lo tocado")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    DraMcPotiProcessor p;
+    auto set = [&p] (const char* id, float real)
+    {
+        auto* param = p.apvts.getParameter (id);
+        param->setValueNotifyingHost (param->convertTo0to1 (real));
+    };
+    auto get = [&p] (const char* id)
+    {
+        auto* param = p.apvts.getParameter (id);
+        return param->convertFrom0to1 (param->getValue());
+    };
+    REQUIRE (get ("tune") == Catch::Approx (4000.0f).margin (1.0f));
+    set ("guard", 30.0f); // tocado: se respeta
+    set ("mode", 1.0f);   // Master
+    p.syncModeTemplate();
+    CHECK (get ("tune") == Catch::Approx (5000.0f).margin (2.0f));
+    CHECK (get ("guard") == Catch::Approx (30.0f).margin (0.6f));
+    CHECK (get ("monoSafe") > 0.5f);
+    CHECK (get ("xo2") == Catch::Approx (1600.0f).margin (2.0f));
+
+    set ("mode", 0.0f);   // de vuelta a Vocal: tune vuelve; guard sigue como lo dejó el usuario
+    p.syncModeTemplate();
+    CHECK (get ("tune") == Catch::Approx (4000.0f).margin (2.0f));
+    CHECK (get ("monoSafe") < 0.5f);
+    CHECK (get ("guard") == Catch::Approx (30.0f).margin (0.6f));
+}

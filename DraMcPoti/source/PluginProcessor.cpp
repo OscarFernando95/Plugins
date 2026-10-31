@@ -32,6 +32,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
     }
 
     apvts.addParameterListener (k::linPhase, this); // la fase lineal cambia la latencia
+    apvts.addParameterListener (k::mode, this);     // el modo aplica su plantilla
 
     const std::set<juce::String> excluded { k::bypass };
     presets = std::make_unique<ferb::PresetManager> (apvts, "DraMcPoti", mcpoti::factoryPresets(), excluded);
@@ -43,6 +44,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
 DraMcPotiProcessor::~DraMcPotiProcessor()
 {
     apvts.removeParameterListener (k::linPhase, this);
+    apvts.removeParameterListener (k::mode, this);
     cancelPendingUpdate();
 }
 
@@ -58,7 +60,50 @@ void DraMcPotiProcessor::updateLatency()
     }
 }
 
-void DraMcPotiProcessor::handleAsyncUpdate() { updateLatency(); }
+void DraMcPotiProcessor::handleAsyncUpdate()
+{
+    updateLatency();
+    syncModeTemplate();
+}
+
+namespace
+{
+/** Plantilla de cada modo (sección 5 de la ficha). Valores iniciales: se afinan de oído. */
+struct ModeTemplate
+{
+    float tune, guard, width, monoSafe, xo1, xo2, xo3, os;
+};
+constexpr ModeTemplate vocalTemplate { 4000.0f, 60.0f, 100.0f, 0.0f, 150.0f, 1800.0f, 7000.0f, 2.0f };
+constexpr ModeTemplate masterTemplate { 5000.0f, 0.0f, 100.0f, 1.0f, 120.0f, 1600.0f, 6500.0f, 2.0f };
+} // namespace
+
+void DraMcPotiProcessor::syncModeTemplate()
+{
+    const int mode = juce::roundToInt (raw.mode->load());
+    if (mode == lastMode)
+        return;
+    const auto& from = lastMode == k::Master ? masterTemplate : vocalTemplate;
+    const auto& to = mode == k::Master ? masterTemplate : vocalTemplate;
+    lastMode = mode;
+
+    const auto move = [this] (const char* id, float oldDefault, float newValue)
+    {
+        auto* param = apvts.getParameter (id);
+        const float current = param->convertFrom0to1 (param->getValue());
+        const auto range = apvts.getParameterRange (id);
+        const float tolerance = std::max (range.interval, 1.0e-3f * std::abs (oldDefault)); // sin tocar = sigue en la plantilla anterior
+        if (std::abs (current - oldDefault) <= tolerance)
+            param->setValueNotifyingHost (param->convertTo0to1 (newValue));
+    };
+    move (k::tune, from.tune, to.tune);
+    move (k::guard, from.guard, to.guard);
+    move (k::width, from.width, to.width);
+    move (k::monoSafe, from.monoSafe, to.monoSafe);
+    move (k::xo1, from.xo1, to.xo1);
+    move (k::xo2, from.xo2, to.xo2);
+    move (k::xo3, from.xo3, to.xo3);
+    move (k::os, from.os, to.os);
+}
 
 void DraMcPotiProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
@@ -155,6 +200,7 @@ void DraMcPotiProcessor::setStateInformation (const void* data, int sizeInBytes)
         {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
             ferb::syncParametersFromState (apvts);
+            lastMode = juce::roundToInt (raw.mode->load()); // una sesión restaurada trae sus valores: no se les aplica plantilla
         }
 }
 

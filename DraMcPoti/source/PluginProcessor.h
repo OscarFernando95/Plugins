@@ -47,6 +47,10 @@ public:
     ferb::PresetManager& getPresets() noexcept { return *presets; }
     ferb::AbCompare& getAb() noexcept { return *ab; }
 
+    /** Al cambiar de modo, los controles que siguen en el valor de la plantilla del modo anterior pasan a la del nuevo
+        (sección 5 de la ficha); los que el usuario movió se respetan. Lo llama el hilo de mensajes tras un cambio de modo. */
+    void syncModeTemplate();
+
     mcpoti::McPotiEngine& getEngine() noexcept { return engine; }
     mcpoti::Settings readSettings() const noexcept;
 
@@ -58,6 +62,7 @@ private:
     void handleAsyncUpdate() override;
     void updateLatency();
     int lastLatency = -1;
+    int lastMode = 0;
 
     /** Punteros a los valores de los parámetros, resueltos una vez: buscar por texto en el hilo de audio reservaría memoria. */
     struct Raw
