@@ -18,6 +18,8 @@ using Processor = PotyProcessor;
 using Processor = CremitaProcessor;
 #elif FERB_PLUGIN_NEL
 using Processor = NelProcessor;
+#elif FERB_PLUGIN_CHAUS
+using Processor = ChauSProcessor;
 #else
 using Processor = TufiProcessor;
 #endif

@@ -251,3 +251,25 @@ Pruebas unitarias con Catch2 sobre el DSP, sin interfaz, y validadores de format
 ```markdown
 Lee la ficha técnica de ChauS e implementa el hito M1: extractor de los cinco rasgos, regresión logística con histéresis y umbral adaptativo, con pruebas Catch2 sobre sibilantes sintéticas. Aún sin interfaz. Muéstrame las tasas de acierto medidas.
 ```
+
+## Estado y cambios sobre la ficha
+
+Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca con esta sección, manda esta sección.
+
+**Decisiones que cambiaron**
+
+| Tema | Ficha original | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Bypass | Parámetro propio con crossfade de 20 ms | Bypass del anfitrión (`getBypassParameter`), fuera de los presets | Regla del repositorio |
+| Presets | JSON en `~/Library/Application Support/FERB/ChauS/Presets/User` y `juce_add_binary_data` | `.ferbpreset` en XML del `PresetManager` común; fábrica en código | Una sola ruta para los plugins |
+| Refresco de la interfaz | `VBlankAttachment` | `Timer` | Funciona también en la captura sin pantalla |
+| Hilo del proyecto | Carpeta `common/` | `core/`, `ui/` y `ui/vintage/` ya existentes | Se reutilizan |
+
+**Resultados medidos** (48 kHz, estéreo, bloque de 256)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| M0: `ChauSProcessorTests` (tasas 44,1 a 192 kHz, bloques 1 a 4096, mono y estéreo, estado, editor, canales y sidechain) | Sin fallos | 18,15 millones de comprobaciones, 8 casos, todas pasan |
+| `processBlock` sin reservas (esqueleto en paso directo) | 0 reservas | 0 |
+| `auval -v aufx ChaS Ferb` | Pasa | Pasa |
+| `pluginval` nivel 5, VST3 y AU | Pasa | Pasa |
