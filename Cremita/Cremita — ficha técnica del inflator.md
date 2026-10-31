@@ -227,3 +227,58 @@ Pruebas unitarias con Catch2 sobre el DSP, sin interfaz, y validadores de format
 ```markdown
 Lee la ficha técnica de Cremita e implementa el hito M1: la curva f_c(x), su antiderivada para ADAA y el sobremuestreo, con pruebas Catch2 de monotonicidad, armónicos y aliasing. Aún sin interfaz. Muéstrame los resultados medidos de las pruebas.
 ```
+
+## Estado y cambios sobre la ficha
+
+Fecha: 31 oct 2026. Implementados M0 a M5 (motor, parámetros, presets, A/B, deshacer e interfaz). Pasan `CremitaTests`, `CremitaProcessorTests` y `auval -v aufx Crem Ferb`. Pendiente: `pluginval`, prueba manual en Ableton, Logic y Pro Tools, y afinar de oído. Donde el texto de arriba choca con esta sección, manda esta sección.
+
+**Decisiones que cambiaron**
+
+| Tema | Ficha original | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Latencia | Informada, según el sobremuestreo y la fase | Constante, 47 muestras (la del 8×), en todos los modos | Regla del repositorio: cambiar el sobremuestreo no cambia la latencia (aprobado por el usuario) |
+| `osPhase` | Lineal o mínima | **Eliminado** | Con latencia constante la fase mínima no aporta latencia menor, y el FIR lineal mantiene alineados el seco y el procesado |
+| ADAA | Promedio de f entre dos muestras | Promedio más `(f(x) − f(x₋₁))/2` | El promedio es un pasa bajos: con 2× restaba 0,5 dB a 10 kHz incluso con señales débiles. Con la reposición la ganancia es plana (1,02 dB ±0,1 de 100 Hz a 10 kHz). Cuesta 3 a 9 dB de supresión de aliasing solo con saturación extrema |
+| Curva con Clip apagado | «Pendiente suave que termina en tanh» | `f(x) = ±(1 + tanh(m·(\|x\| − 1)))`, con `m` la pendiente de f en ±1 (mínimo 0,25) | La ficha no daba la fórmula. Es continua y monótona, y tiene antiderivada cerrada para el ADAA |
+| Orden del final de la cadena | DC, Clip, igualar sonoridad, Output | DC solo sobre el aporte, igualar sonoridad, Output y **Clip al final** | Así «con Input ≤ 0 dB ninguna muestra supera 0 dBFS» vale también con Output alto |
+| Filtro de DC | Sobre la salida | Solo sobre `Σ peso · (procesado − seco)` | Con Efecto 0 la salida es la entrada retrasada, bit a bit |
+| Ajuste de banda (±6 dB) | «Peso del efecto por banda» | Multiplica el aporte de la banda: `y = seco + E · Σ peso_b · (procesado_b − seco_b)` | Interpretación elegida; con Band Split apagado vale 1 |
+| Seco con Band Split | — | El seco pasa por los mismos cruces (suma de las bandas sin procesar) | Con Efecto 0 la magnitud es plana y no hay peinado al mezclar |
+| Botón In | «Bypass con compensación de nivel» | Sale la entrada retrasada, con fundido de 10 ms. No aplica Input ni Output | La «compensación de nivel» se hace con Igualar sonoridad |
+| Testigo de Efecto | Media de \|y − x\| en dB | Cambio de nivel del procesado frente al seco, en dB (como la maqueta: +1,0 dB con Curva 0) | La media absoluta daría un nivel absoluto, no «cuánto cambia» |
+| Igualar sonoridad | Entrada y salida con filtro K | Entrada original (antes de Input) frente a la salida antes de Output; ganancia limitada a ±12 dB, suavizada 1 s y congelada bajo −70 LUFS | Compara el efecto completo, incluido Input |
+| Refresco de la interfaz | `VBlankAttachment` | `Timer` a 30 Hz | Funciona también en la captura sin pantalla, como en Tufi y Poty |
+| Cambios de estructura | Fundido de 50 ms | Fundido a silencio de 5 ms con `ModeSwitch` (sobremuestreo, bandas, M/S y Clip) | Igual que Poty; medido sin clics |
+| Entrada con NaN o infinito | — | Se sustituye por 0 antes de entrar a los filtros | Un NaN se quedaría en los estados para siempre |
+
+**Resultados medidos** (48 kHz, estéreo, bloque de 256)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Efecto 0 %, nulidad frente a la entrada retrasada | Idéntica | Por debajo de −130 dBFS en 1× a 8× y con M/S |
+| Curva monótona, f(0) = 0, f(±1) = ±1 | Todo k y b | Cumple en Curva −50 a +50, Sesgo 0 a 100 y Clip encendido o apagado |
+| Pendiente en cero | +1,0 / +3,5 / −2,5 dB | +1,02 / +3,52 / −2,50 dB |
+| 3.er armónico (1 kHz, A = 0,5, Curva +50) | ±0,5 dB de la teoría | Cumple; el 2.º armónico queda por debajo de −110 dB sin Sesgo |
+| ADAA | Derivada de F igual a f; sin NaN | Cumple en todas las regiones, también con x casi igual a x₋₁ |
+| Aliasing, 8 kHz a −6 dBFS, Curva +50, 2× | −70 dBc | −96 dBc (límite de medida) a 44,1, 48 y 96 kHz, también con 5 y 9,5 kHz |
+| Aliasing de 9,5 kHz con 1× | — | −33 dBc: con 1× el ADAA no basta, y por eso el defecto es 2× |
+| Aliasing con Input +12 dB, 3,1 kHz, 2× | — | −52 dBc con Clip encendido (lo fija el recorte final) y −66 dBc apagado |
+| Band Split, suma sin proceso | ±0,1 dB | Dentro de ±0,1 dB de 40 Hz a 12 kHz a 44,1, 48 y 96 kHz |
+| Ganancia con señal baja y Curva 0 | +1,0 dB | +1,02 dB ±0,1 de 100 Hz a 10 kHz, con y sin bandas |
+| Clip 0 dB, Input ≤ 0 dB | Nada sobre 0 dBFS | Máximo 1,0 con todos los sobremuestreos; apagado con Input +12 dB llega a 2,73 |
+| Latencia | Pico del impulso en la muestra informada | Muestra 1000 exacta sin bandas; con bandas, ±3 por el retardo de grupo de los cruces |
+| Igualar sonoridad | ±0,2 LU | Cumple con Curva +50 y −50 (ruido con envolvente lenta, 30 s) |
+| VU | 99 % en 300 ms; una senoidal marca su valor eficaz | 0,99 ±0,006 y valor eficaz dentro de 0,5 % |
+| Sin clics (15 controles y cambios de estructura) | ≤ 1,3 veces la señal estable | Cumple |
+| Robustez | Sin NaN ni picos | Silencio, continua, NaN, infinito y subnormales; 44,1 a 192 kHz; bloques de 1 a 4096 |
+| `processBlock` | Sin reservas de memoria | 0 reservas (mono y estéreo, con parámetros aleatorios) |
+| CPU, 2× banda completa | Menos de 1,5 % | 0,32 % |
+| CPU, 3 bandas a 4× | Menos de 4 % | 1,24 % (8×: 2,0 %) |
+
+**Hallazgos para decidir**
+
+- **Sesgo y Curva:** con `b = Sesgo · min(0,3; 1 − 2k)`, en Curva +50 se tiene `k = 0,5` y `b = 0`: el Sesgo deja de actuar. Es una consecuencia de exigir que la curva sea monótona.
+- **Controles que la maqueta no muestra:** Cruce 1, Cruce 2, los tres Ajustes de banda y la Referencia VU existen como parámetros (automatizables), pero la maqueta aprobada no les da perilla. Con Band Split encendido no hay forma de moverlos desde la interfaz.
+- **A/B:** no se guarda con la sesión. Con Mayús + clic copia la ranura activa a la otra.
+
+**Presets de fábrica:** los 10 de la ficha. Init, Mezcla suave, Presencia vocal, Bus de batería y Pegamento de master usan los valores de la maqueta; los otros cinco son valores iniciales.
