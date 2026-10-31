@@ -1,5 +1,6 @@
 juce_add_plugin(Nel
     COMPANY_NAME "FERB"
+    VERSION ${NEL_VERSION}
     BUNDLE_ID com.ferb.nel
     PLUGIN_MANUFACTURER_CODE Ferb
     PLUGIN_CODE Nel1

@@ -21,6 +21,9 @@ tests/common/         Utilidades de prueba (señales, medidores, AliasingMeter, 
 tools/Snapshot.cpp    Renderiza el editor a un PNG sin anfitrión
 Tufi/                 source/ (dsp/, ui/), assets/fonts/, tests/
 Poty/                 source/ (dsp/, ui/), assets/fonts/, tests/
+cmake/Versions.cmake  Versión SemVer de cada plugin (única fuente de verdad)
+docs/                 PDF de documentación de cada plugin: fuentes/ (Markdown), estilo/, construir.py
+README.md, CHANGELOG.md   Estado del repositorio e historial de versiones
 ```
 
 Los motores de DSP (`TufiEngine`, `PotyEngine`) son independientes del anfitrión y de los parámetros: reciben una struct `Settings` y se prueban solos. `core/`, `ui/` y los motores son bibliotecas `INTERFACE` cuyas fuentes se compilan dentro de cada destino que las usa (plugin y pruebas).
@@ -52,7 +55,15 @@ Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 -
 - Textos de interfaz en español con coma decimal. Cadenas con tildes o `×`: `juce::String::fromUTF8` (un literal `"Cálido"` suelto sale como `CÃ¡lido`).
 - Un hito por vez, ejecutar la prueba que lo define antes de darlo por terminado, un commit por hito. El repositorio es <https://github.com/OscarFernando95/Plugins> (rama `main`).
 
+## Versiones, README y documentación
+
+- **Versión:** cada plugin tiene la suya, SemVer, en `cmake/Versions.cmake` (todos arrancan en 1.0.0). Mayor si se rompen presets o sesiones (IDs de parámetros, formato del estado); menor para funciones nuevas compatibles; parche para correcciones. Nunca se escribe a mano en otro sitio: CMake la pasa al paquete y `docs/construir.py` a la portada del PDF.
+- **Al cerrar un hito o cambiar un plugin**, en el mismo commit: anotar el cambio en `CHANGELOG.md` (y subir la versión si procede), actualizar la tabla de estado del `README.md` y, si el plugin ya tiene documentación, editar `docs/fuentes/<Plugin>.md` y regenerar el PDF (`.cache/docs-venv/bin/python docs/construir.py <Plugin>`; ver `docs/README.md`). `construir.py` avisa si la versión del README no coincide con `cmake/Versions.cmake`.
+- **Documentación:** un PDF por plugin en `docs/` con la identidad de `docs/Identidad de documentación.md`. Las cifras de calidad salen de las fichas y de las pruebas, con su condición de medida y fecha; lo no probado se declara. Plugins nuevos: ver «Añadir un plugin nuevo» en esa guía.
+
 ## Estado
+
+Versiones: Tufi, Poty, Cremita y Nel en 1.0.0 (las de Maru y ChauS, prevista). PDF de documentación hechos: Tufi, Poty y Cremita.
 
 ### Tufi — hitos 1 a 9 hechos
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).

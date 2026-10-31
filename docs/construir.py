@@ -57,6 +57,18 @@ def version_of(var: str) -> str:
     return m.group(1)
 
 
+def check_readme() -> None:
+    """Avisa si la versión de la tabla del README no coincide con cmake/Versions.cmake."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    text = (ROOT / "cmake" / "Versions.cmake").read_text()
+    for var, ver in re.findall(r'set\((\w+)_VERSION\s+"([^"]+)"\)', text):
+        m = re.search(rf"\*\*{var}\*\*\s*\|\s*([\d.]+)", readme, re.I)
+        if not m:
+            print(f"AVISO: {var.title()} no está en la tabla del README")
+        elif m.group(1) != ver:
+            print(f"AVISO: README dice {var.title()} {m.group(1)}, pero cmake/Versions.cmake dice {ver}")
+
+
 def dump_curves() -> dict:
     exe = CACHE / "curvas"
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -217,6 +229,7 @@ def main() -> None:
     args = sys.argv[1:]
     shots = "--capturas" in args
     names = [a for a in args if not a.startswith("--")] or [n for n in PLUGINS if (DOCS / "fuentes" / f"{n}.md").exists()]
+    check_readme()
     if shots:
         render_screenshots(names)
     d = datetime.date.today()
