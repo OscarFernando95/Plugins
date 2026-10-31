@@ -38,11 +38,49 @@ public:
 
     void paint (juce::Graphics& g) override
     {
-        drawEmbossed (g, "CURVA DE TRANSFERENCIA", { 430.0f, 246.0f, 400.0f, 14.0f }, labelFont (10.0f, 2.0f), juce::Justification::centred, palette);
         drawEmbossed (g, "SOBREMUESTREO", { 690.0f, 386.0f, 130.0f, 14.0f }, labelFont (10.0f, 2.0f), juce::Justification::centredLeft, palette);
     }
 
 private:
+    Palette palette;
+};
+
+/** Pie de la ventana de cristal: el título de la curva y, con Band Split, las pestañas CURVA y BANDAS. */
+class CremitaEditor::ViewTabs : public juce::Component
+{
+public:
+    ViewTabs (CremitaEditor& e, const Palette& p) : editor (e), palette (p) { setMouseCursor (juce::MouseCursor::PointingHandCursor); }
+
+    void paint (juce::Graphics& g) override
+    {
+        if (! editor.splitOn())
+        {
+            drawEmbossed (g, "CURVA DE TRANSFERENCIA", getLocalBounds().toFloat(), labelFont (10.0f, 2.0f), juce::Justification::centred, palette);
+            return;
+        }
+        for (int i = 0; i < 2; ++i)
+        {
+            const auto r = tab (i);
+            const bool on = editor.view == i;
+            drawEmbossed (g, i == 0 ? "CURVA" : "BANDAS", r, labelFont (10.0f, 2.0f), juce::Justification::centred, palette, on ? 1.0f : 0.5f);
+            if (on)
+            {
+                g.setColour (palette.acc2);
+                g.fillRect (r.getX() + 8.0f, r.getBottom() - 1.0f, r.getWidth() - 16.0f, 2.0f);
+            }
+        }
+    }
+
+    void mouseDown (const juce::MouseEvent& e) override
+    {
+        if (editor.splitOn())
+            editor.setView (e.x < getWidth() / 2 ? 0 : 1);
+    }
+
+private:
+    juce::Rectangle<float> tab (int i) const { return { static_cast<float> (getWidth()) * 0.5f - 80.0f + 80.0f * static_cast<float> (i), 0.0f, 80.0f, static_cast<float> (getHeight()) - 2.0f }; }
+
+    CremitaEditor& editor;
     Palette palette;
 };
 
@@ -81,6 +119,14 @@ CremitaEditor::CremitaEditor (CremitaProcessor& p)
     curveView = std::make_unique<cremita::ui::CurveView> (p, palette);
     curveView->setGlassBounds ({ 430, 76, 400, 160 });
     content.addAndMakeVisible (*curveView);
+
+    bandView = std::make_unique<cremita::ui::BandView> (p, palette);
+    bandView->setGlassBounds ({ 430, 76, 400, 160 });
+    content.addAndMakeVisible (*bandView);
+
+    tabs = std::make_unique<ViewTabs> (*this, palette);
+    tabs->setBounds (430, 244, 400, 18);
+    content.addAndMakeVisible (*tabs);
 
     struct KnobDef { const char* id; int x, y, w; VKnob::Spec spec; };
     const std::vector<KnobDef> defs = {
@@ -125,11 +171,39 @@ CremitaEditor::CremitaEditor (CremitaProcessor& p)
     oversample->setTopLeftPosition (820, 380);
     content.addAndMakeVisible (*oversample);
 
+    // Con Band Split la ventana pasa a mostrar las bandas; sin él, siempre la curva.
+    const bool split = owner.apvts.getRawParameterValue (k::split)->load() >= 0.5f;
+    lastSplit = split;
+    view = split ? static_cast<int> (p.apvts.state.getProperty ("view", 1)) : 0;
+    splitWatch = std::make_unique<juce::ParameterAttachment> (param (k::split), [this] (float v)
+                                                              {
+                                                                  if (lastSplit != (v >= 0.5f))
+                                                                  {
+                                                                      lastSplit = v >= 0.5f;
+                                                                      setView (lastSplit ? 1 : 0);
+                                                                  }
+                                                              });
+    setView (view);
+
     timerCallback();
     startTimerHz (30);
 }
 
 CremitaEditor::~CremitaEditor() = default;
+
+bool CremitaEditor::splitOn() const
+{
+    return lastSplit; // el valor atómico del APVTS se actualiza después de avisar a los oyentes
+}
+
+void CremitaEditor::setView (int newView)
+{
+    view = splitOn() ? juce::jlimit (0, 1, newView) : 0;
+    owner.apvts.state.setProperty ("view", view, nullptr);
+    curveView->setVisible (view == 0);
+    bandView->setVisible (view == 1);
+    tabs->repaint();
+}
 
 void CremitaEditor::timerCallback()
 {
@@ -138,8 +212,11 @@ void CremitaEditor::timerCallback()
 
     vuIn->setValue (toVu (engine.getInputLevel(), reference));
     vuOut->setValue (toVu (engine.getOutputLevel(), reference));
-    curveView->setWorkingLevel (engine.getInputLevel());
-    curveView->repaint();
+    if (view == 0)
+    {
+        curveView->setWorkingLevel (engine.getInputLevel());
+        curveView->repaint();
+    }
 
     effectWindow->setText (dbText (engine.getEffectGainDb()));
 

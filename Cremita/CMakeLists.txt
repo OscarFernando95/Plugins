@@ -24,7 +24,8 @@ target_sources(Cremita PRIVATE
     source/Presets.cpp
     source/PluginProcessor.cpp
     source/PluginEditor.cpp
-    source/ui/CurveView.cpp)
+    source/ui/CurveView.cpp
+    source/ui/BandView.cpp)
 
 target_compile_definitions(Cremita PUBLIC
     JUCE_WEB_BROWSER=0

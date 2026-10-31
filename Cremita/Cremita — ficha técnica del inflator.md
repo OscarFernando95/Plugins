@@ -230,7 +230,7 @@ Lee la ficha técnica de Cremita e implementa el hito M1: la curva f_c(x), su an
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 a M5 (motor, parámetros, presets, A/B, deshacer e interfaz). Pasan `CremitaTests`, `CremitaProcessorTests` y `auval -v aufx Crem Ferb`. Pendiente: `pluginval`, prueba manual en Ableton, Logic y Pro Tools, y afinar de oído. Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 a M5 (motor, parámetros, presets, A/B, deshacer e interfaz). Pasan `CremitaTests`, `CremitaProcessorTests`, `auval -v aufx Crem Ferb` y `pluginval` nivel 10 (VST3 y AU, con pruebas de interfaz). Pendiente: prueba manual en Ableton, Logic y Pro Tools, y afinar de oído. Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -278,7 +278,7 @@ Fecha: 31 oct 2026. Implementados M0 a M5 (motor, parámetros, presets, A/B, des
 **Hallazgos para decidir**
 
 - **Sesgo y Curva:** con `b = Sesgo · min(0,3; 1 − 2k)`, en Curva +50 se tiene `k = 0,5` y `b = 0`: el Sesgo deja de actuar. Es una consecuencia de exigir que la curva sea monótona.
-- **Controles que la maqueta no muestra:** Cruce 1, Cruce 2, los tres Ajustes de banda y la Referencia VU existen como parámetros (automatizables), pero la maqueta aprobada no les da perilla. Con Band Split encendido no hay forma de moverlos desde la interfaz.
+- **Editor de bandas (añadido sobre la maqueta):** Cruce 1, Cruce 2 y los tres Ajustes de banda no tenían perilla en la maqueta. Al encender Bandas, la ventana de cristal pasa a ser un editor: los cruces se arrastran en horizontal (40 Hz a 16 kHz, escala logarítmica), el peso de cada banda en vertical (±6 dB), doble clic restablece, rueda ajusta y Mayús afina. Bajo la ventana aparecen las pestañas CURVA y BANDAS (se recuerda la elegida en la propiedad `view`). La Referencia VU sigue sin control en la interfaz; es un parámetro automatizable. El editor de bandas se maneja solo con ratón; el teclado no llega a esos tiradores.
 - **A/B:** no se guarda con la sesión. Con Mayús + clic copia la ranura activa a la otra.
 
 **Presets de fábrica:** los 10 de la ficha. Init, Mezcla suave, Presencia vocal, Bus de batería y Pegamento de master usan los valores de la maqueta; los otros cinco son valores iniciales.

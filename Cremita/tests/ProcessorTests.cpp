@@ -105,3 +105,37 @@ TEST_CASE ("Cremita: deshacer y rehacer devuelven el valor anterior")
     p.undoManager.redo();
     CHECK (real (p, "curve") == Catch::Approx (40.0f));
 }
+
+#include "ui/BandView.h"
+
+TEST_CASE ("Cremita: el editor de bandas convierte frecuencia y posición sin pérdida y cubre los rangos de los cruces")
+{
+    using cremita::ui::BandView;
+    for (float hz : { 80.0f, 200.0f, 500.0f, 1500.0f, 3000.0f, 8000.0f })
+        REQUIRE (BandView::xToFrequency (BandView::frequencyToX (hz, 400.0f), 400.0f) == Catch::Approx (hz).epsilon (1e-4));
+
+    REQUIRE (BandView::frequencyToX (BandView::lowestHz, 400.0f) == Catch::Approx (0.0f).margin (1e-3));
+    REQUIRE (BandView::frequencyToX (BandView::highestHz, 400.0f) == Catch::Approx (400.0f).margin (1e-3));
+    // Los dos cruces nunca se solapan: el más agudo del primero queda a la izquierda del más grave del segundo.
+    REQUIRE (BandView::frequencyToX (500.0f, 400.0f) < BandView::frequencyToX (1500.0f, 400.0f));
+}
+
+TEST_CASE ("Cremita: el editor muestra las bandas al encender Band Split y la curva al apagarlo")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    CremitaProcessor p;
+    p.setPlayConfigDetails (2, 2, 48000.0, 512);
+    p.prepareToPlay (48000.0, 512);
+    std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+
+    const auto setSplit = [&p] (float v)
+    {
+        auto* param = p.apvts.getParameter ("split");
+        param->setValueNotifyingHost (v);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+    };
+    setSplit (1.0f);
+    REQUIRE (int (p.apvts.state.getProperty ("view")) == 1);
+    setSplit (0.0f);
+    REQUIRE (int (p.apvts.state.getProperty ("view")) == 0);
+}
