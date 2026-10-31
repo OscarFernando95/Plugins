@@ -32,6 +32,66 @@ TEST_CASE ("Cruce de 3 bandas: la suma de las bandas tiene magnitud plana (±0,1
         }
 }
 
+TEST_CASE ("Cruce de 4 bandas: la suma de las bandas tiene magnitud plana (±0,1 dB)")
+{
+    for (double fs : { 44100.0, 48000.0, 96000.0 })
+        for (const auto& xo : { std::array<double, 3> { 150.0, 1800.0, 7000.0 }, std::array<double, 3> { 80.0, 600.0, 3000.0 },
+                                std::array<double, 3> { 400.0, 4000.0, 12000.0 } })
+            for (double freq : { 40.0, 100.0, 200.0, 800.0, 1500.0, 2500.0, 5000.0, 9000.0, 15000.0 })
+            {
+                ferb::FourBandSplit split;
+                split.setFrequencies (fs, xo[0], xo[1], xo[2]);
+                const int n = int (fs * 1.5);
+                const auto in = sine (n, freq, fs, 0.5);
+                std::vector<float> out (in.size());
+                std::array<float, 4> bands {};
+                for (size_t i = 0; i < in.size(); ++i)
+                {
+                    split.process (in[i], bands);
+                    out[i] = bands[0] + bands[1] + bands[2] + bands[3];
+                }
+                const int skip = n / 2, len = n - skip;
+                const double ratio = measureAmplitude (out.data() + skip, len, freq, fs) / measureAmplitude (in.data() + skip, len, freq, fs);
+                INFO ("fs " << fs << ", xo " << xo[0] << "/" << xo[1] << "/" << xo[2] << ", f " << freq);
+                CHECK (toDb (ratio) == Catch::Approx (0.0).margin (0.1));
+            }
+}
+
+TEST_CASE ("Cruce de 4 bandas: cada banda domina en su zona")
+{
+    const double fs = 48000.0;
+    ferb::FourBandSplit split;
+    split.setFrequencies (fs, 150.0, 1800.0, 7000.0);
+    auto bandLevels = [&] (double freq)
+    {
+        split.reset();
+        const int n = int (fs);
+        const auto in = sine (n, freq, fs, 0.5);
+        std::array<std::vector<float>, 4> out;
+        for (auto& v : out)
+            v.resize (in.size());
+        std::array<float, 4> bands {};
+        for (size_t i = 0; i < in.size(); ++i)
+        {
+            split.process (in[i], bands);
+            for (size_t b = 0; b < 4; ++b)
+                out[b][i] = bands[b];
+        }
+        std::array<double, 4> level {};
+        for (size_t b = 0; b < 4; ++b)
+            level[b] = measureAmplitude (out[b].data() + n / 2, n / 2, freq, fs);
+        return level;
+    };
+    const std::pair<double, size_t> zones[] = { { 50.0, 0 }, { 600.0, 1 }, { 4000.0, 2 }, { 14000.0, 3 } };
+    for (const auto& [freq, band] : zones)
+    {
+        const auto level = bandLevels (freq);
+        for (size_t b = 0; b < 4; ++b)
+            if (b != band)
+                CHECK (level[b] < level[band] * 0.35);
+    }
+}
+
 TEST_CASE ("Cruce de 3 bandas: cada banda atenúa fuera de su zona")
 {
     const double fs = 48000.0;

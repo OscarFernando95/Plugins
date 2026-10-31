@@ -388,7 +388,7 @@ Cuando compile, pásame la salida de pluginval nivel 5 antes de seguir con la fa
 
 ## 11. Estado y cambios sobre la ficha
 
-Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hecha** (esqueleto, 44 parámetros, presets, panel provisional, audio sin procesar). Las fases 2 a 6 están pendientes.
+Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hecha** (esqueleto, 44 parámetros, presets, panel provisional) y **fase 2 empezada** (cruce de cuatro bandas y caracteres Vintage sin sobremuestreo). Las fases 3 a 6 están pendientes.
 
 ### Hecho en la fase 1
 - Carpeta `DraMcPoti/` (sin punto ni espacio) con la estructura del monorepo; versión **0.1.0** en `cmake/Versions.cmake` (1.0.0 al cerrar la fase 6). Target CMake `DraMcPoti`, producto «Dra. McPoti», AU `aufx` / `McPo` / `Ferb`.
@@ -396,6 +396,13 @@ Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hech
 - 20 presets de fábrica más Init, también expuestos como programas del anfitrión. Los de Vocal llevan Guarda 60 %; los de Master, Guarda 0 %.
 - Panel provisional con el kit `ui/vintage/` (paleta de Cremita): los 44 controles, sin válvulas, vúmetros ni ventana de armónicos (fase 5).
 - Pruebas `DraMcPotiProcessorTests`: parámetros aleatorios, tasas y bloques extremos, estado, vida del editor, canales, cero reservas en `processBlock`, 44 parámetros, los 21 programas cargan y el audio pasa idéntico con latencia 0.
+
+### Hecho de la fase 2 (parcial)
+- `ferb::FourBandSplit` en `core/Crossover.h`: cuatro bandas LR4 (se parte en xo2 y cada mitad en xo1 y xo3, con el paso todo del cruce vecino en cada banda). Prueba: la suma tiene magnitud plana dentro de ±0,1 dB en 44,1, 48 y 96 kHz y con tres juegos de cruces (cumple el criterio de la sección 9).
+- `McPotiEngine` (`source/dsp/`): entrada y salida, cruce, generador `HP → f_v → HP` de los cuatro caracteres Vintage (Clásico, Cinta simplificada, Válvula y Transistor), dinámica por banda con la fórmula de la sección 3 (RMS enlazado con Enlace), Nivel de banda, Activar, Solo, Delta y Mezcla. Cruces y Sintonización suavizados (30 ms).
+- Pruebas `DraMcPotiTests` (7): Drive 0 y Mezcla 0 % dejan la señal intacta (< −90 dB); seco + Delta = salida completa (< −90 dB); Válvula con 2.º armónico mayor que el 3.º, Transistor con el 3.º más de 4 veces el 2.º, Clásico con ambos; la dinámica sube lo añadido en pasajes suaves con + y en picos con −; Solo; sin NaN ni clics al mover Drive, Dinámica y cruces.
+- El procesador resuelve los punteros a los parámetros en el constructor: buscarlos por texto en `processBlock` reservaba memoria (lo detectó la prueba de cero reservas).
+- **Sin implementar todavía:** sobremuestreo y ADAA (**aliasing sin medir ni tratar**), Cinta con pre-énfasis, caracteres Modernos (la era Moderno hoy no añade nada), Color, Fase, Suavizar, Esquina de aire, guarda, Ancho y Mono seguro, fase lineal, Igualar, VU y válvulas, latencia declarada (hoy 0) y CPU (sin medir). La normalización γ = 0,5 y la escala de Drive (`1 + 4a`) son valores iniciales.
 
 ### Cambios sobre la ficha
 - **Latencia constante** (regla del repo, manda sobre la sección 8): se declara la del caso máximo y Fase lineal u Oversampling no la cambian; lo que falte se retrasa en el seco. Las cifras de la tabla de la sección 8 son objetivos de CPU y de estimación, no latencias que cambien con el modo.
@@ -409,4 +416,4 @@ Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hech
 - Validación a **nivel 10** de pluginval (el prompt original decía 5).
 
 ### Pendiente
-Fases 2 a 6 de la sección 10; afinar de oído los coeficientes iniciales; probar en Ableton, Logic y Pro Tools; documentación en PDF; AAX sin validar ni firmar.
+Terminar la fase 2 y las fases 3 a 6 de la sección 10; afinar de oído los coeficientes iniciales; probar en Ableton, Logic y Pro Tools; documentación en PDF; AAX sin validar ni firmar.

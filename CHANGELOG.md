@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ## Sin publicar
 
 ### Dra. McPoti 0.1.0 (en desarrollo)
+- Fase 2 (parcial): `ferb::FourBandSplit` en `core/Crossover.h` (4 bandas LR4, suma plana ±0,1 dB) y `McPotiEngine` con los cuatro caracteres Vintage, dinámica por banda, Solo, Delta y Mezcla; `DraMcPotiTests`. Sin sobremuestreo todavía.
 - Fase 1: carpeta `DraMcPoti/`, 44 parámetros, 20 presets de fábrica más Init, A/B, panel provisional con el kit `ui/vintage/`, `DraMcPotiProcessorTests` y `DraMcPotiSnapshot`. El audio pasa sin procesar; el DSP llega en las fases 2 a 6. Ficha con su sección «Estado y cambios sobre la ficha».
 
 ### Repositorio

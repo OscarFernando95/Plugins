@@ -29,10 +29,11 @@ TEST_CASE ("Dra. McPoti: 44 parámetros, 21 programas y cada preset de fábrica 
     }
 }
 
-TEST_CASE ("Dra. McPoti: el audio pasa sin cambios y sin latencia (fase 1)")
+TEST_CASE ("Dra. McPoti: con Mezcla 0 % el audio pasa sin cambios y sin latencia")
 {
     juce::ScopedJuceInitialiser_GUI gui;
     DraMcPotiProcessor p;
+    p.apvts.getParameter ("mix")->setValueNotifyingHost (0.0f);
     p.setPlayConfigDetails (2, 2, 48000.0, 256);
     p.prepareToPlay (48000.0, 256);
     REQUIRE (p.getLatencySamples() == 0);
@@ -43,7 +44,11 @@ TEST_CASE ("Dra. McPoti: el audio pasa sin cambios y sin latencia (fase 1)")
             ref.setSample (ch, i, 0.5f * std::sin (0.05f * float (i + 7 * ch)));
     buf.makeCopyOf (ref);
     juce::MidiBuffer midi;
-    p.processBlock (buf, midi);
+    for (int rep = 0; rep < 8; ++rep) // el suavizado de 20 ms llega a 0 antes de la comprobación
+    {
+        buf.makeCopyOf (ref);
+        p.processBlock (buf, midi);
+    }
     for (int ch = 0; ch < 2; ++ch)
         for (int i = 0; i < 256; ++i)
             REQUIRE (buf.getSample (ch, i) == Catch::Approx (ref.getSample (ch, i)).margin (1.0e-9));

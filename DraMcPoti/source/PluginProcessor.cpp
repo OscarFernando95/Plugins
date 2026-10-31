@@ -11,6 +11,20 @@ DraMcPotiProcessor::DraMcPotiProcessor()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, &undoManager, "MCPOTI", k::createLayout())
 {
+    const auto ptr = [this] (const juce::String& id) { return apvts.getRawParameterValue (id); };
+    raw.input = ptr (k::input);   raw.output = ptr (k::output); raw.mix = ptr (k::mix);   raw.mode = ptr (k::mode);
+    raw.era = ptr (k::era);       raw.voice = ptr (k::voice);   raw.tune = ptr (k::tune); raw.link = ptr (k::link);
+    raw.xo1 = ptr (k::xo1);       raw.xo2 = ptr (k::xo2);       raw.xo3 = ptr (k::xo3);   raw.delta = ptr (k::delta);
+    for (int b = 0; b < k::numBands; ++b)
+    {
+        const auto i = static_cast<size_t> (b);
+        raw.drive[i] = ptr (k::bandId ("drive", b));
+        raw.dyn[i] = ptr (k::bandId ("dyn", b));
+        raw.level[i] = ptr (k::bandId ("mix", b));
+        raw.on[i] = ptr (k::bandId ("on", b));
+        raw.solo[i] = ptr (k::bandId ("solo", b));
+    }
+
     const std::set<juce::String> excluded { k::bypass };
     presets = std::make_unique<ferb::PresetManager> (apvts, "DraMcPoti", mcpoti::factoryPresets(), excluded);
     ab = std::make_unique<ferb::AbCompare> (apvts, excluded);
@@ -18,7 +32,38 @@ DraMcPotiProcessor::DraMcPotiProcessor()
         apvts.state.setProperty ("presetName", presets->getFactoryNames()[0], nullptr);
 }
 
-void DraMcPotiProcessor::prepareToPlay (double, int) { setLatencySamples (0); }
+void DraMcPotiProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    engine.prepare (sampleRate, samplesPerBlock);
+    setLatencySamples (0); // la guarda y el sobremuestreo declararán la suya en las fases 3 y 4
+}
+
+mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
+{
+    mcpoti::Settings s;
+    s.inputDb = raw.input->load();
+    s.outputDb = raw.output->load();
+    s.mixPercent = raw.mix->load();
+    s.master = juce::roundToInt (raw.mode->load()) == k::Master;
+    s.era = juce::roundToInt (raw.era->load());
+    s.voice = juce::roundToInt (raw.voice->load());
+    s.tuneHz = raw.tune->load();
+    s.linkPercent = raw.link->load();
+    s.xo1 = raw.xo1->load();
+    s.xo2 = raw.xo2->load();
+    s.xo3 = raw.xo3->load();
+    s.delta = raw.delta->load() >= 0.5f;
+    for (size_t b = 0; b < k::numBands; ++b)
+    {
+        auto& band = s.bands[b];
+        band.drive = raw.drive[b]->load();
+        band.dyn = raw.dyn[b]->load();
+        band.level = raw.level[b]->load();
+        band.on = raw.on[b]->load() >= 0.5f;
+        band.solo = raw.solo[b]->load() >= 0.5f;
+    }
+    return s;
+}
 
 bool DraMcPotiProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
@@ -33,7 +78,7 @@ void DraMcPotiProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     juce::ScopedNoDenormals noDenormals;
     for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
-    // Fase 1: sin DSP, el audio pasa tal cual.
+    engine.process (buffer, readSettings());
 }
 
 int DraMcPotiProcessor::getNumPrograms() { return presets->getFactoryNames().size(); }

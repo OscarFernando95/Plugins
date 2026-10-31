@@ -14,6 +14,12 @@ juce_add_plugin(DraMcPoti
     AAX_CATEGORY AAX_ePlugInCategory_Harmonic
     COPY_PLUGIN_AFTER_BUILD TRUE)
 
+# Motor de DSP: sus fuentes se compilan dentro de cada destino que lo use (plugin y pruebas).
+add_library(mcpoti_dsp INTERFACE)
+target_sources(mcpoti_dsp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/source/dsp/McPotiEngine.cpp)
+target_include_directories(mcpoti_dsp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/source)
+target_link_libraries(mcpoti_dsp INTERFACE ferb_core juce::juce_audio_basics)
+
 target_sources(DraMcPoti PRIVATE
     source/Parameters.cpp
     source/Presets.cpp
@@ -28,7 +34,7 @@ target_compile_definitions(DraMcPoti PUBLIC
 
 target_link_libraries(DraMcPoti
     PRIVATE
-        ferb_core
+        mcpoti_dsp
         ferb_ui
         ferb_vintage
         juce::juce_audio_utils
@@ -39,6 +45,12 @@ target_link_libraries(DraMcPoti
         juce::juce_recommended_warning_flags)
 
 if(FERB_BUILD_TESTS)
+    add_executable(DraMcPotiTests tests/EngineTests.cpp)
+    target_compile_definitions(DraMcPotiTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    target_include_directories(DraMcPotiTests PRIVATE ${PROJECT_SOURCE_DIR}/tests/common)
+    target_link_libraries(DraMcPotiTests PRIVATE mcpoti_dsp juce::juce_dsp Catch2::Catch2WithMain)
+    add_test(NAME DraMcPotiTests COMMAND DraMcPotiTests)
+
     add_executable(DraMcPotiProcessorTests tests/ProcessorTests.cpp)
     target_compile_definitions(DraMcPotiProcessorTests PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_include_directories(DraMcPotiProcessorTests PRIVATE

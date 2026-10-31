@@ -6,8 +6,9 @@
 #include <PresetManager.h>
 
 #include "Parameters.h"
+#include "dsp/McPotiEngine.h"
 
-/** Fase 1: el audio pasa sin procesar. El motor (cruce, generadores, dinámica) llega en la fase 2. */
+/** Fase 2 en curso: el motor tiene cruce, caracteres Vintage y dinámica; el resto de la ficha va llegando. */
 class DraMcPotiProcessor : public juce::AudioProcessor
 {
 public:
@@ -43,10 +44,21 @@ public:
     ferb::PresetManager& getPresets() noexcept { return *presets; }
     ferb::AbCompare& getAb() noexcept { return *ab; }
 
+    mcpoti::McPotiEngine& getEngine() noexcept { return engine; }
+    mcpoti::Settings readSettings() const noexcept;
+
     juce::UndoManager undoManager;
     juce::AudioProcessorValueTreeState apvts;
 
 private:
+    /** Punteros a los valores de los parámetros, resueltos una vez: buscar por texto en el hilo de audio reservaría memoria. */
+    struct Raw
+    {
+        std::atomic<float> *input, *output, *mix, *mode, *era, *voice, *tune, *link, *xo1, *xo2, *xo3, *delta;
+        std::array<std::atomic<float>*, mcpoti::numBands> drive, dyn, level, on, solo;
+    } raw {};
+
+    mcpoti::McPotiEngine engine;
     std::unique_ptr<ferb::PresetManager> presets;
     std::unique_ptr<ferb::AbCompare> ab;
 
