@@ -41,6 +41,39 @@ struct Biquad
         return f;
     }
 
+    /** Paso bajo de segundo orden (RBJ). Con q = 1/√2 es Butterworth. */
+    static Biquad lowPass (double sampleRate, double freq, double q = 0.70710678118654752) noexcept
+    {
+        const double w0 = 2.0 * std::numbers::pi * freq / sampleRate;
+        const double cw = std::cos (w0), alpha = std::sin (w0) / (2.0 * q);
+        const double a0 = 1.0 + alpha;
+        Biquad f;
+        f.b0 = (1.0 - cw) / 2.0 / a0;
+        f.b1 = (1.0 - cw) / a0;
+        f.b2 = f.b0;
+        f.a1 = -2.0 * cw / a0;
+        f.a2 = (1.0 - alpha) / a0;
+        return f;
+    }
+
+    /** Paso alto de segundo orden (RBJ). Con q = 1/√2 es Butterworth. */
+    static Biquad highPass (double sampleRate, double freq, double q = 0.70710678118654752) noexcept
+    {
+        const double w0 = 2.0 * std::numbers::pi * freq / sampleRate;
+        const double cw = std::cos (w0), alpha = std::sin (w0) / (2.0 * q);
+        const double a0 = 1.0 + alpha;
+        Biquad f;
+        f.b0 = (1.0 + cw) / 2.0 / a0;
+        f.b1 = -(1.0 + cw) / a0;
+        f.b2 = f.b0;
+        f.a1 = -2.0 * cw / a0;
+        f.a2 = (1.0 - alpha) / a0;
+        return f;
+    }
+
+    /** Copia solo los coeficientes (conserva el estado), para cambiar la frecuencia sin saltos. */
+    void setCoefficients (const Biquad& o) noexcept { b0 = o.b0; b1 = o.b1; b2 = o.b2; a1 = o.a1; a2 = o.a2; }
+
     /** El filtro inverso (ceros y polos intercambiados). Estable si el original es de fase mínima. */
     Biquad inverse() const noexcept
     {
