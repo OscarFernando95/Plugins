@@ -398,6 +398,54 @@ TEST_CASE ("Robustez: silencio, continua, NaN, infinitos y subnormales; todas la
         }
 }
 
+// ───────────────────────────── Telemetría para la pantalla ─────────────────────────────
+
+TEST_CASE ("Telemetría: las bandas de la pantalla suman la potencia de la señal y el piso por banda sigue al ruido")
+{
+    const double fs = 48000.0;
+    const auto noise = sig::whiteNoise (int (fs * 6.0), -40.0, 81);
+    MaruEngine engine;
+    engine.prepare (fs, 256);
+    run (noise, {}, base (0.5f), fs, 256, &engine);
+    const auto& t = engine.getTelemetry();
+    double inPower = 0.0, noisePower = 0.0;
+    for (int b = 0; b < Telemetry::bands; ++b)
+    {
+        inPower += std::pow (10.0, t.input[size_t (b)].load() / 10.0);
+        noisePower += std::pow (10.0, t.noise[size_t (b)].load() / 10.0);
+    }
+    // Ruido blanco de −40 dBFS: las bandas de 100 Hz a 16 kHz recogen 15,9/24 de la potencia (−41,8 dB); las bandas se suavizan por abajo en el tiempo.
+    INFO ("entrada " << 10.0 * std::log10 (inPower) << " dB, piso " << 10.0 * std::log10 (noisePower) << " dB");
+    REQUIRE (10.0 * std::log10 (inPower) == Approx (-41.8).margin (2.0));
+    REQUIRE (10.0 * std::log10 (noisePower) == Approx (-41.8).margin (1.5));
+    // La salida está por debajo de la entrada (la supresión actúa) en todas las bandas con señal.
+    for (int b = 0; b < Telemetry::bands; ++b)
+        REQUIRE (t.output[size_t (b)].load() < t.input[size_t (b)].load() - 3.0f);
+    REQUIRE (t.reductionDb.load() > 5.0f);
+    REQUIRE (t.working.load());
+}
+
+TEST_CASE ("Telemetría del Gate: la reducción mostrada es la de la puerta y «trabajando» significa cerrada")
+{
+    const double fs = 48000.0;
+    MaruEngine engine;
+    engine.prepare (fs, 256);
+    Settings s;
+    s.gate = true;
+    s.gateAuto = false;
+    s.gateThreshDb = -40.0f;
+    s.rangeDb = 30.0f;
+    s.amount = 0.5f;
+    const auto quiet = sig::whiteNoise (int (fs * 2.0), -70.0, 3);
+    run (quiet, {}, s, fs, 256, &engine);
+    REQUIRE (engine.getTelemetry().working.load());
+    REQUIRE (engine.getTelemetry().reductionDb.load() == Approx (30.0).margin (1.5));
+    const auto loud = sig::whiteNoise (int (fs * 2.0), -20.0, 4);
+    run (loud, {}, s, fs, 256, &engine);
+    REQUIRE_FALSE (engine.getTelemetry().working.load());
+    REQUIRE (engine.getTelemetry().reductionDb.load() < 1.0f);
+}
+
 TEST_CASE ("El tamaño del bloque no cambia el resultado")
 {
     const double fs = 48000.0;

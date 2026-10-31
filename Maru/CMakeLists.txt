@@ -24,7 +24,8 @@ target_sources(Maru PRIVATE
     source/Parameters.cpp
     source/Presets.cpp
     source/PluginProcessor.cpp
-    source/PluginEditor.cpp)
+    source/PluginEditor.cpp
+    source/ui/MaruUi.cpp)
 
 target_include_directories(Maru PRIVATE source)
 target_compile_definitions(Maru PUBLIC

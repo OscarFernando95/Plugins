@@ -233,7 +233,7 @@ Lee la ficha técnica de Maru y crea el esqueleto del proyecto (M0): CMake con J
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) M2 (motor Gate) y M3 (parámetros, presets, A/B y deshacer). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) M2 (motor Gate) M3 (parámetros, presets, A/B y deshacer) y M4 (interfaz). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones**
 
@@ -320,3 +320,30 @@ Los valores de la tabla de mapeo (β, reducción por tramos 0 / 6 / 12 / 21 dB y
 | `processBlock` | Sin reservas | 0 reservas |
 | `auval -v aufx Maru Ferb` | Pasa | Pasa |
 | `pluginval` nivel 10, VST3 y AU, sin pruebas de interfaz | Pasa | Pasa (queda la corrida completa con interfaz en M5) |
+
+**Interfaz (M4)**
+
+- Replica la maqueta (1260 × 300, rack con orejas y tornillos): ventana del piso de ruido, palancas de Motor y Escuchar lo quitado, perilla grande Supresión (bisel de latón), fila de perillas del motor, vúmetro de atenuación, lámpara de joya, ventanas PISO y REDUCC. y selector de latencia. Captura: `FERB_SNAPSHOT_BLOCKS=500 ./build/Maru/MaruSnapshot salida.png 1.0 "Voz de podcast"` (voz sintética con pausas y ruido de fondo; `"Amplificador (gate)"` para el Gate), comparada con la maqueta renderizada con Chrome (`…html#maru`).
+- Los datos de la pantalla salen del propio motor (`Telemetry`: 32 bandas logarítmicas de 100 Hz a 16 kHz de entrada, salida y piso, más el piso global y la reducción), escritos por el hilo de audio sin bloqueos; no hace falta FFT en la interfaz ni anillos de muestras.
+- Interfaz con `Timer` a 30 Hz.
+
+**Cambios sobre la maqueta (interfaz)**
+
+| Tema | Maqueta | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Enlace estéreo | Palanca EST. / DUAL | **Perilla** «ENLACE» de 0 a 100 % en el hueco de la tercera palanca | El parámetro es continuo (ficha) |
+| Controles del Gate | Rango, Ataque, Hold, Histéresis y Release | Esos cinco, y una **segunda fila** solo en Gate: Sensibilidad, Lookahead, SC HP, SC LP y Umbral manual (atenuado con Auto), y los interruptores **UMBRAL AUTO** y **SIDECHAIN EXT.** bajo las palancas | La maqueta no tenía perilla para ellos |
+| Piso de ruido en la ventana | Línea horizontal con el piso global | Línea ámbar discontinua **por banda** (el piso que aprende, con su forma), más el valor global en la ventana PISO | Más informativo |
+| Lámpara en Gate | «Puerta abierta» / «cerrada» | Encendida con la puerta **abierta** | Como la maqueta |
+| Ventanas PISO y REDUCC. | 62 px | 72 px | Con 62 px el kit corta «−12,6» |
+| Vúmetro | −20 + reducción/30 · 23 · 1,1 | −20 + reducción/30 · 25,3, con inercia de aguja a 30 Hz y tope en +3 VU | Igual que la maqueta |
+
+**Resultados medidos de M4**
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Telemetría: las bandas suman la potencia del ruido (−41,8 dB para −40 dBFS en 100 Hz a 16 kHz) y el piso por banda lo sigue | ± 2 dB | Cumple |
+| Telemetría del Gate: reducción mostrada = Rango con la puerta cerrada y «trabajando» = cerrada | ± 1,5 dB | Cumple |
+| `MaruTests` (27 casos) y `MaruProcessorTests` (17 casos, con el editor abierto, redimensionado y cerrado, también sin `prepareToPlay`) | Sin fallos | Pasan |
+| `pluginval` nivel 10, VST3 y AU, **con** pruebas de interfaz | Pasa | Pasa |
+| `auval -v aufx Maru Ferb` | Pasa | Pasa |

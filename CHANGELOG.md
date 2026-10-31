@@ -19,6 +19,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - M1: estimador de piso de ruido (MCRA) y motor de Supresión espectral (STFT √Hann con solape-suma, ganancia LSA con decision-directed, protección de transitorios, enlace estéreo, latencia N exacta); `MaruTests`.
 - M2: motor Gate (detector con HP y LP o sidechain externo, umbral automático sobre el piso de ruido de la banda, histéresis, hold, ataque y release con rampa de coseno, lookahead, enlace estéreo, cambio sin clics con la Supresión).
 - M3: 19 parámetros (IDs fijados), 10 presets de fábrica, A/B y deshacer, latencia declarada por el procesador, sidechain.
+- M4: interfaz de rack completa (ventana del piso de ruido, palancas, perilla grande, vúmetro, lámpara, ventanas y selector de latencia) con los datos del motor por telemetría; segunda fila de controles en Gate.
 
 ## ChauS 1.0.0 — 2026-10-31
 

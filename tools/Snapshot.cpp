@@ -52,7 +52,7 @@ struct TestSignal
 };
 } // namespace
 
-#if FERB_PLUGIN_CHAUS
+#if FERB_PLUGIN_CHAUS || FERB_PLUGIN_MARU
 /** Voz sintética con eses: vocales (diente de sierra con formantes) y una «s» de ruido de 6 a 9 kHz cada 0,6 s. */
 struct VoiceSignal
 {
@@ -118,7 +118,7 @@ int main (int argc, char** argv)
     editor->setVisible (true);
 
     // Un par de segundos de audio, con la cola de eventos en marcha (los temporizadores del editor).
-#if FERB_PLUGIN_CHAUS
+#if FERB_PLUGIN_CHAUS || FERB_PLUGIN_MARU
     VoiceSignal signal;
 #else
     TestSignal signal;
@@ -129,7 +129,14 @@ int main (int argc, char** argv)
     {
         for (int i = 0; i < 512; ++i)
         {
-            const float v = signal.next (48000.0);
+            float v = signal.next (48000.0);
+#if FERB_PLUGIN_MARU
+            {   // palabras de 0,8 s con pausas de 0,5 s, y ruido de fondo de ≈ −50 dBFS
+                const double cyc = std::fmod (double (block * 512 + i) / 48000.0, 1.3);
+                const float word = cyc < 0.8 ? 1.0f : (cyc < 0.84 ? 1.0f - float ((cyc - 0.8) / 0.04) : 0.0f);
+                v = v * word + 0.003f * (signal.rng.nextFloat() * 3.46f - 1.73f);
+            }
+#endif
             buffer.setSample (0, i, v);
             buffer.setSample (1, i, v);
         }
@@ -137,6 +144,9 @@ int main (int argc, char** argv)
         juce::MessageManager::getInstance()->runDispatchLoopUntil (10);
     }
 
+#if FERB_PLUGIN_MARU
+    std::printf ("piso %.1f dB, reducción %.1f dB\n", double (processor.getTelemetry().noiseFloorDb.load()), double (processor.getTelemetry().reductionDb.load()));
+#endif
     const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
     juce::File out (argv[1]);
     out.deleteFile();
