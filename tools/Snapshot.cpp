@@ -9,6 +9,8 @@
 
 #if FERB_PLUGIN_POTY
 using Processor = PotyProcessor;
+#elif FERB_PLUGIN_CREMITA
+using Processor = CremitaProcessor;
 #else
 using Processor = TufiProcessor;
 #endif

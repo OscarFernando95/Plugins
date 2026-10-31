@@ -26,7 +26,7 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 
-private:
+protected:
     enum MenuId { save = 1, saveAs, remove, reveal, factoryBase = 1000, userBase = 2000 };
 
     void showMenu();

@@ -67,8 +67,8 @@ public:
     /** Medidores para la interfaz (valores lineales, calibrados como un VU: una senoidal marca su RMS). */
     float getInputLevel() const noexcept { return inputVu.level(); }
     float getOutputLevel() const noexcept { return outputVu.level(); }
-    /** Media de |salida − seco|, con la misma balística. */
-    float getEffectLevel() const noexcept { return effectVu.level(); }
+    /** Cambio medio de nivel que produce el efecto (procesado frente a seco, en dB, con balística de VU). */
+    float getEffectGainDb() const noexcept { return effectGainDb.load (std::memory_order_relaxed); }
     /** Pico antes del recorte final: la interfaz enciende la luz de sobrecarga con valores ≥ 1. */
     ferb::LevelMeter& getOverloadMeter() noexcept { return overloadMeter; }
     /** Pico de la entrada ya con Input: el punto de trabajo del gráfico de la curva. */
@@ -99,7 +99,8 @@ private:
     std::array<std::array<ferb::DelayLine, numBands>, maxChannels> dryDelay, wetDelay;
 
     ferb::ModeSwitch modeSwitch;
-    ferb::VuBallistics inputVu, outputVu, effectVu;
+    ferb::VuBallistics inputVu, outputVu, dryVu, processedVu;
+    std::atomic<float> effectGainDb { 0.0f };
     ferb::LevelMeter overloadMeter, workMeter;
     ferb::LoudnessMeter loudnessIn, loudnessOut;
     std::atomic<float> matchGainDb { 0.0f };
@@ -116,7 +117,7 @@ private:
     // Búferes de trabajo, reservados en prepare().
     std::array<std::vector<float>, maxChannels> work, dryAP, acc, rawOut, outBuf;
     std::array<std::vector<float>, numBands> bandIn, trimRamp;
-    std::vector<float> drySig, osIn, osOut, wetBase, effectRect;
+    std::vector<float> drySig, osIn, osOut, wetBase, dryRect, processedRect;
     std::vector<CurveParams> params;
     std::vector<float> inRamp, outRamp, effectRamp, bypassRamp, matchRamp;
 };

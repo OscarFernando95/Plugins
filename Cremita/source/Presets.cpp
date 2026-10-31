@@ -39,10 +39,10 @@ std::vector<ferb::PresetManager::Factory> factoryPresets()
     using namespace params;
     return {
         make ("Init", {}),
-        make ("Mezcla suave", { .effect = 50.0f, .bias = 10.0f }),
-        make ("Presencia vocal", { .effect = 70.0f, .curve = 20.0f, .bias = 20.0f, .split = true, .trimLF = -3.0f, .trimMF = 2.0f, .trimHF = 1.0f }),
-        make ("Bus de batería", { .curve = 30.0f, .split = true, .xo1 = 150.0f, .xo2 = 2500.0f, .trimLF = 2.0f, .trimHF = -1.0f }),
-        make ("Pegamento de master", { .effect = 60.0f, .curve = 10.0f, .bias = 5.0f, .os = Os4x, .match = true }),
+        make ("Mezcla suave", { .effect = 70.0f, .curve = -10.0f, .bias = 15.0f, .match = true }),
+        make ("Presencia vocal", { .input = 2.0f, .effect = 80.0f, .curve = 10.0f, .bias = 30.0f, .match = true, .output = -1.0f }),
+        make ("Bus de batería", { .input = 3.0f, .curve = 20.0f, .bias = 10.0f, .split = true, .match = true, .output = -2.0f }),
+        make ("Pegamento de master", { .input = 4.0f, .split = true, .clip = false, .ms = true, .output = -3.0f }),
         make ("Bajo grueso", { .curve = 35.0f, .bias = 40.0f, .split = true, .xo1 = 120.0f, .trimLF = 3.0f, .trimHF = -4.0f }),
         make ("Guitarra viva", { .effect = 80.0f, .curve = 25.0f, .bias = 30.0f, .split = true, .xo1 = 250.0f, .xo2 = 4000.0f, .trimLF = -2.0f, .trimMF = 2.0f, .trimHF = 2.0f }),
         make ("Clásico", { .curve = 0.0f }),

@@ -53,7 +53,7 @@ TEST_CASE ("Cremita: los 10 presets de fábrica cargan y Init equivale a los val
     }
 
     REQUIRE (p.getPresets().load ("Presencia vocal"));
-    REQUIRE (real (p, "curve") == Catch::Approx (20.0f));
+    REQUIRE (real (p, "curve") == Catch::Approx (10.0f));
     REQUIRE (p.getPresets().load ("Init"));
     REQUIRE (real (p, "curve") == Catch::Approx (0.0f));
     REQUIRE (real (p, "effect") == Catch::Approx (100.0f));

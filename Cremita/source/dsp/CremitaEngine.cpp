@@ -45,7 +45,8 @@ void CremitaEngine::prepare (double newSampleRate, int)
         v.assign (idx (chunkSize), 1.0f);
     drySig.assign (idx (chunkSize), 0.0f);
     wetBase.assign (idx (chunkSize), 0.0f);
-    effectRect.assign (idx (chunkSize), 0.0f);
+    dryRect.assign (idx (chunkSize), 0.0f);
+    processedRect.assign (idx (chunkSize), 0.0f);
     osIn.assign (idx (osMax), 0.0f);
     osOut.assign (idx (osMax), 0.0f);
     params.assign (idx (chunkSize), CurveParams {});
@@ -80,7 +81,7 @@ void CremitaEngine::prepare (double newSampleRate, int)
 
     modeSwitch.prepare (sampleRate, switchFadeSeconds, switchHoldSamples);
 
-    for (auto* v : { &inputVu, &outputVu, &effectVu })
+    for (auto* v : { &inputVu, &outputVu, &dryVu, &processedVu })
         v->prepare (sampleRate);
     loudnessIn.prepare (sampleRate, 2);
     loudnessOut.prepare (sampleRate, 2);
@@ -110,8 +111,9 @@ void CremitaEngine::reset()
     applyStructure (1 | 16); // 2×, completa, estéreo, clip: se corrige en el primer bloque
     modeSwitch.reset (1 | 16);
 
-    for (auto* v : { &inputVu, &outputVu, &effectVu })
+    for (auto* v : { &inputVu, &outputVu, &dryVu, &processedVu })
         v->reset();
+    effectGainDb.store (0.0f);
     overloadMeter.reset();
     workMeter.reset();
     loudnessIn.reset();
@@ -405,21 +407,29 @@ void CremitaEngine::processChunk (juce::AudioBuffer<float>& chunk, const Setting
             const float dm = g * dryAP[0][idx (i)], ds = g * dryAP[1][idx (i)];
             outBuf[0][idx (i)] = dm + ds + wm + ws;
             outBuf[1][idx (i)] = dm - ds + wm - ws;
-            effectRect[idx (i)] = 0.5f * (std::abs (wm + ws) + std::abs (wm - ws));
+            dryRect[idx (i)] = 0.5f * (std::abs (dm + ds) + std::abs (dm - ds));
         }
         else
         {
-            float rect = 0.0f;
+            float dry = 0.0f;
             for (int ch = 0; ch < channels; ++ch)
             {
-                const float wv = e * acc[idx (ch)][idx (i)];
-                outBuf[idx (ch)][idx (i)] = g * dryAP[idx (ch)][idx (i)] + wv;
-                rect += std::abs (wv);
+                const float dv = g * dryAP[idx (ch)][idx (i)];
+                outBuf[idx (ch)][idx (i)] = dv + e * acc[idx (ch)][idx (i)];
+                dry += std::abs (dv);
             }
-            effectRect[idx (i)] = rect / static_cast<float> (channels);
+            dryRect[idx (i)] = dry / static_cast<float> (channels);
         }
+
+        float processed = 0.0f;
+        for (int ch = 0; ch < channels; ++ch)
+            processed += std::abs (outBuf[idx (ch)][idx (i)]);
+        processedRect[idx (i)] = processed / static_cast<float> (channels);
     }
-    effectVu.processRectified (effectRect.data(), n);
+    dryVu.processRectified (dryRect.data(), n);
+    processedVu.processRectified (processedRect.data(), n);
+    effectGainDb.store (dryVu.level() > 1e-5f ? 20.0f * std::log10 (std::max (processedVu.level(), 1e-9f) / dryVu.level()) : 0.0f,
+                        std::memory_order_relaxed);
 
     {
         const float* ptrs[2] = { outBuf[0].data(), outBuf[channels > 1 ? 1 : 0].data() };

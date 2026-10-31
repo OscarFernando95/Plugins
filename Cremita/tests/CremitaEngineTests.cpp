@@ -415,20 +415,20 @@ TEST_CASE ("Igualar sonoridad: la salida queda a ±0,2 LU de la entrada")
     }
 }
 
-TEST_CASE ("Medidores: el de efecto marca 0 con Efecto 0 y el de sobrecarga avisa sobre 0 dBFS")
+TEST_CASE ("Medidores: el de efecto marca 0 dB con Efecto 0 y sube con la curva; el de sobrecarga avisa sobre 0 dBFS")
 {
     cremita::CremitaEngine engine;
     engine.prepare (48000.0, block);
     auto s = base();
     s.effectPercent = 0.0f;
     run (engine, sine (48000, 1000.0, 48000.0, 0.5), s);
-    CHECK (engine.getEffectLevel() < 1e-6f);
+    CHECK (std::abs (engine.getEffectGainDb()) < 0.01f);
     CHECK (engine.getInputLevel() == Approx (0.5f / std::sqrt (2.0f)).epsilon (0.03)); // la cola de ceros de `run` baja el VU ~1,5 %
 
     s.effectPercent = 100.0f;
     s.curve = 50.0f;
     run (engine, sine (48000, 1000.0, 48000.0, 0.5), s);
-    CHECK (engine.getEffectLevel() > 0.01f);
+    CHECK (engine.getEffectGainDb() > 1.0f);
 
     engine.getOverloadMeter().consume();
     s.inputDb = 12.0f;

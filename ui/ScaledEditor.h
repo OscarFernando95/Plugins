@@ -12,18 +12,18 @@ class ScaledEditor : public juce::AudioProcessorEditor
 public:
     static constexpr double minScale = 0.6, maxScale = 2.0;
 
-    ScaledEditor (juce::AudioProcessor& p, juce::ValueTree stateTree, int baseWidth, int baseHeight)
-        : AudioProcessorEditor (p), state (std::move (stateTree)), baseW (baseWidth), baseH (baseHeight)
+    ScaledEditor (juce::AudioProcessor& p, juce::ValueTree stateTree, int baseWidth, int baseHeight, double minimumScale = minScale)
+        : AudioProcessorEditor (p), state (std::move (stateTree)), baseW (baseWidth), baseH (baseHeight), lowestScale (minimumScale)
     {
         addAndMakeVisible (content);
         content.setBounds (0, 0, baseW, baseH);
 
         setResizable (true, true);
-        setResizeLimits (juce::roundToInt (baseW * minScale), juce::roundToInt (baseH * minScale),
+        setResizeLimits (juce::roundToInt (baseW * lowestScale), juce::roundToInt (baseH * lowestScale),
                          juce::roundToInt (baseW * maxScale), juce::roundToInt (baseH * maxScale));
         getConstrainer()->setFixedAspectRatio (static_cast<double> (baseW) / baseH);
 
-        const double saved = juce::jlimit (minScale, maxScale, static_cast<double> (state.getProperty ("uiScale", 1.0)));
+        const double saved = juce::jlimit (lowestScale, maxScale, static_cast<double> (state.getProperty ("uiScale", 1.0)));
         setSize (juce::roundToInt (baseW * saved), juce::roundToInt (baseH * saved));
         ready = true;
     }
@@ -50,6 +50,7 @@ protected:
 private:
     juce::ValueTree state;
     int baseW, baseH;
+    double lowestScale;
     bool ready = false;
 };
 } // namespace ferb
