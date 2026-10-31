@@ -420,3 +420,16 @@ Fecha: 31 oct 2026. Implementados M0 a M5. Quedan el AAX (M5, sin SDK), M6 (ajus
 | Latencia = lookahead | Cumple (exacta) |
 
 **Pendiente (M6 y más allá):** reajustar los pesos del clasificador con grabaciones de voz con eses duras (masculinas y femeninas) y volver a medir las metas de detección; probar a mano en Ableton, Logic y Pro Tools; AAX cuando haya SDK; comparar de oído con un de-esser de referencia a la misma reducción media (la «escucha» de la sección 8, que no se hizo); afinar de oído Q automática, liberación automática, clase de sibilante y presets.
+
+**Audio real (31 oct 2026, segunda pasada)** — 14 pistas de la sesión «Luna - Zoe (By Maru)» (mono, 48 kHz, 24 bits; la de karaoke, estéreo de 16 bits). Herramienta: `CHAUS_REAL_FILE=… CHAUS_REAL_OUT=… ./build/ChauS/ChauSTests "[.real]"` (solo lee el archivo; escribe CSV y el audio procesado). **No hay etiquetas**: lo que sigue combina una regla independiente y mi revisión a ojo de espectrogramas, no una anotación hecha por oído.
+
+| Qué | Resultado |
+| --- | --- |
+| Instrumentos (9 pistas continuas `Luna - Zoe_NN`, ≈ 15 min) | 0 activaciones salvo 0,13 % en una pista (≈ 1 evento) |
+| Voces (LEAD 1 ×2 y REFUERZOS ×3, ≈ 9 min): ritmo de eventos | 13 a 24 por minuto, de 100 a 145 ms de mediana; centroide en 7,2 a 8,7 kHz (dentro de HP–LP por defecto) |
+| Candidatos de una regla independiente (ráfagas de 6–16 kHz entre el 15 % más brillante, ≥ 40 ms) | 115 de 121 detectados (95 %; por pista 93 a 100 %). De los 6 no detectados, 4 parecen «s» reales cortas o suaves en el espectrograma |
+| Eventos sin candidato (33) | La mayoría son «s» finales de frase, más suaves; unos pocos, muy cortos (< 30 ms: 10 a 20 % de los eventos de cada voz), parecen plosivas o chasquidos |
+| **Karaoke con batería real** (269 s) | 12 activaciones (1,2 % del tiempo), en entradas de platillo crash y barridos anchos. **El patrón de hi-hat (varios golpes por segundo) no activó nada**: el falso positivo del hi-hat con audio real es mucho menor que con mi señal sintética |
+| Reducción con los ajustes por defecto (Umbral −30, Rango 8) sobre una voz principal | Media de **1,1 dB** dentro de los eventos y > 3 dB solo en el 0,4 % del tiempo: por defecto casi no actúa (el Umbral −30 es «justo en la referencia»; con −40 y Rango 10, 5,3 dB de media y > 3 dB en el 2,1 %) |
+
+**Lectura honesta:** sobre voz real, el detector reconoce las «s» claras y no se dispara con instrumentos ni con un hi-hat real; el «95 % de aciertos» no se puede certificar sin anotar todas las «s» (el 95 % anterior es sobre candidatos fáciles, no sobre todas). Quedan por decidir: (1) una duración mínima del evento o un filtro de transitorios para plosivas y chasquidos (10–20 % de los eventos son < 30 ms); (2) si el Umbral por defecto debe actuar más.

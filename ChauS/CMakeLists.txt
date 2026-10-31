@@ -48,7 +48,7 @@ target_link_libraries(ChauS
         juce::juce_recommended_warning_flags)
 
 if(FERB_BUILD_TESTS)
-    add_executable(ChauSTests tests/ChauSEngineTests.cpp tests/DynamicEqTests.cpp tests/TrainClassifier.cpp)
+    add_executable(ChauSTests tests/ChauSEngineTests.cpp tests/DynamicEqTests.cpp tests/TrainClassifier.cpp tests/RealAudio.cpp)
     target_include_directories(ChauSTests PRIVATE ${PROJECT_SOURCE_DIR}/tests/common)
     target_compile_definitions(ChauSTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_link_libraries(ChauSTests PRIVATE chaus_dsp juce::juce_dsp Catch2::Catch2WithMain)
