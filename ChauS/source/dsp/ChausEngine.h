@@ -41,6 +41,7 @@ struct Settings
     bool listenTrigger = false;
     bool listenSidechain = false;
     float outputDb = 0.0f;       // −12 a +12
+    float eventRampMs = 8.0f;    // la reducción entra con (edad del evento / rampa)²: una plosiva o chasquido de menos de ~15 ms no se trata (0 = sin rampa)
     bool bypass = false;
 };
 
@@ -158,7 +159,7 @@ private:
 
         // reducción
         float rawDb = 0.0f, smoothDb = 0.0f, linkedDb = 0.0f, gate = 0.0f;
-        long eventSamples = 0, lastEventSamples = 0;
+        long eventSamples = 0, lastEventSamples = 0, activeAge = 0;
         float shapeWeight = 0.0f; // 0 = campana, 1 = estante
         float lastLevelDb = -120.0f, lastThresholdDb = 0.0f, lastScore = 0.0f;
         SibilanceDetector::Output tick {};

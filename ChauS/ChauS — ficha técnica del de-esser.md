@@ -433,3 +433,13 @@ Fecha: 31 oct 2026. Implementados M0 a M5. Quedan el AAX (M5, sin SDK), M6 (ajus
 | Reducción con los ajustes por defecto (Umbral −30, Rango 8) sobre una voz principal | Media de **1,1 dB** dentro de los eventos y > 3 dB solo en el 0,4 % del tiempo: por defecto casi no actúa (el Umbral −30 es «justo en la referencia»; con −40 y Rango 10, 5,3 dB de media y > 3 dB en el 2,1 %) |
 
 **Lectura honesta:** sobre voz real, el detector reconoce las «s» claras y no se dispara con instrumentos ni con un hi-hat real; el «95 % de aciertos» no se puede certificar sin anotar todas las «s» (el 95 % anterior es sobre candidatos fáciles, no sobre todas). Quedan por decidir: (1) una duración mínima del evento o un filtro de transitorios para plosivas y chasquidos (10–20 % de los eventos son < 30 ms); (2) si el Umbral por defecto debe actuar más.
+
+**Cierre con audio real (31 oct 2026, tercera pasada)**
+
+| Cambio | Antes → ahora | Medido con las grabaciones |
+| --- | --- | --- |
+| Reducción por defecto | Umbral −30 y Rango 8 → **Umbral −36 y Rango 10** (`thr` y `range`) | Reducción media en las «s» de las voces de 1,1 dB a 2,4–3,0 dB (picos de 10 dB); instrumentos, 0 activaciones |
+| Presets de voz | Valores de la maqueta → Umbral −6 dB y Rango +2 dB (Voz masculina −36/10, Voz femenina −36/11, Locución −40/8, Rap −38/12, Coros −38/9, Voz agresiva −32/16, Podcast −39/9); Batería y Mezcla completa (modo General) sin cambio | Los presets de la maqueta casi no actuaban sobre una voz real |
+| Plosivas y chasquidos | Reducción inmediata → **entrada progresiva** `(edad / 8 ms)²` (`Settings::eventRampMs`, no es un parámetro) | Pico de reducción en eventos < 20 ms: 0,92 → 0,25 dB; en «s» de ≥ 80 ms: 4,21 → 4,17 dB (media 2,62 → 2,54). Costo sintético: faltante máximo con lookahead de 10 ms 3,3 → 3,7 dB. Con 15 ms: 0,07 dB y 4,7 dB de faltante; con 30 ms se pierde demasiado al principio de la «s» |
+
+Estado de las metas tras la prueba con audio real: el hi-hat real no activa el detector (meta cumplida con audio real; con mi hi-hat sintético de ruido blanco, no); los chasquidos y plosivas casi no reciben reducción; el 95 % de aciertos sigue sin certificarse (no hay etiquetas por oído). Queda a tu oído: ajustar HP, LP, Umbral y la sensibilidad con tus grabaciones.

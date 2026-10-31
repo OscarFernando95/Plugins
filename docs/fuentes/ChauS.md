@@ -76,8 +76,8 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 
 | Control | Qué hace | Rango (defecto) |
 | --- | --- | --- |
-| **Umbral** | Con *Umbral adaptativo*, −30 dB significa «justo en la referencia» (las eses típicas de esa voz) y cada dB menos baja el umbral un dB. Sin adaptativo es el nivel absoluto de la banda | −60 a 0 dB (−30) |
-| **Rango** | Reducción máxima | 0 a 24 dB (8) |
+| **Umbral** | Con *Umbral adaptativo*, −30 dB significa «justo en la referencia» (las eses típicas de esa voz) y cada dB menos baja el umbral un dB; el valor de fábrica, −36, trata también las eses algo por debajo de la típica. Sin adaptativo es el nivel absoluto de la banda | −60 a 0 dB (−36) |
+| **Rango** | Reducción máxima | 0 a 24 dB (10) |
 | **Modo** | *Voz sola* usa el clasificador de sibilantes; *General* solo compara la energía de la banda con el umbral | Voz sola |
 | **Banda** | *Dividida* baja solo la banda de la «s» con un filtro; *Ancha* baja todo el audio | Dividida |
 | **Estéreo** | L/R (cada canal con su detector, enlazados), Mid o Side (se procesa solo ese componente) | L/R |
@@ -133,22 +133,22 @@ El selector de la cabecera tiene flechas y un menú con los presets de fábrica,
 | Preset | Ajustes respecto de Init |
 | --- | --- |
 | **Init** | Valores de fábrica |
-| **Voz masculina** | HP 3,5 kHz, LP 11 kHz |
-| **Voz femenina** | Rango 9 dB, HP 5 kHz, LP 14 kHz |
-| **Locución** | Umbral −34, Rango 6, S suaves −1, Lookahead 12 ms |
-| **Rap** | Umbral −32, Rango 10, LP 13 kHz, S duras +1, Lookahead 8 ms |
-| **Coros** | Umbral −32, Rango 7, HP 4,5 kHz |
-| **Voz agresiva** | Umbral −26, Rango 14, HP 4,5 kHz, LP 13 kHz, S duras +2, Lookahead 8 ms |
-| **Podcast** | Umbral −33, Rango 7, HP 3,5 kHz, LP 11 kHz, Lookahead 12 ms |
+| **Voz masculina** | HP 3,5 kHz, LP 11 kHz (Umbral −36 y Rango 10, los de Init) |
+| **Voz femenina** | Rango 11 dB, HP 5 kHz, LP 14 kHz |
+| **Locución** | Umbral −40, Rango 8, S suaves −1, Lookahead 12 ms |
+| **Rap** | Umbral −38, Rango 12, LP 13 kHz, S duras +1, Lookahead 8 ms |
+| **Coros** | Umbral −38, Rango 9, HP 4,5 kHz |
+| **Voz agresiva** | Umbral −32, Rango 16, HP 4,5 kHz, LP 13 kHz, S duras +2, Lookahead 8 ms |
+| **Podcast** | Umbral −39, Rango 9, HP 3,5 kHz, LP 11 kHz, Lookahead 12 ms |
 | **Batería (platillos)** | Modo General, Umbral absoluto −26, Rango 6, HP 6 kHz, LP 16 kHz, sin seguir la s, Lookahead 5 ms |
 | **Mezcla completa** | Modo General, banda ancha, Umbral −28, Rango 5, HP 6 kHz, LP 16 kHz, Lookahead 6 ms |
 
-Los presets del usuario son archivos `.ferbpreset` (XML) en la carpeta indicada arriba. Voz masculina, Voz femenina, Locución, Voz agresiva y Mezcla completa usan los valores de la maqueta de diseño; los otros cinco son valores iniciales. Un preset carga solo los parámetros que menciona; el resto vuelve a su valor de fábrica.
+Los presets del usuario son archivos `.ferbpreset` (XML) en la carpeta indicada arriba. Los presets de voz parten de los valores de la maqueta de diseño con el Umbral 6 dB más bajo y el Rango 2 dB más alto (con los de la maqueta la reducción sobre una voz real era de 1 dB de media); Batería y Mezcla completa quedan como en la maqueta; el resto son valores iniciales. Un preset carga solo los parámetros que menciona; el resto vuelve a su valor de fábrica.
 
 ## Consejos de uso
 
 - **Empieza con el oído:** *Escuchar disparo* enseña si la banda y el umbral están bien. Si oyes sílabas «t», «k» o consonantes, sube el Umbral o acerca HP y LP a la zona de la «s».
-- **Más reducción:** con el valor por defecto (−30), solo las eses que pasan de la referencia (el percentil 90) se reducen del todo; baja el Umbral para tratar más eses.
+- **Más o menos reducción:** el valor de fábrica (Umbral −36, Rango 10) reduce unos 3 dB de media las eses de una voz cantada. Baja el Umbral para tratar más eses y sube el Rango para permitir más reducción; con −30, solo las que pasan de la referencia (el percentil 90) se reducen del todo.
 - **Voces femeninas o muy brillantes:** sube HP y LP (5 y 14 kHz) y prueba la forma Estante si la «s» cae por encima de 9 kHz.
 - **Mezclas:** modo General con banda ancha y Rango bajo para suavizar el exceso de agudos de un bus (la sonoridad general baja con la reducción).
 - **Lookahead:** 10 ms suele ir bien en voz. Con 0 el detector necesita unos 5 ms para reconocer la «s» y el principio de cada una pasa sin tratar.
@@ -163,9 +163,9 @@ Todos los parámetros pasan por `AudioProcessorValueTreeState` con identificador
 | ID | Nombre | Tipo | Rango | Defecto | Notas |
 | --- | --- | --- | --- | --- | --- |
 | `mode` | Modo | Lista | Voz sola / General | Voz sola | General solo compara energía con el umbral |
-| `thr` | Umbral | Decimal | −60 a 0 dB | −30 | Con *Adaptativo*, −30 = en la referencia |
+| `thr` | Umbral | Decimal | −60 a 0 dB | −36 | Con *Adaptativo*, −30 = en la referencia |
 | `adaptive` | Umbral adaptativo | Sí/No | | Encendido | Referencia: percentil 90 de las s de 5 s |
-| `range` | Rango | Decimal | 0 a 24 dB | 8 | Reducción máxima |
+| `range` | Rango | Decimal | 0 a 24 dB | 10 | Reducción máxima |
 | `hp` | Filtro HP | Decimal | 2 a 12 kHz | 4000 | Escala logarítmica |
 | `lp` | Filtro LP | Decimal | 5 a 20 kHz | 12000 | Escala logarítmica |
 | `track` | Seguir la s | Sí/No | | Encendido | Apagado: centro de la banda |
@@ -224,6 +224,8 @@ Se guarda el pico de nivel de banda de cada evento (una racha de «activo», de 
 ## Reducción y balística
 
 `reducción = exceso (nivel − umbral efectivo)` con una rodilla suave de 3 dB, limitada por Rango, y solo mientras la sibilante está activa (en *General*, siempre). Con dos canales, la reducción de cada uno es una mezcla de la propia y la mayor de las dos, según el Enlace. La reducción se suaviza en dB: **ataque de 0,5 ms** y liberación de 10 a 60 ms (un cuarto de la duración de la s) o la fijada.
+
+**Entrada progresiva.** La reducción de una sibilante se multiplica por `(edad del evento / 8 ms)²` (hasta 1), donde la edad es el tiempo seguido «activo». Un chasquido o una plosiva de menos de 8 ms casi no se trata; una «s» de 100 ms recibe casi toda su reducción. Con audio real: la reducción de pico en eventos de menos de 20 ms baja de 0,92 a 0,25 dB y en las «s» (≥ 80 ms) pasa de 4,21 a 4,17 dB; con 15 ms y 30 ms la protección es mayor pero se pierde demasiado al principio de cada «s» (el faltante sintético sube de 3,3 a 4,7 dB con 15 ms).
 
 ## Aplicación
 
@@ -285,13 +287,14 @@ Medidas a 48 kHz, estéreo y bloque de 256 salvo que se diga. Las señales de pr
 | **Hi-hat sintético** | Menos de 5 % | **No se cumple:** 12,5 % del tiempo y 33 % de los golpes (hi-hat metálico); 35 % y 77 % si lleva mucho ruido blanco filtrado |
 | **«t» sintética** | Menos de 5 % | **No se cumple:** 10,9 % del tiempo de la ráfaga; 70 % de las «t» activan alguna vez |
 | Voces del sistema (macOS `say`, español; 188 palabras) | Informe | Activa en las 72 palabras con «s» (100 %); en 25 de las 92 sin «s» (27 %: sobre todo «t», «k», «p», «d») con 0,7 % del tiempo activo; en 14 de 24 con «f» o «j» |
+| **Audio real** (14 pistas de una sesión, 12 min de voz y 15 min de instrumentos; sin etiquetas) | Informe | Voces: 13 a 24 eventos por minuto (≈ 125 ms, 7–9 kHz); una regla independiente de ráfagas halló 121 candidatos y el detector cogió 115 (95 %). Instrumentos: 0 activaciones. Karaoke con batería real (269 s): el hi-hat no activa nada; 12 activaciones con platillos crash. Con los valores de fábrica, reducción media de 2,4 a 3,0 dB en las eses de las voces (picos de 10 dB) |
 | Seguimiento de una s que sube de 6 a 9 kHz | Error medio < 300 Hz | 84 Hz (44,1 kHz), 95 Hz (48 kHz) y 189 Hz (96 kHz) |
 | Rango 0 (todas las combinaciones de banda, estéreo y forma) | Salida idéntica a la entrada retrasada | Por debajo de −110 dBFS |
 | Rango | La reducción nunca lo supera | Máximo ≤ Rango + 0,001 dB; llega a Rango − 0,5 dB con eses fuertes |
 | Banda dividida, Rango 24 | Fuera de banda, < 0,5 dB | Por debajo de 2 kHz: −0,02 dB; la banda de la s baja 13,0 a 13,2 dB |
 | Umbral adaptativo, misma frase a −6 y −12 dB | Diferencia < 1,5 dB | 0,00 dB (44,1 kHz) y 0,04 dB (48 kHz) |
 | Lookahead de 10 ms: 90 % de la meseta antes del pico de la s | Todas | Todas las eses medidas, a 44,1, 48 y 96 kHz |
-| **Retraso entre el inicio de la s y el 90 % de la reducción** | 0 ms | **No se cumple (+18,5 ms con 10 ms de lookahead):** la reducción es 1:1 sobre el exceso y la s de mi modelo tarda ≈ 30 ms en subir. Lo que falta por quitar en cada instante baja de 5,3 dB (sin lookahead) a 3,3 dB (10 ms), con 0,5 ms por encima de 3 dB |
+| **Retraso entre el inicio de la s y el 90 % de la reducción** | 0 ms | **No se cumple (+18,5 ms con 10 ms de lookahead):** la reducción es 1:1 sobre el exceso y la s de mi modelo tarda ≈ 30 ms en subir. Lo que falta por quitar en cada instante baja de 6,8 dB (sin lookahead) a 3,7 dB (10 ms), con 1,5 ms por encima de 3 dB |
 | Enlace 100 %; Mid y Side | Misma reducción en L y R; solo cambia el componente elegido | Idéntica muestra a muestra; el otro componente sale idéntico (< −110 dBFS) |
 | Latencia, impulso | Medida igual a la declarada | Exacta con 0, 4, 10 y 15 ms a 44,1, 48 y 96 kHz |
 | Sin clics (20 controles y cambios de estructura) | ≤ 1,3 veces la señal estable | Cumple |

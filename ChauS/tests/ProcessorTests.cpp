@@ -68,8 +68,8 @@ TEST_CASE ("ChauS: los 24 parámetros tienen los IDs de la ficha y ninguno se pe
         REQUIRE (p.apvts.getParameter (id) != nullptr);
     }
     // Valores por defecto de la ficha.
-    REQUIRE (real (p, "thr") == Catch::Approx (-30.0f));
-    REQUIRE (real (p, "range") == Catch::Approx (8.0f));
+    REQUIRE (real (p, "thr") == Catch::Approx (-36.0f));
+    REQUIRE (real (p, "range") == Catch::Approx (10.0f));
     REQUIRE (real (p, "hp") == Catch::Approx (4000.0f).margin (10.0f));
     REQUIRE (real (p, "lp") == Catch::Approx (12000.0f).margin (10.0f));
     REQUIRE (real (p, "look") == Catch::Approx (10.0f));
@@ -148,14 +148,14 @@ TEST_CASE ("ChauS: los 10 presets de fábrica cargan, se ven como programas del 
         REQUIRE_FALSE (p.getPresets().isModified());
     }
     p.setCurrentProgram (6); // Voz agresiva
-    REQUIRE (real (p, "thr") == Catch::Approx (-26.0f));
-    REQUIRE (real (p, "range") == Catch::Approx (14.0f));
+    REQUIRE (real (p, "thr") == Catch::Approx (-32.0f));
+    REQUIRE (real (p, "range") == Catch::Approx (16.0f));
     REQUIRE (real (p, "sensHard") == Catch::Approx (2.0f));
     p.setCurrentProgram (9); // Mezcla completa: General y banda ancha
     REQUIRE (juce::roundToInt (real (p, "mode")) == 1);
     REQUIRE (juce::roundToInt (real (p, "band")) == 1);
     p.setCurrentProgram (0);
-    REQUIRE (real (p, "thr") == Catch::Approx (-30.0f));
+    REQUIRE (real (p, "thr") == Catch::Approx (-36.0f));
     REQUIRE (juce::roundToInt (real (p, "mode")) == 0);
     REQUIRE (juce::roundToInt (real (p, "band")) == 0);
     REQUIRE (real (p, "hp") == Catch::Approx (4000.0f).margin (10.0f));

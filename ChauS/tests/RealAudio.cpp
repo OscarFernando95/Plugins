@@ -1,5 +1,5 @@
 // Herramienta de estudio con grabaciones reales (no es una prueba):
-//   CHAUS_REAL_FILE=<wav> CHAUS_REAL_OUT=<prefijo> [CHAUS_THR=-30 CHAUS_RANGE=8 CHAUS_HP=.. CHAUS_LP=..] ./build/ChauS/ChauSTests "[.real]"
+//   CHAUS_REAL_FILE=<wav> CHAUS_REAL_OUT=<prefijo> [CHAUS_THR=-36 CHAUS_RANGE=10 CHAUS_RAMP=15 CHAUS_HP=.. CHAUS_LP=..] ./build/ChauS/ChauSTests "[.real]"
 // Lee el WAV (16 o 24 bits; si es estéreo, el canal izquierdo), pasa el audio por el motor y escribe:
 //   <prefijo>.csv       un renglón por salto de 128 muestras: tiempo, nivel de banda, umbral, reducción, frecuencia, puntuación, activo
 //   <prefijo>_feat.csv  los rasgos de cada cuadro del detector
@@ -99,11 +99,12 @@ TEST_CASE ("Audio real: volcado y procesado de un archivo", "[.real]")
     REQUIRE (readWavMono (file, x, fs));
 
     chaus::Settings s;
-    s.thresholdDb = envOr ("CHAUS_THR", -30.0f);
-    s.rangeDb = envOr ("CHAUS_RANGE", 8.0f);
+    s.thresholdDb = envOr ("CHAUS_THR", -36.0f);
+    s.rangeDb = envOr ("CHAUS_RANGE", 10.0f);
     s.hpHz = envOr ("CHAUS_HP", 4000.0f);
     s.lpHz = envOr ("CHAUS_LP", 12000.0f);
     s.lookaheadMs = envOr ("CHAUS_LOOK", 10.0f);
+    s.eventRampMs = envOr ("CHAUS_RAMP", 8.0f);
     s.voiceMode = envOr ("CHAUS_GENERAL", 0.0f) < 0.5f;
 
     const int latency = chaus::ChausEngine::latencyFor (s, fs);

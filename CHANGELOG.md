@@ -21,6 +21,7 @@ De-esser con EQ dinámico que sigue la sibilante (VST3 y AU). Reúne los hitos M
 - EQ dinámico: campana o estante con seguimiento de frecuencia y de ancho, banda ancha, lookahead de 0 a 15 ms con la latencia informada, enlace estéreo, Mid y Side, sidechain externo, escuchas de sidechain y de disparo, salida y bypass del anfitrión.
 - 24 parámetros (IDs fijados), 10 presets de fábrica, A/B, deshacer y rehacer; interfaz de la maqueta con espectro por bandas de 1/6 de octava, la campana real del filtro y una línea de tiempo de 3 s, más un menú de ajustes avanzados.
 - Sin clics, sin reservas de memoria en `processBlock` y CPU de 0,6 % (estéreo, 48 kHz).
+- Valores de fábrica probados con grabaciones reales (Umbral −36, Rango 10: reducción media de unos 3 dB en las eses de una voz) y entrada progresiva de la reducción de 8 ms para plosivas y chasquidos.
 - Validación: `auval` y `pluginval` nivel 10 con interfaz (VST3 y AU). **Límites conocidos:** el detector se ajustó con señales sintéticas (hi-hat y «t» activan el detector; sin medir con voz grabada) y la reducción no llega a 0 ms respecto del inicio de la s. Detalle en la ficha.
 
 ## Cremita 1.0.0 — 2026-10-31

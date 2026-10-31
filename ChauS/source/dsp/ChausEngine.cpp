@@ -129,7 +129,7 @@ void ChausEngine::resetLane (Lane& lane) noexcept
     lane.median = 0.0f;
     lane.lastFrame = 0;
     lane.rawDb = lane.smoothDb = lane.linkedDb = lane.gate = 0.0f;
-    lane.eventSamples = lane.lastEventSamples = 0;
+    lane.eventSamples = lane.lastEventSamples = lane.activeAge = 0;
     lane.shapeWeight = 0.0f;
     lane.logCentre = std::log (std::sqrt (4000.0f * 12000.0f));
     lane.q = 3.0f;
@@ -173,8 +173,19 @@ float ChausEngine::rawReduction (Lane& lane, const Settings& s, const SibilanceD
     lane.lastThresholdDb = threshold;
 
     float reduction = std::min (kneeReduction (o.levelDb - threshold), s.rangeDb);
-    if (s.voiceMode && ! o.active)
-        reduction = 0.0f;
+    if (s.voiceMode)
+    {
+        // Entrada progresiva: la edad del evento (tiempo seguido «activo») escala la reducción con un cuadrado, para que una
+        // plosiva o un chasquido de 10 a 20 ms apenas reciba reducción y una «s» de 100 ms casi toda.
+        lane.activeAge = o.active ? lane.activeAge + 1 : 0;
+        if (! o.active)
+            reduction = 0.0f;
+        else if (s.eventRampMs > 0.0f)
+        {
+            const float ramp = std::min (1.0f, static_cast<float> (lane.activeAge) / static_cast<float> (s.eventRampMs * 0.001 * fs));
+            reduction *= ramp * ramp;
+        }
+    }
     return std::max (reduction, 0.0f);
 }
 

@@ -37,9 +37,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     using Range = juce::NormalisableRange<float>;
 
     layout.add (std::make_unique<Choice> (pid (mode), "Modo", utf8Array ({ "Voz sola", "General" }), VoiceOnly));
-    layout.add (std::make_unique<Float> (pid (thr), "Umbral", Range (-60.0f, 0.0f, 0.1f), -30.0f, attrs ("dB", 1)));
+    layout.add (std::make_unique<Float> (pid (thr), "Umbral", Range (-60.0f, 0.0f, 0.1f), -36.0f, attrs ("dB", 1)));
     layout.add (std::make_unique<Bool> (pid (adaptive), "Umbral adaptativo", true));
-    layout.add (std::make_unique<Float> (pid (range), "Rango", Range (0.0f, 24.0f, 0.1f), 8.0f, attrs ("dB", 1)));
+    layout.add (std::make_unique<Float> (pid (range), "Rango", Range (0.0f, 24.0f, 0.1f), 10.0f, attrs ("dB", 1)));
 
     layout.add (std::make_unique<Float> (pid (hp), "Filtro HP", logRange (2000.0f, 12000.0f, 10.0f), 4000.0f, attrs ("Hz", 0)));
     layout.add (std::make_unique<Float> (pid (lp), "Filtro LP", logRange (5000.0f, 20000.0f, 10.0f), 12000.0f, attrs ("Hz", 0)));
