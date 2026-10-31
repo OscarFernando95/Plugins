@@ -19,6 +19,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
     raw.air = ptr (k::airCorner);
     raw.phase = ptr (k::phase);   raw.color = ptr (k::color); raw.soften = ptr (k::soften);
     raw.width = ptr (k::width);   raw.monoSafe = ptr (k::monoSafe);
+    raw.linPhase = ptr (k::linPhase);
     raw.guard = ptr (k::guard);   raw.match = ptr (k::match);
     for (int b = 0; b < k::numBands; ++b)
     {
@@ -30,6 +31,8 @@ DraMcPotiProcessor::DraMcPotiProcessor()
         raw.solo[i] = ptr (k::bandId ("solo", b));
     }
 
+    apvts.addParameterListener (k::linPhase, this); // la fase lineal cambia la latencia
+
     const std::set<juce::String> excluded { k::bypass };
     presets = std::make_unique<ferb::PresetManager> (apvts, "DraMcPoti", mcpoti::factoryPresets(), excluded);
     ab = std::make_unique<ferb::AbCompare> (apvts, excluded);
@@ -37,10 +40,31 @@ DraMcPotiProcessor::DraMcPotiProcessor()
         apvts.state.setProperty ("presetName", presets->getFactoryNames()[0], nullptr);
 }
 
+DraMcPotiProcessor::~DraMcPotiProcessor()
+{
+    apvts.removeParameterListener (k::linPhase, this);
+    cancelPendingUpdate();
+}
+
+void DraMcPotiProcessor::updateLatency()
+{
+    // Constante (la de 8×) con cualquier sobremuestreo o carácter; solo la fase lineal la cambia.
+    const int latency = mcpoti::McPotiEngine::latencySamples (raw.linPhase->load() >= 0.5f);
+    if (latency != lastLatency)
+    {
+        lastLatency = latency;
+        setLatencySamples (latency);
+        updateHostDisplay (juce::AudioProcessorListener::ChangeDetails().withLatencyChanged (true));
+    }
+}
+
+void DraMcPotiProcessor::handleAsyncUpdate() { updateLatency(); }
+
 void DraMcPotiProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     engine.prepare (sampleRate, samplesPerBlock);
-    setLatencySamples (mcpoti::McPotiEngine::latencySamples()); // constante: la de 8× (la guarda y la fase lineal sumarán la suya después)
+    lastLatency = -1;
+    updateLatency();
 }
 
 mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
@@ -67,6 +91,7 @@ mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
     s.monoSafe = raw.monoSafe->load() >= 0.5f;
     s.guardPercent = raw.guard->load();
     s.match = raw.match->load() >= 0.5f;
+    s.linearPhase = raw.linPhase->load() >= 0.5f;
     for (size_t b = 0; b < k::numBands; ++b)
     {
         auto& band = s.bands[b];

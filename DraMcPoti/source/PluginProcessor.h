@@ -9,10 +9,13 @@
 #include "dsp/McPotiEngine.h"
 
 /** Fase 2 en curso: el motor tiene cruce, caracteres Vintage y dinámica; el resto de la ficha va llegando. */
-class DraMcPotiProcessor : public juce::AudioProcessor
+class DraMcPotiProcessor : public juce::AudioProcessor,
+                           private juce::AudioProcessorValueTreeState::Listener,
+                           private juce::AsyncUpdater
 {
 public:
     DraMcPotiProcessor();
+    ~DraMcPotiProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -51,10 +54,15 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
+    void parameterChanged (const juce::String&, float) override { triggerAsyncUpdate(); } // puede llegar desde el hilo de audio
+    void handleAsyncUpdate() override;
+    void updateLatency();
+    int lastLatency = -1;
+
     /** Punteros a los valores de los parámetros, resueltos una vez: buscar por texto en el hilo de audio reservaría memoria. */
     struct Raw
     {
-        std::atomic<float> *input, *output, *mix, *mode, *era, *voice, *tune, *link, *xo1, *xo2, *xo3, *delta, *os, *air, *phase, *color, *soften, *width, *monoSafe, *guard, *match;
+        std::atomic<float> *input, *output, *mix, *mode, *era, *voice, *tune, *link, *xo1, *xo2, *xo3, *delta, *os, *air, *phase, *color, *soften, *width, *monoSafe, *guard, *match, *linPhase;
         std::array<std::atomic<float>*, mcpoti::numBands> drive, dyn, level, on, solo;
     } raw {};
 

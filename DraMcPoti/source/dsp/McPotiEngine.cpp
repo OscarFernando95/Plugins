@@ -74,7 +74,7 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
     for (auto& d : driveSmooth) d.coeff = c20;
     for (auto& l : levelSmooth) l.coeff = c20;
     inSmooth.coeff = outSmooth.coeff = mixSmooth.coeff = c20;
-    gate.coeff = smoothCoeff (fs, 5.0);
+    gate.coeff = outGate.coeff = smoothCoeff (fs, 5.0);
     freqCoeff = 1.0f - std::exp (-float (controlInterval) / float (0.030 * fs)); // 30 ms por paso de control
     tonalCoeff = smoothCoeff (fs, 2000.0);
     envAttack = smoothCoeff (fs, 5.0);
@@ -87,7 +87,8 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
     for (auto& v : levelBuf) v.assign (size, 0.0f);
     for (auto& c : channels)
     {
-        c.dryDelay.prepare (latencySamples());
+        c.linear.prepare();
+        c.dryDelay.prepare (latencySamples (true));
         for (size_t b = 0; b < nb; ++b)
         {
             c.up[b].prepare (maxBlockSize);
@@ -113,6 +114,7 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
     guardRelease = smoothCoeff (fs, 40.0);
     powerCoeff = smoothCoeff (fs, 3000.0);
     guardBuf.assign (size, 1.0f);
+    guardDelay.prepare (LinearSplit::center);
     vuIn.prepare (fs);
     vuOut.prepare (fs);
     for (auto& c : channels)
@@ -130,6 +132,7 @@ void McPotiEngine::reset() noexcept
     for (auto& c : channels)
     {
         c.split.reset();
+        c.linear.reset();
         c.dryDelay.reset();
         for (size_t b = 0; b < nb; ++b)
         {
@@ -173,6 +176,11 @@ void McPotiEngine::reset() noexcept
     outSmooth.snap (1.0f);
     mixSmooth.snap (1.0f);
     gate.snap (1.0f);
+    outGate.snap (1.0f);
+    guardDelay.reset();
+    linearActive = false;
+    firPending = false;
+    firCounter = 0;
     primed = false;
     snapControl = true;
 }
@@ -207,6 +215,32 @@ void McPotiEngine::designShelves() noexcept
     shelfAir = smoothAir;
 }
 
+/** Cambia de cruce IIR a FIR de fase lineal (o al revés): con la salida en silencio, reinicia estados y realinea los retardos. */
+void McPotiEngine::applyLinearPhase (bool linear) noexcept
+{
+    linearActive = linear;
+    for (auto& c : channels)
+    {
+        c.split.reset();
+        c.linear.reset();
+        c.dryDelay.reset();
+        for (auto& d : c.bandDelay)
+            d.reset();
+        for (auto& d : c.addDelay)
+            d.reset();
+        c.dryDelay.setDelay (latencySamples (linear));
+        for (auto& d : c.bandDelay)
+            d.setDelay (latencySamples());
+    }
+    guardDelay.reset();
+    guardDelay.setDelay (linear ? LinearSplit::center : 0);
+    if (linear)
+        for (auto& c : channels)
+            c.linear.design (fs, lastXo[0], lastXo[1], lastXo[2]);
+    firPending = false;
+    muteHold = latencySamples (linear) + 512; // hasta que el seco retrasado vuelva a llenarse
+}
+
 /** Cambia el factor de sobremuestreo (el motor ya está en silencio para lo añadido) y alinea los retardos:
     lo añadido pasa por subir y bajar (latencia propia del factor) y el resto de la latencia total se rellena. */
 void McPotiEngine::configureFactor (int newFactor) noexcept
@@ -225,9 +259,10 @@ void McPotiEngine::configureFactor (int newFactor) noexcept
     lastHp.fill (0.0f); // fuerza a rediseñar los pasa-altos de salida a la nueva frecuencia de muestreo
     for (auto& c : channels)
     {
-        c.dryDelay.setDelay (latencySamples());
+        c.dryDelay.setDelay (latencySamples (linearActive));
         for (auto& d : c.bandDelay)
-            d.setDelay (latencySamples());
+            d.setDelay (latencySamples()); // las bandas del cruce FIR ya llegan retrasadas `center` muestras
+    guardDelay.setDelay (linearActive ? LinearSplit::center : 0);
     }
 }
 
@@ -261,10 +296,18 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
         lastXo = smoothXo;
         for (auto& c : channels)
             c.split.setFrequencies (fs, x1, x2, x3);
+        firPending = true;
         if (activeVoice == seda || activeVoice == aire)
             designShelves();
     }
-    else if (activeVoice == aire && std::abs (smoothAir - shelfAir) > 0.002f * smoothAir)
+    if (linearActive && firPending && ++firCounter >= 8) // la FIR se rediseña como mucho cada 128 muestras mientras se mueven los cruces
+    {
+        firCounter = 0;
+        firPending = false;
+        for (auto& c : channels)
+            c.linear.design (fs, lastXo[0], lastXo[1], lastXo[2]);
+    }
+    if (activeVoice == aire && std::abs (smoothAir - shelfAir) > 0.002f * smoothAir)
         designShelves();
 
     // Suavizar: paso bajo de lo añadido; a 20 kHz o más queda apagado.
@@ -361,6 +404,24 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         updateControl (s);
         if (activeVoice == seda || activeVoice == aire)
             designShelves();
+        if (s.linearPhase)
+            applyLinearPhase (true);
+        muteHold = 0; // arranque: no hay audio anterior que fundir
+        outGate.snap (1.0f);
+    }
+
+    // El cruce de fase lineal cambia la latencia (el seco se retrasa otros `center` muestras): se funde TODA la salida, se cambia y vuelve.
+    float outGateTarget = 1.0f;
+    if (s.linearPhase != linearActive)
+    {
+        outGateTarget = 0.0f;
+        if (outGate.value < 1.0e-3f)
+            applyLinearPhase (s.linearPhase);
+    }
+    if (muteHold > 0)
+    {
+        outGateTarget = 0.0f;
+        muteHold -= n;
     }
 
     // Cambiar el sobremuestreo o el carácter reinicia filtros y ADAA (cada carácter tiene su antiderivada):
@@ -434,7 +495,10 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             detector += x / float (numCh);
             data[static_cast<size_t> (ch)][i] = x; // la pasada 2 parte de la entrada ya con ganancia
             std::array<float, nb> bands {};
-            c.split.process (x, bands);
+            if (linearActive)
+                c.linear.process (x, bands);
+            else
+                c.split.process (x, bands);
             for (size_t b = 0; b < nb; ++b)
             {
                 c.bandSig[b][static_cast<size_t> (i)] = bands[b];
@@ -470,7 +534,7 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         sibilant = sibilant ? ratio > 0.25f : (ratio > 0.5f && guardHi > 1.0e-6f);
         const float guardTarget = sibilant ? -12.0f * juce::jlimit (0.0f, 1.0f, s.guardPercent * 0.01f) : 0.0f;
         guardDb += (guardTarget < guardDb ? guardAttack : guardRelease) * (guardTarget - guardDb);
-        guardBuf[static_cast<size_t> (i)] = s.master ? 1.0f : std::pow (10.0f, guardDb / 20.0f);
+        guardBuf[static_cast<size_t> (i)] = guardDelay.process (s.master ? 1.0f : std::pow (10.0f, guardDb / 20.0f));
     }
 
     const float color = juce::jlimit (-1.0f, 1.0f, s.colorPercent * 0.01f);
@@ -516,6 +580,7 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         const float outGain = outSmooth.step (dbToGain (s.outputDb));
         const float mix = mixSmooth.step (s.mixPercent * 0.01f);
         const float g = gate.step (gateTarget);
+        const float og = outGate.step (outGateTarget);
         std::array<float, maxChannels> dry {}, addedSum {}, soloSum {};
         for (int ch = 0; ch < numCh; ++ch)
         {
@@ -586,7 +651,7 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         }
         matchLin += 0.002f * (dbToGain (matchDb.load (std::memory_order_relaxed)) - matchLin);
         for (int ch = 0; ch < numCh; ++ch)
-            data[static_cast<size_t> (ch)][i] = out[static_cast<size_t> (ch)] * matchLin * outGain;
+            data[static_cast<size_t> (ch)][i] = out[static_cast<size_t> (ch)] * matchLin * outGain * og;
     }
 
     for (int ch = 0; ch < numCh; ++ch)

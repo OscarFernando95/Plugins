@@ -57,3 +57,42 @@ TEST_CASE ("Dra. McPoti: con Mezcla 0 % el audio pasa sin cambios, retrasado la 
     for (size_t i = 8000; i < in.size() - size_t (latency); ++i) // tras el suavizado de 20 ms
         REQUIRE (out[i + size_t (latency)] == Catch::Approx (in[i]).margin (1.0e-5));
 }
+
+TEST_CASE ("Dra. McPoti: la latencia declarada coincide con la medida con un impulso, con y sin fase lineal")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    for (int os : { 0, 2, 3 })
+        for (int lin : { 0, 1 })
+        {
+            DraMcPotiProcessor p;
+            p.apvts.getParameter ("mix")->setValueNotifyingHost (0.0f);
+            auto set = [&p] (const char* id, float real)
+            {
+                auto* param = p.apvts.getParameter (id);
+                param->setValueNotifyingHost (param->convertTo0to1 (real));
+            };
+            set ("os", float (os));
+            set ("linPhase", float (lin));
+            p.setPlayConfigDetails (2, 2, 48000.0, 256);
+            p.prepareToPlay (48000.0, 256);
+            const int declared = p.getLatencySamples();
+            CHECK (declared == mcpoti::McPotiEngine::latencySamples (lin != 0));
+
+            juce::AudioBuffer<float> buf (2, 256);
+            juce::MidiBuffer midi;
+            int peakAt = -1;
+            for (int b = 0; b < 12; ++b)
+            {
+                buf.clear();
+                if (b == 0)
+                    for (int ch = 0; ch < 2; ++ch)
+                        buf.setSample (ch, 0, 0.5f);
+                p.processBlock (buf, midi);
+                for (int i = 0; i < 256; ++i)
+                    if (std::abs (buf.getSample (0, i)) > 0.4f)
+                        peakAt = b * 256 + i;
+            }
+            INFO ("os " << os << ", fase lineal " << lin);
+            CHECK (peakAt == declared);
+        }
+}

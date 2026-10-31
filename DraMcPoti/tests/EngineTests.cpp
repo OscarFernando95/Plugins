@@ -6,6 +6,7 @@
 
 #include "AliasingMeter.h"
 #include "TestUtils.h"
+#include "dsp/LinearSplit.h"
 #include "dsp/McPotiEngine.h"
 
 using namespace testutil;
@@ -30,7 +31,7 @@ Settings settings (float drive, int voice = 0)
 std::vector<float> run (std::vector<float> in, const Settings& s, int block = 256)
 {
     const size_t wanted = in.size();
-    const size_t latency = size_t (McPotiEngine::latencySamples());
+    const size_t latency = size_t (McPotiEngine::latencySamples (s.linearPhase));
     in.resize ((wanted + latency + size_t (block) - 1) / size_t (block) * size_t (block), 0.0f);
     McPotiEngine engine;
     engine.prepare (fs, block);
@@ -586,4 +587,159 @@ TEST_CASE ("McPoti: Igualar lleva la sonoridad de la salida a la de la entrada (
     INFO ("sin Igualar " << off << " dB, con Igualar " << on << " dB");
     CHECK (std::abs (on) < 1.0);
     CHECK (std::abs (on) < std::abs (off));
+}
+
+TEST_CASE ("Fase lineal: las cuatro bandas suman exactamente la entrada retardada y cada una domina en su zona")
+{
+    LinearSplit split;
+    split.prepare();
+    split.design (fs, 150.0, 1800.0, 7000.0);
+    const auto in = noise (int (fs), 0.4f);
+    std::array<float, 4> bands {};
+    std::vector<float> sum (in.size());
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        split.process (in[i], bands);
+        sum[i] = bands[0] + bands[1] + bands[2] + bands[3];
+    }
+    const int d = LinearSplit::center;
+    CHECK (residualDb (sum.data() + d, in.data(), int (in.size()) - d) < -100.0); // suma = entrada retardada `center` muestras
+
+    auto levels = [&] (double freq)
+    {
+        split.reset();
+        const int n = int (fs);
+        const auto x = sine (n, freq, fs, 0.5);
+        std::array<std::vector<float>, 4> out;
+        for (auto& v : out) v.resize (x.size());
+        for (size_t i = 0; i < x.size(); ++i)
+        {
+            split.process (x[i], bands);
+            for (size_t b = 0; b < 4; ++b) out[b][i] = bands[b];
+        }
+        std::array<double, 4> level {};
+        for (size_t b = 0; b < 4; ++b) level[b] = measureAmplitude (out[b].data() + n / 2, n / 2, freq, fs);
+        return level;
+    };
+    const std::pair<double, size_t> zones[] = { { 30.0, 0 }, { 600.0, 1 }, { 4000.0, 2 }, { 14000.0, 3 } };
+    for (const auto& [freq, band] : zones)
+    {
+        const auto level = levels (freq);
+        for (size_t b = 0; b < 4; ++b)
+            if (b != band)
+                CHECK (level[b] < level[band] * 0.1); // FIR de 2049 coeficientes: mucho más selectivo que LR4
+    }
+}
+
+TEST_CASE ("McPoti con fase lineal: Drive 0 deja la señal intacta con la latencia declarada, que suma 1024")
+{
+    CHECK (McPotiEngine::latencySamples (true) == McPotiEngine::latencySamples (false) + 1024);
+    auto s = settings (0.0f);
+    s.linearPhase = true;
+    const auto in = noise (int (fs), 0.3f);
+    CHECK (residualDb (in.data(), run (in, s).data(), int (in.size())) < -90.0);
+
+    for (int os = 0; os < 4; ++os)
+    {
+        McPotiEngine engine;
+        engine.prepare (fs, 256);
+        s.osIndex = os;
+        juce::AudioBuffer<float> buf (2, 256);
+        int peakAt = -1;
+        for (int b = 0; b < 12; ++b)
+        {
+            buf.clear();
+            if (b == 0)
+                for (int ch = 0; ch < 2; ++ch)
+                    buf.setSample (ch, 10, 0.5f);
+            engine.process (buf, s);
+            for (int i = 0; i < 256; ++i)
+                if (std::abs (buf.getSample (0, i)) > 0.4f)
+                    peakAt = b * 256 + i;
+        }
+        INFO ("os " << (1 << os));
+        CHECK (peakAt == 10 + McPotiEngine::latencySamples (true));
+    }
+}
+
+TEST_CASE ("McPoti con fase lineal: añade armónicos como el cruce normal y los cruces se mueven sin clics")
+{
+    const int n = int (fs);
+    const auto in = sine (n, 3000.0, fs, fromDb (-18.0));
+    auto h = [&] (bool lin)
+    {
+        auto s = settings (100.0f, 2);
+        s.delta = true;
+        s.linearPhase = lin;
+        const auto out = run (in, s);
+        return measureAmplitude (out.data() + n / 2, n / 2, 6000.0, fs);
+    };
+    CHECK (h (true) == Catch::Approx (h (false)).epsilon (0.35)); // misma generación; el reparto en bandas difiere algo
+
+    // Mover los tres cruces con audio sonando y la FIR rediseñándose.
+    McPotiEngine engine;
+    engine.prepare (fs, 128);
+    auto s = settings (50.0f, 2);
+    s.linearPhase = true;
+    const auto tone = sine (int (fs * 3.0), 440.0, fs, 0.3);
+    juce::AudioBuffer<float> buf (2, 128);
+    std::vector<float> out;
+    for (size_t pos = 0; pos + 128 <= tone.size(); pos += 128)
+    {
+        const float t = float (pos) / float (tone.size());
+        s.xo1 = 100.0f + 250.0f * t; s.xo2 = 700.0f + 3000.0f * t; s.xo3 = 3500.0f + 8000.0f * t;
+        for (int ch = 0; ch < 2; ++ch)
+            std::copy (tone.begin() + long (pos), tone.begin() + long (pos) + 128, buf.getWritePointer (ch));
+        engine.process (buf, s);
+        for (int i = 0; i < 128; ++i)
+            out.push_back (buf.getSample (0, i));
+    }
+    for (float v : out) REQUIRE (std::isfinite (v));
+    CHECK (stepMax (out, 12000, out.size()) < stepMax (tone, 0, tone.size()) * 3.0 + 0.05);
+}
+
+TEST_CASE ("McPoti: activar y desactivar la fase lineal con audio sonando no hace clic")
+{
+    const auto tone = sine (int (fs * 4.0), 440.0, fs, 0.3);
+    McPotiEngine engine;
+    engine.prepare (fs, 128);
+    auto s = settings (50.0f, 2);
+    juce::AudioBuffer<float> buf (2, 128);
+    std::vector<float> out;
+    for (size_t pos = 0; pos + 128 <= tone.size(); pos += 128)
+    {
+        s.linearPhase = ((pos / 128) / 150) % 2 == 1; // cambia cada ~0,4 s
+        for (int ch = 0; ch < 2; ++ch)
+            std::copy (tone.begin() + long (pos), tone.begin() + long (pos) + 128, buf.getWritePointer (ch));
+        engine.process (buf, s);
+        for (int i = 0; i < 128; ++i)
+            out.push_back (buf.getSample (0, i));
+    }
+    for (float v : out) REQUIRE (std::isfinite (v));
+    CHECK (stepMax (out, 4800, out.size()) < stepMax (tone, 0, tone.size()) * 2.0 + 0.02);
+}
+
+TEST_CASE ("McPoti: informe de CPU con fase lineal (48 kHz, estéreo, 4×)", "[.report]")
+{
+    for (bool lin : { false, true })
+    {
+        McPotiEngine engine;
+        engine.prepare (fs, 256);
+        auto s = settings (35.0f, 2);
+        s.osIndex = 2;
+        s.linearPhase = lin;
+        juce::AudioBuffer<float> buf (2, 256);
+        juce::Random rng (1);
+        const int blocks = int (fs * 10.0 / 256.0);
+        const auto t0 = std::chrono::steady_clock::now();
+        for (int b = 0; b < blocks; ++b)
+        {
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < 256; ++i)
+                    buf.setSample (ch, i, rng.nextFloat() * 0.4f - 0.2f);
+            engine.process (buf, s);
+        }
+        const double secs = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
+        WARN ("CPU 4x " << (lin ? "con" : "sin") << " fase lineal: " << 100.0 * secs / 10.0 << " % de un núcleo");
+    }
 }

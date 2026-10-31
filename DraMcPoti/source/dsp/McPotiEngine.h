@@ -13,6 +13,8 @@
 #include <OversamplerN.h>
 #include <VuBallistics.h>
 
+#include "LinearSplit.h"
+
 namespace mcpoti
 {
 inline constexpr int numBands = 4;
@@ -42,6 +44,7 @@ struct Settings
     bool monoSafe = false;
     float guardPercent = 0.0f;
     bool match = false;
+    bool linearPhase = false; // cruce FIR de fase lineal: añade LinearSplit::center muestras de latencia
 };
 
 /** Fase 2 (parcial): cruce de cuatro bandas y generador de armónicos de los cuatro caracteres Vintage con
@@ -52,8 +55,10 @@ class McPotiEngine
 {
 public:
     static constexpr int maxFactor = 8;
-    /** Latencia constante en muestras base: la de subir y bajar a 8× con filtros de fase lineal. */
-    static int latencySamples() { return ferb::OsDesign::latencyFor (maxFactor, false); }
+    /** Latencia en muestras base. Con el cruce LR4 es constante (la de subir y bajar a 8× con fase lineal): el
+        sobremuestreo y el carácter nunca la cambian. El cruce de fase lineal suma `LinearSplit::center` muestras y
+        es el único ajuste que la cambia (el procesador avisa al anfitrión). */
+    static int latencySamples (bool linearPhase = false) { return ferb::OsDesign::latencyFor (maxFactor, false) + (linearPhase ? LinearSplit::center : 0); }
 
     void prepare (double sampleRate, int maxBlock);
     void reset() noexcept;
@@ -88,6 +93,7 @@ private:
     struct Channel
     {
         ferb::FourBandSplit split;
+        LinearSplit linear;
         std::array<ferb::Biquad, nb> hpIn, hpOut, shelf;
         std::array<float, nb> env {}, gcTarget, gcSmooth;
         std::array<ferb::UpN, nb> up;
@@ -121,6 +127,11 @@ private:
     std::array<std::atomic<float>, nb> added {};
     float envAttack = 0.0f, envRelease = 0.0f;
     bool primed = false, snapControl = true;
+    bool linearActive = false, firPending = false;
+    int firCounter = 0, muteHold = 0; // muteHold: muestras que la salida sigue en silencio mientras se llenan los retardos
+    Smoother outGate;               // funde TODA la salida al cambiar de cruce (cambia la latencia)
+    ferb::DelayLine guardDelay;     // alinea la guarda con lo añadido cuando el cruce es de fase lineal
+    void applyLinearPhase (bool linear) noexcept;
     std::array<float, 3> smoothXo {};
     float smoothTune = 4000.0f, freqCoeff = 0.0f;
     std::array<float, 3> shelfXo {};
