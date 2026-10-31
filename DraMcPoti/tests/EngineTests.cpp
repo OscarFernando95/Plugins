@@ -287,6 +287,7 @@ TEST_CASE ("McPoti: la salida queda acotada al cambiar todos los ajustes al azar
             s.outputDb = rf (-12.0f, 12.0f);
             s.mixPercent = rf (0.0f, 100.0f);
             s.voice = rng.nextInt (4);
+            s.era = rng.nextInt (2);
             s.osIndex = rng.nextInt (4);
             s.tuneHz = rf (1500.0f, 12000.0f);
             s.xo1 = rf (80.0f, 400.0f);
@@ -337,4 +338,51 @@ TEST_CASE ("McPoti: informe de CPU (48 kHz, estéreo, bloques de 256, Drive de f
         const double secs = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
         WARN ("CPU " << (1 << os) << "x: " << 100.0 * secs / 10.0 << " % de un núcleo (incluye generar el ruido de prueba)");
     }
+}
+
+TEST_CASE ("McPoti: Seda solo realza, sin armónicos, y respeta la latencia")
+{
+    const int n = int (fs);
+    auto addedAt = [&] (double freq, float drive)
+    {
+        auto s = settings (drive, 2);
+        s.era = 1;
+        s.delta = true;
+        s.xo1 = 150.0f; s.xo2 = 1800.0f; s.xo3 = 7000.0f;
+        if (freq < 100.0)
+            s.bands[0].drive = 0.0f; // el shelf de Cuerpo tiene su esquina en 100 Hz
+        const auto in = sine (n, freq, fs, 0.2);
+        const auto out = run (in, s);
+        return std::pair { measureAmplitude (out.data() + n / 2, n / 2, freq, fs) / 0.2,
+                           measureAmplitude (out.data() + n / 2, n / 2, 2.0 * freq, fs) / 0.2 };
+    };
+    const auto [high, highHarm] = addedAt (12000.0, 100.0f);
+    const auto [low, lowHarm] = addedAt (40.0, 100.0f);
+    const auto [none, noneHarm] = addedAt (12000.0, 0.0f);
+    INFO ("realce a 12 kHz " << toDb (1.0 + high) << " dB");
+    CHECK (high > 2.0);                  // 15 dB = ×5,6, es decir, se añade ≈ ×4,6
+    CHECK (low < 0.2);                   // graves casi sin realce
+    CHECK (highHarm < 0.01);             // sin armónicos
+    CHECK (none < 1.0e-4);               // Drive 0: nada
+    CHECK (noneHarm < 1.0e-4);
+
+    // Latencia constante también en Seda.
+    McPotiEngine engine;
+    engine.prepare (fs, 256);
+    auto s = settings (0.0f, 2);
+    s.era = 1;
+    juce::AudioBuffer<float> buf (2, 256);
+    int peakAt = -1;
+    for (int b = 0; b < 4; ++b)
+    {
+        buf.clear();
+        if (b == 0)
+            for (int ch = 0; ch < 2; ++ch)
+                buf.setSample (ch, 10, 0.5f);
+        engine.process (buf, s);
+        for (int i = 0; i < 256; ++i)
+            if (std::abs (buf.getSample (0, i)) > 0.4f)
+                peakAt = b * 256 + i;
+    }
+    CHECK (peakAt == 10 + McPotiEngine::latencySamples());
 }

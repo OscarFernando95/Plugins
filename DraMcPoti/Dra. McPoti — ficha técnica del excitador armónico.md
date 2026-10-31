@@ -388,7 +388,7 @@ Cuando compile, pásame la salida de pluginval nivel 5 antes de seguir con la fa
 
 ## 11. Estado y cambios sobre la ficha
 
-Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hecha** (esqueleto, 44 parámetros, presets, panel provisional) y **fase 2 avanzada** (cruce de cuatro bandas, caracteres Vintage con ADAA y sobremuestreo de 1× a 8×, latencia constante). Las fases 3 a 6 están pendientes.
+Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hecha** (esqueleto, 44 parámetros, presets, panel provisional) y **fase 2 avanzada** (cruce de cuatro bandas, caracteres Vintage con ADAA y sobremuestreo de 1× a 8×, Seda, latencia constante). Las fases 3 a 6 están pendientes.
 
 ### Hecho en la fase 1
 - Carpeta `DraMcPoti/` (sin punto ni espacio) con la estructura del monorepo; versión **0.1.0** en `cmake/Versions.cmake` (1.0.0 al cerrar la fase 6). Target CMake `DraMcPoti`, producto «Dra. McPoti», AU `aufx` / `McPo` / `Ferb`.
@@ -407,7 +407,8 @@ Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hech
 - **CPU medida** (Release, arm64, 48 kHz, estéreo, bloques de 256, Drive de fábrica, Válvula; `DraMcPotiTests "[.report]"`): 1× 0,7 %, 2× 2,0 %, 4× 3,0 %, 8× 4,8 % de un núcleo, incluyendo el ruido de prueba. Cumple el objetivo Vocal 2× (< 6 %). Sin fase lineal ni Master completo todavía.
 - **Decisión (2026-10-31): Oversampling por defecto = 4×** (antes 2×), en el parámetro y en los 21 presets (el de «Aire 40 kHz» sigue en 8×). Con 4× el aliasing medido es −96,5 dB (meta −80) y la CPU de 3,0 % de un núcleo, dentro del objetivo del 6 %. 2× sigue disponible (−63,3 dB, por debajo de su meta de −70); la interfaz definitiva debería avisarlo.
 - **ADAA de segundo orden: descartado por ahora.** Necesita la segunda antiderivada de cada no linealidad. Solo el Transistor la tiene cerrada (`(u·√(1+u²) + asinh u)/2`); para `tanh` (Clásico, Cinta y Válvula) es la dilogaritmia, sin forma elemental, y exigiría una tabla numérica. Con 4× por defecto no hace falta; reabrir solo si se quiere 2× a −70 dB.
-- **Sin implementar todavía:** caracteres Modernos (la era Moderno hoy no añade nada), Cinta con pre-énfasis, Color, Fase, Suavizar, Esquina de aire, guarda, Ancho y Mono seguro, fase lineal, Igualar, VU y válvulas. La normalización γ = 0,5 y la escala de Drive (`1 + 4a`) son valores iniciales.
+- **Seda (era Moderno, voicing 3) hecho (2026-10-31):** shelf de segundo orden de +15 dB en el borde inferior de cada banda (Cuerpo: 100 Hz; Medios, Presencia y Aire: xo1, xo2 y xo3), sumado como realce a la señal intacta; no sobremuestrea. **Drive mezcla el realce de forma lineal** (100 = shelf completo, +15 dB), no es una ganancia en dB, para no recalcular coeficientes por muestra. Medido: a 12 kHz con Drive 100 el realce total es de 13,1 dB (Aire, shelf en 7 kHz), sin armónicos (< 1 % del fundamental) y con Drive 0 no añade nada; con latencia constante. El shelf se rediseña al mover los cruces (suavizados). Esquinas y +15 dB son valores iniciales.
+- **Sin implementar todavía:** Dinámico, Adaptativo y Aire (la era Moderno solo añade con Seda), Cinta con pre-énfasis, Color, Fase, Suavizar, Esquina de aire, guarda, Ancho y Mono seguro, fase lineal, Igualar, VU y válvulas. La normalización γ = 0,5 y la escala de Drive (`1 + 4a`) son valores iniciales.
 
 ### Cambios sobre la ficha
 - **Clásico acotado:** `f_clásico` usa `0,25·tanh²(u)` en lugar de `0,25·(u² − media)`. El término cuadrático de la ficha no tiene tope y con Drive alto y ruido a +12 dB llegaba a amplitud 70. `tanh²` coincide con `u²` para señales pequeñas, está acotado y su antiderivada es exacta (`u − tanh u`). El DC lo quita el pasa-altos posterior.

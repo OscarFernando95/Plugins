@@ -9,7 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ## Sin publicar
 
 ### Dra. McPoti 0.1.0 (en desarrollo)
-- Fase 2 (parcial): `ferb::FourBandSplit` en `core/Crossover.h` (4 bandas LR4, suma plana ±0,1 dB) y `McPotiEngine` con los cuatro caracteres Vintage, dinámica por banda, Solo, Delta y Mezcla; `DraMcPotiTests`. Sobremuestreo de 1× a 8× con ADAA y latencia constante (aliasing medido: 2× −63,3 dB, no cumple la meta de −70; 4× y 8× −96,5 dB). Fundido sin clics al cambiar de factor o de Voicing. Oversampling por defecto 4× (−96,5 dB, 3,0 % de CPU).
+- Fase 2 (parcial): `ferb::FourBandSplit` en `core/Crossover.h` (4 bandas LR4, suma plana ±0,1 dB) y `McPotiEngine` con los cuatro caracteres Vintage, dinámica por banda, Solo, Delta y Mezcla; `DraMcPotiTests`. Sobremuestreo de 1× a 8× con ADAA y latencia constante (aliasing medido: 2× −63,3 dB, no cumple la meta de −70; 4× y 8× −96,5 dB). Fundido sin clics al cambiar de factor o de Voicing. Oversampling por defecto 4× (−96,5 dB, 3,0 % de CPU). Carácter Moderno Seda (shelf paralelo de +15 dB por banda).
 - Fase 1: carpeta `DraMcPoti/`, 44 parámetros, 20 presets de fábrica más Init, A/B, panel provisional con el kit `ui/vintage/`, `DraMcPotiProcessorTests` y `DraMcPotiSnapshot`. El audio pasa sin procesar; el DSP llega en las fases 2 a 6. Ficha con su sección «Estado y cambios sobre la ficha».
 
 ### Repositorio

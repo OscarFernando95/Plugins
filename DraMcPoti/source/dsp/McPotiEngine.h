@@ -38,9 +38,9 @@ struct Settings
 };
 
 /** Fase 2 (parcial): cruce de cuatro bandas y generador de armónicos de los cuatro caracteres Vintage con
-    ADAA de primer orden y sobremuestreo de 1× a 8×, dinámica por banda, mezcla, Delta y Solo.
+    ADAA de primer orden y sobremuestreo de 1× a 8×, dinámica por banda, el carácter Moderno Seda (shelf paralelo), mezcla, Delta y Solo.
     La latencia es constante (la de 8×): el seco, Solo y los factores menores se retrasan lo que falta.
-    Pendiente: caracteres Modernos, Color, Fase, Suavizar, guarda, M/S, fase lineal e Igualar. */
+    Pendiente: Dinámico, Adaptativo y Aire, Color, Fase, Suavizar, guarda, M/S, fase lineal e Igualar. */
 class McPotiEngine
 {
 public:
@@ -76,7 +76,7 @@ private:
     struct Channel
     {
         ferb::FourBandSplit split;
-        std::array<ferb::Biquad, nb> hpIn, hpOut;
+        std::array<ferb::Biquad, nb> hpIn, hpOut, shelf;
         std::array<float, nb> env {};
         std::array<ferb::UpN, nb> up;
         std::array<ferb::DownN, nb> down;
@@ -89,6 +89,8 @@ private:
     void updateControl (const Settings& s) noexcept;
     void processChunk (juce::AudioBuffer<float>& buffer, int start, int n, const Settings& s) noexcept;
     void configureFactor (int factor) noexcept;
+    void applyAddDelays() noexcept;
+    void designShelves() noexcept;
 
     double fs = 48000.0;
     int maxBlockSize = 0, factor = 0; // factor 0 = sin configurar
@@ -106,5 +108,6 @@ private:
     bool primed = false, snapControl = true;
     std::array<float, 3> smoothXo {};
     float smoothTune = 4000.0f, freqCoeff = 0.0f;
+    std::array<float, 3> shelfXo {};
 };
 } // namespace mcpoti

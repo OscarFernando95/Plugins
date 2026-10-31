@@ -9,6 +9,7 @@ namespace
 constexpr float gamma = 0.5f; // normalización inicial de lo añadido (por afinar)
 constexpr float refVocalDb = -24.0f;
 constexpr float refMasterDb = -18.0f;
+constexpr int seda = 4 + 2; // era Moderno (4) + voicing 3 (índice 2)
 
 float smoothCoeff (double fs, double ms) { return 1.0f - std::exp (-1.0f / float (0.001 * ms * fs)); }
 
@@ -108,6 +109,7 @@ void McPotiEngine::reset() noexcept
         {
             c.hpIn[b].reset();
             c.hpOut[b].reset();
+            c.shelf[b].reset();
             c.up[b].reset();
             c.down[b].reset();
             c.adaa[b] = {};
@@ -131,12 +133,37 @@ void McPotiEngine::reset() noexcept
     snapControl = true;
 }
 
+/** Lo añadido por el generador pasa por subir y bajar (latencia propia del factor); Seda no sobremuestrea, así que
+    se retrasa la latencia total. En los dos casos lo añadido llega alineado con el seco. */
+void McPotiEngine::applyAddDelays() noexcept
+{
+    const int delay = activeVoice == seda ? latencySamples() : latencySamples() - ferb::OsDesign::latencyFor (factor, false);
+    for (auto& c : channels)
+        for (auto& d : c.addDelay)
+        {
+            d.reset();
+            d.setDelay (delay);
+        }
+}
+
+/** Shelf de segundo orden de +15 dB en el borde inferior de cada banda (Cuerpo: 100 Hz); Drive mezcla el realce. */
+void McPotiEngine::designShelves() noexcept
+{
+    const double corners[nb] = { 100.0, double (lastXo[0]), double (lastXo[1]), double (lastXo[2]) };
+    for (size_t b = 0; b < nb; ++b)
+    {
+        const auto shelf = ferb::Biquad::highShelf (fs, std::min (corners[b], 0.45 * fs), 15.0);
+        for (auto& c : channels)
+            c.shelf[b].setCoefficients (shelf);
+    }
+    shelfXo = lastXo;
+}
+
 /** Cambia el factor de sobremuestreo (el motor ya está en silencio para lo añadido) y alinea los retardos:
     lo añadido pasa por subir y bajar (latencia propia del factor) y el resto de la latencia total se rellena. */
 void McPotiEngine::configureFactor (int newFactor) noexcept
 {
     factor = newFactor;
-    const int missing = latencySamples() - ferb::OsDesign::latencyFor (factor, false);
     for (auto& c : channels)
         for (size_t b = 0; b < nb; ++b)
         {
@@ -144,9 +171,8 @@ void McPotiEngine::configureFactor (int newFactor) noexcept
             c.down[b].setConfig (factor, false);
             c.adaa[b] = {};
             c.hpOut[b].reset();
-            c.addDelay[b].reset();
-            c.addDelay[b].setDelay (missing);
         }
+    applyAddDelays();
     lastHp.fill (0.0f); // fuerza a rediseñar los pasa-altos de salida a la nueva frecuencia de muestreo
     for (auto& c : channels)
     {
@@ -182,6 +208,8 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
         lastXo = smoothXo;
         for (auto& c : channels)
             c.split.setFrequencies (fs, x1, x2, x3);
+        if (activeVoice == seda)
+            designShelves();
     }
 
     // Pasa-altos del generador de cada banda: max(Sintonización, borde inferior); Cuerpo usa 40 Hz.
@@ -246,9 +274,11 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             driveSmooth[b].snap (s.bands[b].on ? s.bands[b].drive * 0.01f : 0.0f);
             levelSmooth[b].snap (s.bands[b].level * 0.01f);
         }
-        configureFactor (targetFactor);
         activeVoice = voiceKey;
+        configureFactor (targetFactor);
         updateControl (s);
+        if (activeVoice == seda)
+            designShelves();
     }
 
     // Cambiar el sobremuestreo o el carácter reinicia filtros y ADAA (cada carácter tiene su antiderivada):
@@ -272,7 +302,11 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                     {
                         c.adaa[b] = {};
                         c.hpOut[b].reset();
+                        c.shelf[b].reset();
                     }
+                applyAddDelays();
+                if (activeVoice == seda)
+                    designShelves();
             }
         }
     }
@@ -280,8 +314,9 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
     bool anySolo = false;
     for (const auto& b : s.bands)
         anySolo = anySolo || b.solo;
+    const bool shelfMode = activeVoice == seda;
     const int voice = activeVoice & 3;
-    const bool implemented = activeVoice < 4; // los caracteres Modernos llegan en la fase 3
+    const bool implemented = activeVoice < 4 || shelfMode; // Dinámico, Adaptativo y Aire llegan después
 
     std::array<float*, maxChannels> data {};
     for (int ch = 0; ch < numCh; ++ch)
@@ -315,13 +350,16 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                 const float p = bands[b] * bands[b];
                 c.env[b] += (p > c.env[b] ? envAttack : envRelease) * (p - c.env[b]);
                 const float a = driveBuf[b][static_cast<size_t> (i)];
-                c.nlIn[b][static_cast<size_t> (i)] = c.hpIn[b].process (bands[b]) * (1.0f + 4.0f * a);
+                if (shelfMode)
+                    c.nlOut[b][static_cast<size_t> (i)] = c.shelf[b].process (bands[b]) - bands[b]; // solo el realce
+                else
+                    c.nlIn[b][static_cast<size_t> (i)] = c.hpIn[b].process (bands[b]) * (1.0f + 4.0f * a);
             }
         }
     }
 
-    // Generador: subir, no linealidad con ADAA, pasa-altos y bajar (por banda y canal).
-    for (int ch = 0; ch < numCh; ++ch)
+    // Generador: subir, no linealidad con ADAA, pasa-altos y bajar (por banda y canal). Seda no lo usa.
+    for (int ch = 0; ch < (shelfMode ? 0 : numCh); ++ch)
     {
         auto& c = channels[static_cast<size_t> (ch)];
         for (size_t b = 0; b < nb; ++b)
@@ -353,7 +391,7 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             {
                 const float delayedBand = c.bandDelay[b].process (c.bandSig[b][static_cast<size_t> (i)]);
                 float h = c.addDelay[b].process (c.nlOut[b][static_cast<size_t> (i)]);
-                h = implemented ? h * driveBuf[b][static_cast<size_t> (i)] * gamma * levelBuf[b][static_cast<size_t> (i)] * g : 0.0f;
+                h = implemented ? h * driveBuf[b][static_cast<size_t> (i)] * (shelfMode ? 1.0f : gamma) * levelBuf[b][static_cast<size_t> (i)] * g : 0.0f;
                 addedPower[b] += (h * h - addedPower[b]) * 0.0005f;
                 addedSum += h;
                 if (s.bands[b].solo)
