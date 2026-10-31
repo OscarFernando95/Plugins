@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "EqMath.h"
+
 namespace chaus
 {
 namespace
@@ -28,19 +30,6 @@ float kneeReduction (float excess) noexcept
     return t * t / (2.0f * kneeDb);
 }
 
-ferb::Biquad peaking (double fs, double freq, double q, double gainDb) noexcept
-{
-    const double A = std::pow (10.0, gainDb / 40.0), w0 = 2.0 * 3.14159265358979323846 * freq / fs;
-    const double alpha = std::sin (w0) / (2.0 * q), cw = std::cos (w0);
-    const double a0 = 1.0 + alpha / A;
-    ferb::Biquad f;
-    f.b0 = (1.0 + alpha * A) / a0;
-    f.b1 = -2.0 * cw / a0;
-    f.b2 = (1.0 - alpha * A) / a0;
-    f.a1 = -2.0 * cw / a0;
-    f.a2 = (1.0 - alpha / A) / a0;
-    return f;
-}
 } // namespace
 
 // ───────────────────────────────── Retardo de lookahead ─────────────────────────────────
@@ -125,6 +114,7 @@ void ChausEngine::prepare (double sampleRate, int)
     bypassCoeff = coeff (bypassSeconds, fs);
     listenCoeff = coeff (listenSeconds, fs);
     outputCoeff = coeff (outputSeconds, fs);
+    pointInterval = std::max (1, static_cast<int> (std::lround (Telemetry::secondsPerPoint * fs)));
     modeSwitch.prepare (fs, structureFadeSeconds, 256);
     reset();
 }
@@ -164,6 +154,12 @@ void ChausEngine::reset()
     outputGain = 1.0;
     sinceCoefficients = 0;
     lastHp = lastLp = -1.0f;
+    sinceTelemetry = 0;
+    accLevel = -120.0f;
+    accThreshold = accReduction = 0.0f;
+    accCentre = 7000.0f;
+    accDetected = false;
+    telemetry.written.store (0, std::memory_order_relaxed);
 }
 
 float ChausEngine::rawReduction (Lane& lane, const Settings& s, const SibilanceDetector::Output& o) noexcept
@@ -228,7 +224,7 @@ void ChausEngine::updateCoefficients (Lane& lane, const Settings& s, float reduc
     const double q = std::clamp (static_cast<double> (lane.q), 0.5, 10.0);
 
     const auto target = [] (const ferb::Biquad& f) { return Coefficients { f.b0, f.b1, f.b2, f.a1, f.a2 }; };
-    const auto bell = target (peaking (fs, fc, q, -reductionDb));
+    const auto bell = target (eq::peaking (fs, fc, q, -reductionDb));
     const auto shelf = target (ferb::Biquad::highShelf (fs, fc, -reductionDb));
 
     const auto aim = [] (Coefficients& now, Coefficients& step, const Coefficients& t)
@@ -426,6 +422,39 @@ void ChausEngine::process (juce::AudioBuffer<float>& buffer, const juce::AudioBu
                 }
             }
             sinceCoefficients = (sinceCoefficients + 1) % coefficientInterval;
+
+            // Pantalla: un punto cada 8 ms con el máximo del intervalo.
+            for (int p = 0; p < processed; ++p)
+            {
+                const auto& lane = lanes[static_cast<size_t> (p)];
+                if (lane.tick.levelDb > accLevel)
+                {
+                    accLevel = lane.tick.levelDb;
+                    accThreshold = lane.lastThresholdDb;
+                }
+                if (lane.smoothDb >= accReduction)
+                {
+                    accReduction = lane.smoothDb;
+                    accCentre = std::exp (lane.logCentre);
+                }
+                accDetected |= s.voiceMode ? lane.tick.active : lane.smoothDb > 0.1f;
+            }
+            if (++sinceTelemetry >= pointInterval)
+            {
+                sinceTelemetry = 0;
+                const uint64_t count = telemetry.written.load (std::memory_order_relaxed);
+                telemetry.points[static_cast<size_t> (count) & (Telemetry::capacity - 1)] = { accLevel, accThreshold, accReduction, accCentre, accDetected };
+                telemetry.written.store (count + 1, std::memory_order_release);
+                const auto& lane0 = lanes[0];
+                telemetry.centreHz.store (accCentre, std::memory_order_relaxed);
+                telemetry.q.store (lane0.q, std::memory_order_relaxed);
+                telemetry.reductionDb.store (accReduction, std::memory_order_relaxed);
+                telemetry.shapeWeight.store (lane0.shapeWeight, std::memory_order_relaxed);
+                telemetry.score.store (lane0.tick.score, std::memory_order_relaxed);
+                accLevel = -120.0f;
+                accReduction = 0.0f;
+                accDetected = false;
+            }
 
             // Recomposición.
             float outWet[2], outDry[2], outListen[2];

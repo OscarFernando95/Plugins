@@ -4,6 +4,7 @@
 
 #include <AbCompare.h>
 #include <PresetManager.h>
+#include <SampleRing.h>
 
 #include "Parameters.h"
 #include "dsp/ChausEngine.h"
@@ -48,6 +49,10 @@ public:
 
     chaus::ChausEngine& getEngine() noexcept { return engine; }
     chaus::Settings readSettings() const noexcept;
+    /** Entrada y salida (suma a mono) para el espectro de la pantalla. */
+    const ferb::SampleRing& getInputRing() const noexcept { return inputRing; }
+    const ferb::SampleRing& getOutputRing() const noexcept { return outputRing; }
+    double getSampleRate() const noexcept { return currentSampleRate; }
     ferb::PresetManager& getPresets() noexcept { return *presets; }
     ferb::AbCompare& getAb() noexcept { return *ab; }
 
@@ -57,6 +62,7 @@ private:
     void updateLatency();
 
     chaus::ChausEngine engine;
+    ferb::SampleRing inputRing, outputRing;
     double currentSampleRate = 48000.0;
     int lastLatency = -1;
     std::unique_ptr<ferb::PresetManager> presets;

@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ## Sin publicar
 
 ### Repositorio
+- Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.
 - README del repositorio y este historial.
 - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
 - Documentación en PDF de Tufi, Poty, Cremita y Nel (`docs/`), con identidad propia y generador (`docs/construir.py`).
@@ -18,6 +19,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - M1: detector de sibilantes (seis rasgos espectrales, regresión logística con histéresis, nivel de banda en el dominio del tiempo) y umbral adaptativo (percentil 90, 5 s); `ChauSTests`.
 - M2: motor de EQ dinámico (campana y estante con seguimiento de frecuencia y Q, banda ancha, lookahead de 0 a 15 ms con latencia informada, enlace estéreo, Mid/Side, sidechain externo, escuchas, salida y bypass).
 - M3: 24 parámetros (IDs fijados), 10 presets de fábrica, A/B y deshacer, latencia declarada por el procesador.
+- M4: interfaz completa (espectro por bandas de 1/6 de octava con la campana dinámica y lo que se quita, línea de tiempo de 3 s con eventos, umbral efectivo y reducción), controles de la maqueta más un menú de ajustes avanzados.
 
 ## Cremita 1.0.0 — 2026-10-31
 

@@ -153,7 +153,7 @@ class GlassView : public juce::Component
 public:
     static constexpr int margin = 9; // espacio para el bisel, fuera del cristal
 
-    explicit GlassView (const Palette& p) : palette (p) { setInterceptsMouseClicks (false, false); }
+    explicit GlassView (const Palette& p, bool plainBezel = false) : palette (p), plain (plainBezel) { setInterceptsMouseClicks (false, false); }
 
     /** El cristal ocupa `glass`; el bisel queda por fuera. */
     void setGlassBounds (juce::Rectangle<int> glass) { setBounds (glass.expanded (margin)); }
@@ -163,6 +163,9 @@ public:
 protected:
     virtual void paintContent (juce::Graphics&, float width, float height) = 0;
     Palette palette;
+
+private:
+    bool plain;
 };
 
 /** Texto en relieve: una copia desplazada un píxel hacia abajo y el texto encima. */

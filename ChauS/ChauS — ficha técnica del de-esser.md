@@ -254,7 +254,7 @@ Lee la ficha técnica de ChauS e implementa el hito M1: extractor de los cinco r
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S) y M3 (parámetros, presets, A/B y deshacer). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S) M3 (parámetros, presets, A/B y deshacer) y M4 (pantalla de espectro y línea de tiempo, interfaz completa). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -360,3 +360,39 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y u
 | `processBlock` | Sin reservas | 0 reservas |
 | `auval -v aufx ChaS Ferb` | Pasa | Pasa |
 | `pluginval` nivel 10, VST3 y AU, sin pruebas de interfaz | Pasa | Pasa (queda la corrida completa con interfaz en M5) |
+
+**Interfaz (M4)**
+
+- Replica la maqueta (960 × 580): pantalla de espectro 660 × 290, línea de tiempo 660 × 84, columna derecha (Umbral y Rango, selectores Modo, Banda y Estéreo, tres interruptores) y la fila de siete perillas. Captura: `FERB_SNAPSHOT_BLOCKS=232 ./build/ChauS/ChausSnapshot salida.png 1.0 "Voz masculina"` (la herramienta pasa una voz sintética con eses para ver la pantalla en acción) y comparar con la maqueta renderizada con Chrome (`--headless=new --screenshot … "Maru, Cremita y ChauS.html#chaus"`).
+- **Espectro:** bandas de 1/6 de octava (nivel eficaz en dBFS) de 200 Hz a 20 kHz, 160 puntos, FFT de 2048 con solape del 75 % (cuatro ventanas por lectura) en el hilo de la interfaz. La entrada y la salida llegan por dos anillos de muestras (suma a mono) que llena `processBlock`. Ataque rápido y caída lenta. **Lo que se quita** es el área entre entrada y salida, en coral.
+- **Campana:** se dibuja la respuesta real del filtro en uso (campana, estante o la mezcla entre ambos), colgando de la línea superior (3,2 px por dB), con el manejador en la frecuencia seguida y su lectura «7,4 kHz −3,2 dB».
+- **Línea de tiempo:** 375 puntos (3 s) con un punto cada 8 ms que el motor deja en un anillo sin bloqueos: máximo del nivel de banda, umbral efectivo, reducción, frecuencia y marca de evento.
+- Interfaz con `Timer` a 30 Hz.
+
+**Cambios sobre la maqueta y la ficha (interfaz)**
+
+| Tema | Maqueta / ficha | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Controles sin perilla | La maqueta no tiene Forma, Ancho (Q), Liberación, Sidechain externo ni Escuchar sidechain | Dos interruptores bajo los tres de la maqueta («SC EXT.» y «OÍR SC») y un botón «AJUSTES AVANZADOS» con un menú de Forma (Campana, Estante, Auto), Ancho (Auto o 1 a 8) y Liberación (Auto o 10 a 100 ms, en pasos) | No hay sitio en 960 × 580 sin cambiar la composición; el menú da los valores más útiles y el valor exacto sigue siendo automatizable |
+| Lookahead apagado | — | La perilla dice «APAGADO» cuando `lookOn` está apagado | `lookOn` no tiene control en la maqueta |
+| Bisel de las ventanas | La maqueta lleva un filo fino (2 px negro y 2 px de latón oscuro) | Variante fina del kit (`GlassView(palette, plainBezel)`), opcional: los demás plugins no cambian | Fidelidad con la maqueta |
+| Texto de los botones con lámpara | Crema | Corregido en el kit: `VButton` con lámpara dibujaba el texto con el color del contorno de la lámpara (negro al 50 %), también en «BYPASS» de todas las cabeceras | Fallo del kit compartido |
+| HP y LP | Perillas; arrastrarlos sobre la pantalla queda como mejora | Solo perillas | Como la maqueta |
+| `displayZoom` (estado de interfaz) | Listado en la ficha | **No implementado** | La ficha no dice qué hace |
+
+**Resultados medidos de M4**
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Espectro de la pantalla: senoidal de 0,1 de amplitud (−23,01 dBFS eficaces), 44,1 / 48 / 96 kHz | Nivel y frecuencia | Máximo en su frecuencia (±7 %) y dentro de ±3,1 dB de −23,01 desde 1 kHz; 3,6 dB de defecto a 300 Hz (la banda de 1/6 de octava es más estrecha que el lóbulo de la ventana); 40 dB o más de caída lejos del pico |
+| Telemetría: un punto cada 8 ms, reducción ≤ Rango, eventos de la s | Coherente | Cumple (≥ 10 puntos de evento en 3 s y no todo el tiempo; coinciden los valores del momento con el último punto) |
+| Anillos del procesador | Entrada y salida (suma a mono) | Idénticos a la señal (< 10⁻⁶ la entrada) |
+| `processBlock` | Sin reservas | 0 reservas (con los anillos y la telemetría) |
+| Editor abierto y pintado **antes de `prepareToPlay`** | Sin fallos | Cumple (ver abajo) |
+| `pluginval` nivel 10 **con** pruebas de interfaz, VST3 y AU | Pasa | Pasa |
+| `auval -v aufx ChaS Ferb` | Pasa | Pasa |
+| Coste de pintar la ventana entera (render por software, peor caso), 75 / 100 / 200 % | Menos de 33 ms (30 Hz) | 4,1 / 5,8 / 17,5 ms por cuadro |
+
+**Lección:** el primer intento de `pluginval` con interfaz terminó en un fallo de segmentación: el editor leía los anillos de muestras del espectro antes de que `prepareToPlay` los reservara. Mis pruebas y la captura siempre preparaban el procesador antes. Los anillos se reservan ahora una sola vez, en el constructor; reservarlos en `prepareToPlay` habría dejado además una carrera con el editor. Hay una prueba que abre y pinta el editor sin preparar.
+
+**Por verificar:** la legibilidad del coral sobre negro para daltonismo (la lectura numérica de la campana ayuda) sigue sin comprobarse.

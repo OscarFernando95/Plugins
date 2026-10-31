@@ -464,6 +464,7 @@ void VButton::paintButton (juce::Graphics& g, bool highlighted, bool down)
             g.setColour (juce::Colours::black.withAlpha (0.5f));
             g.drawEllipse (lampBox, 1.0f);
             text.removeFromLeft (14.0f);
+            g.setColour (palette.btnInk); // la lámpara cambió el color
         }
         drawSpaced (g, caption, text, labelFont (11.0f, 1.2f), juce::Justification::centred);
     }
@@ -520,7 +521,7 @@ void ReadoutWindow::paint (juce::Graphics& g)
 void GlassView::paint (juce::Graphics& g)
 {
     const auto inner = getLocalBounds().toFloat().reduced (static_cast<float> (margin));
-    paintGlassBackground (g, inner, palette);
+    paintGlassBackground (g, inner, palette, 7.0f, plain);
     {
         juce::Graphics::ScopedSaveState state (g);
         juce::Path clip;

@@ -3,6 +3,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <vector>
 
 #include <Biquad.h>
@@ -42,6 +44,43 @@ struct Settings
     bool bypass = false;
 };
 
+/** Datos del motor para la pantalla, sin bloqueos: un anillo de puntos (uno cada 8 ms) y los valores del momento.
+    El hilo de audio escribe; el de la interfaz lee. El anillo es mucho mayor que lo que se lee, así que el
+    productor no pisa lo que se copia salvo que la interfaz se pare unos segundos. */
+struct Telemetry
+{
+    struct Point
+    {
+        float levelDb = -120.0f;     // nivel de la banda de sibilante (máximo del intervalo)
+        float thresholdDb = 0.0f;    // umbral efectivo
+        float reductionDb = 0.0f;    // reducción aplicada (máximo del intervalo)
+        float centreHz = 7000.0f;    // frecuencia de la campana
+        bool detected = false;       // hubo sibilante (o, en General, reducción)
+    };
+
+    static constexpr int capacity = 1024;
+    static constexpr double secondsPerPoint = 0.008;
+
+    /** Los últimos `count` puntos, del más antiguo al más reciente (los que aún no existen salen vacíos). */
+    void copyLatest (Point* dest, int count) const noexcept
+    {
+        const uint64_t end = written.load (std::memory_order_acquire);
+        for (int i = 0; i < count; ++i)
+        {
+            const int64_t index = static_cast<int64_t> (end) - count + i;
+            dest[i] = index >= 0 ? points[static_cast<size_t> (index) & (capacity - 1)] : Point {};
+        }
+    }
+
+    // Valores del último punto.
+    std::atomic<float> centreHz { 7000.0f }, q { 3.0f }, reductionDb { 0.0f }, shapeWeight { 0.0f }, score { 0.0f };
+
+private:
+    friend class ChausEngine;
+    std::array<Point, capacity> points {};
+    std::atomic<uint64_t> written { 0 };
+};
+
 /** Lo que el motor deja ver muestra a muestra (pruebas y, después, la pantalla). Todos los punteros son opcionales
     y, si existen, deben tener sitio para el número de muestras del bloque. Un valor por canal procesado (0 y 1). */
 struct Probe
@@ -72,6 +111,8 @@ public:
 
     void prepare (double sampleRate, int maxBlockSize);
     void reset();
+
+    const Telemetry& getTelemetry() const noexcept { return telemetry; }
 
     /** `sidechain` puede ser nulo (o tener otro número de canales: mono se reparte a los dos). */
     void process (juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechain, const Settings&, Probe* probe = nullptr) noexcept;
@@ -143,6 +184,9 @@ private:
     double bypassMix = 0.0, listenMix = 0.0, outputGain = 1.0, bypassCoeff = 0.0, listenCoeff = 0.0, outputCoeff = 0.0;
     int sinceCoefficients = 0;
     float lastHp = -1.0f, lastLp = -1.0f;
-    Settings settingsInUse;
+    Telemetry telemetry;
+    int pointInterval = 384, sinceTelemetry = 0;
+    float accLevel = -120.0f, accThreshold = 0.0f, accReduction = 0.0f, accCentre = 7000.0f;
+    bool accDetected = false;
 };
 } // namespace chaus

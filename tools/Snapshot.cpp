@@ -50,6 +50,41 @@ struct TestSignal
 };
 } // namespace
 
+#if FERB_PLUGIN_CHAUS
+/** Voz sintética con eses: vocales (diente de sierra con formantes) y una «s» de ruido de 6 a 9 kHz cada 0,6 s. */
+struct VoiceSignal
+{
+    juce::Random rng { 7 };
+    double phase = 0.0, t = 0.0;
+    float f1a = 0, f1b = 0, f2a = 0, f2b = 0, hp1 = 0, hp2 = 0, lp1 = 0, lp2 = 0;
+
+    float next (double fs)
+    {
+        t += 1.0 / fs;
+        phase += 150.0 / fs;
+        phase -= std::floor (phase);
+        const float saw = static_cast<float> (2.0 * phase - 1.0);
+        // dos resonancias de un polo para dar color de vocal
+        f1a += 0.08f * (saw - f1a);
+        f1b += 0.08f * (f1a - f1b);
+        f2a += 0.30f * (saw - f2a);
+        f2b += 0.30f * (f2a - f2b);
+        const float vowel = 0.35f * (f1b * 2.0f + 0.4f * (f2a - f2b));
+
+        const double cycle = std::fmod (t, 0.6);
+        const double env = cycle < 0.16 ? 0.5 - 0.5 * std::cos (2.0 * juce::MathConstants<double>::pi * cycle / 0.16) : 0.0;
+        // «s»: ruido filtrado paso alto (≈ 5 kHz) y paso bajo (≈ 10 kHz)
+        const float white = rng.nextFloat() * 2.0f - 1.0f;
+        hp1 += 0.45f * (white - hp1);
+        const float high = white - hp1;
+        hp2 += 0.45f * (high - hp2);
+        const float band = high - hp2;
+        lp1 += 0.55f * (band - lp1);
+        return vowel * 0.7f + static_cast<float> (env) * 0.45f * lp1 * 2.0f;
+    }
+};
+#endif
+
 int main (int argc, char** argv)
 {
     if (argc < 2)
@@ -81,7 +116,11 @@ int main (int argc, char** argv)
     editor->setVisible (true);
 
     // Un par de segundos de audio, con la cola de eventos en marcha (los temporizadores del editor).
+#if FERB_PLUGIN_CHAUS
+    VoiceSignal signal;
+#else
     TestSignal signal;
+#endif
     juce::AudioBuffer<float> buffer (2, 512);
     juce::MidiBuffer midi;
     for (int block = 0; block < numBlocks; ++block)

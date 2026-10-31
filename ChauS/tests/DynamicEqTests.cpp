@@ -778,6 +778,63 @@ TEST_CASE ("El tamaño del bloque no cambia el resultado")
     REQUIRE (testutil::residualDb (a.l.data(), c.l.data(), int (a.l.size())) < -100.0);
 }
 
+// ───────────────────────────── Telemetría para la pantalla ─────────────────────────────
+
+TEST_CASE ("Telemetría: un punto cada 8 ms con el nivel, el umbral, la reducción y los eventos de la s")
+{
+    const double fs = 48000.0;
+    const auto phrase = makePhrase (fs, 8, 161, -14.0);
+    auto s = base();
+    s.thresholdDb = -50.0f;
+    s.rangeDb = 12.0f;
+
+    ChausEngine engine;
+    engine.prepare (fs, 256);
+    juce::AudioBuffer<float> buf (1, 256);
+    for (size_t pos = 0; pos + 256 <= phrase.audio.size(); pos += 256)
+    {
+        std::copy_n (phrase.audio.begin() + long (pos), 256, buf.getWritePointer (0));
+        engine.process (buf, nullptr, s);
+    }
+
+    const double seconds = double (phrase.audio.size() / 256 * 256) / fs;
+    const auto& telemetry = engine.getTelemetry();
+    constexpr int count = 375; // 3 s
+    std::vector<Telemetry::Point> points (count);
+    telemetry.copyLatest (points.data(), count);
+
+    // Hay 125 puntos por segundo: tras ≥ 3 s el anillo está lleno con puntos reales.
+    REQUIRE (seconds > 3.0);
+    int detected = 0;
+    float maxReduction = 0.0f, maxLevel = -200.0f;
+    for (const auto& p : points)
+    {
+        REQUIRE (std::isfinite (p.levelDb));
+        REQUIRE (std::isfinite (p.thresholdDb));
+        REQUIRE (p.reductionDb >= 0.0f);
+        REQUIRE (p.reductionDb <= 12.0f + 1.0e-3f);
+        REQUIRE (p.centreHz > 1000.0f);
+        REQUIRE (p.centreHz < 20000.0f);
+        detected += p.detected ? 1 : 0;
+        maxReduction = std::max (maxReduction, p.reductionDb);
+        maxLevel = std::max (maxLevel, p.levelDb);
+    }
+    INFO ("detectados " << detected << ", reducción máxima " << maxReduction << ", nivel máximo " << maxLevel);
+    REQUIRE (detected > 10);        // hubo eses en esos 3 s
+    REQUIRE (detected < count - 50); // y no todo el tiempo
+    REQUIRE (maxReduction > 3.0f);
+    REQUIRE (maxLevel > -40.0f);
+
+    // Los valores del momento coinciden con el último punto.
+    REQUIRE (telemetry.reductionDb.load() == Approx (points.back().reductionDb).margin (1.0e-3));
+    REQUIRE (telemetry.centreHz.load() == Approx (points.back().centreHz).margin (1.0));
+
+    // Pedir más puntos de los que hay devuelve vacíos al principio, sin leer fuera del anillo.
+    std::vector<Telemetry::Point> many (Telemetry::capacity);
+    telemetry.copyLatest (many.data(), Telemetry::capacity);
+    REQUIRE (many.back().levelDb == Approx (points.back().levelDb));
+}
+
 // ───────────────────────────── Informe de M2 ─────────────────────────────
 
 TEST_CASE ("Informe: cifras de M2 y CPU", "[.report]")

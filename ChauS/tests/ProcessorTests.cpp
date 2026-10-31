@@ -1,10 +1,14 @@
 #include <catch2/catch_approx.hpp>
 
+#include <chrono>
+
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 #include "AllocGuard.h"
 #include "ProcessorSuite.h"
 #include "Signals.h"
+#include "TestUtils.h"
+#include "ui/ChausUi.h"
 
 TEST_CASE ("ChauS: parámetros aleatorios, tasas, bloques y canales extremos") { suite::fuzz<ChauSProcessor>(); }
 TEST_CASE ("ChauS: el estado se guarda y se restaura") { suite::stateRoundTrip<ChauSProcessor>(); }
@@ -234,6 +238,66 @@ TEST_CASE ("ChauS: con audio real el procesador reduce las eses y el bypass del 
     REQUIRE (diffBypassed < 1.0e-5); // bypass: entrada retrasada
 }
 
+TEST_CASE ("Pantalla: el analizador de espectro mide el nivel eficaz de una senoidal y la sitúa en su frecuencia")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    for (double fs : { 44100.0, 48000.0, 96000.0 })
+        for (double freq : { 1000.0, 7000.0, 12000.0 })
+        {
+            ferb::SampleRing ring;
+            ring.prepare (16384);
+            const auto x = testutil::sine (8192, freq, fs, 0.1);
+            ring.push (x.data(), int (x.size()));
+            chaus::ui::SpectrumAnalyzer analyzer;
+            std::array<float, chaus::ui::SpectrumAnalyzer::numPoints> db {};
+            REQUIRE (analyzer.analyse (ring, fs, db));
+
+            int peak = 0;
+            for (int i = 0; i < int (db.size()); ++i)
+                if (db[size_t (i)] > db[size_t (peak)])
+                    peak = i;
+            const double peakHz = chaus::ui::SpectrumAnalyzer::pointFrequency (peak);
+            INFO ("fs " << fs << ", frecuencia " << freq << ", máximo en " << peakHz << " Hz con " << db[size_t (peak)] << " dB");
+            REQUIRE (std::abs (std::log2 (peakHz / freq)) < 0.1);       // dentro de ~7 % (un punto de la rejilla es 1/24 de octava)
+            REQUIRE (db[size_t (peak)] == Catch::Approx (-23.0f).margin (3.1)); // 0,1 de amplitud = −23 dBFS eficaces (la banda no recoge todo el lóbulo)
+            // Lejos de la senoidal no queda casi nada.
+            const int far = peak > 80 ? 10 : 150;
+            REQUIRE (db[size_t (far)] < db[size_t (peak)] - 40.0f);
+        }
+}
+
+TEST_CASE ("Pantalla: los anillos del procesador llevan la entrada y la salida (suma a mono)")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    ChauSProcessor p;
+    set (p, "range", 0.0f);
+    set (p, "look", 0.0f);
+    p.setPlayConfigDetails (2, 2, 48000.0, 512);
+    p.prepareToPlay (48000.0, 512);
+    juce::AudioBuffer<float> buf (2, 512);
+    juce::MidiBuffer midi;
+    std::vector<float> expected;
+    for (int b = 0; b < 8; ++b)
+    {
+        for (int i = 0; i < 512; ++i)
+        {
+            const float l = 0.3f * std::sin (0.05f * float (b * 512 + i)), r = 0.1f * std::sin (0.11f * float (b * 512 + i));
+            buf.setSample (0, i, l);
+            buf.setSample (1, i, r);
+            expected.push_back (0.5f * (l + r));
+        }
+        p.processBlock (buf, midi);
+    }
+    std::vector<float> in (1000), out (1000);
+    p.getInputRing().copyLatest (in.data(), 1000);
+    p.getOutputRing().copyLatest (out.data(), 1000);
+    for (int i = 0; i < 1000; ++i)
+    {
+        REQUIRE (in[size_t (i)] == Catch::Approx (expected[expected.size() - 1000 + size_t (i)]).margin (1.0e-6));
+        REQUIRE (out[size_t (i)] == Catch::Approx (in[size_t (i)]).margin (1.0e-4)); // Rango 0 y sin lookahead: pasa igual
+    }
+}
+
 TEST_CASE ("El contador de reservas detecta una reserva deliberada")
 {
     static int* volatile sink;
@@ -272,4 +336,64 @@ TEST_CASE ("ChauS: restaurar el estado devuelve cada parámetro a su valor guard
         for (auto& [param, value] : before)
             param->setValueNotifyingHost (rng.nextFloat() > 0.5f ? 1.0f : 0.0f);
     }
+}
+
+TEST_CASE ("Informe: calibración del espectro de la pantalla", "[.report]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    double worst = 0.0;
+    for (double fs : { 44100.0, 48000.0, 96000.0 })
+        for (double freq : { 300.0, 1000.0, 3000.0, 7000.0, 12000.0, 16000.0 })
+        {
+            ferb::SampleRing ring;
+            ring.prepare (16384);
+            const auto x = testutil::sine (8192, freq, fs, 0.1);
+            ring.push (x.data(), int (x.size()));
+            chaus::ui::SpectrumAnalyzer analyzer;
+            std::array<float, chaus::ui::SpectrumAnalyzer::numPoints> db {};
+            analyzer.analyse (ring, fs, db);
+            worst = std::max (worst, double (std::abs (*std::max_element (db.begin(), db.end()) + 23.01f)));
+        }
+    std::printf ("espectro de la pantalla: peor error del máximo frente a −23,01 dBFS eficaces: %.2f dB\n", worst);
+}
+
+TEST_CASE ("Informe: costo de pintar la pantalla completa a 75, 100 y 200 %", "[.report]")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    ChauSProcessor p;
+    p.setPlayConfigDetails (2, 2, 48000.0, 512);
+    p.prepareToPlay (48000.0, 512);
+    const auto phrase = sig::makePhrase (48000.0, 8, 3, -16.0);
+    juce::AudioBuffer<float> buf (2, 512);
+    juce::MidiBuffer midi;
+    for (size_t pos = 0; pos + 512 <= phrase.audio.size(); pos += 512)
+    {
+        for (int ch = 0; ch < 2; ++ch)
+            std::copy_n (phrase.audio.begin() + long (pos), 512, buf.getWritePointer (ch));
+        p.processBlock (buf, midi);
+    }
+    std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+    editor->setVisible (true);
+    for (double scale : { 0.75, 1.0, 2.0 })
+    {
+        editor->setSize (int (960 * scale), int (580 * scale));
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
+        const auto start = std::chrono::steady_clock::now();
+        const int frames = 20;
+        for (int i = 0; i < frames; ++i)
+            editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
+        const double ms = std::chrono::duration<double, std::milli> (std::chrono::steady_clock::now() - start).count() / frames;
+        std::printf ("pintar toda la ventana a %3.0f %%: %.2f ms por cuadro (con la interfaz entera; a 30 Hz hay 33 ms)\n", scale * 100.0, ms);
+    }
+}
+
+TEST_CASE ("ChauS: el editor se puede abrir y pintar antes de prepareToPlay (como hacen los validadores)")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    ChauSProcessor p; // sin prepareToPlay
+    std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+    editor->setVisible (true);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil (150); // el temporizador lee los anillos y la telemetría
+    editor->createComponentSnapshot (editor->getLocalBounds());
+    SUCCEED();
 }

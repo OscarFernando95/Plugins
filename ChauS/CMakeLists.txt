@@ -26,7 +26,8 @@ target_sources(ChauS PRIVATE
     source/Parameters.cpp
     source/Presets.cpp
     source/PluginProcessor.cpp
-    source/PluginEditor.cpp)
+    source/PluginEditor.cpp
+    source/ui/ChausUi.cpp)
 
 target_include_directories(ChauS PRIVATE source)
 target_compile_definitions(ChauS PUBLIC

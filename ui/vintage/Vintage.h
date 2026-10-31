@@ -44,8 +44,8 @@ inline const juce::Colour lilac { 0xffc7a3ff };
 /** Texto con espaciado entre letras (como `letter-spacing` de CSS), centrado o alineado. */
 void drawSpaced (juce::Graphics&, const juce::String&, juce::Rectangle<float>, const juce::Font&, juce::Justification);
 
-/** Ventana de cristal: fondo, aro y, al terminar, las rayas de pantalla y el brillo. */
-void paintGlassBackground (juce::Graphics&, juce::Rectangle<float>, const Palette&, float corner = 7.0f);
+/** Ventana de cristal: fondo, aro (grueso, o con `plainBezel` el filo fino de ChauS) y, al terminar, las rayas de pantalla y el brillo. */
+void paintGlassBackground (juce::Graphics&, juce::Rectangle<float>, const Palette&, float corner = 7.0f, bool plainBezel = false);
 void paintGlassOverlay (juce::Graphics&, juce::Rectangle<float>, float corner = 7.0f);
 
 /** Aro de bisel (negro, color del aparato y filete oscuro) alrededor de `r`. */

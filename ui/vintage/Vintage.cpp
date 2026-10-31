@@ -124,9 +124,19 @@ void paintBezel (juce::Graphics& g, juce::Rectangle<float> r, const Palette& p, 
     g.fillRoundedRectangle (outer, corner + black);
 }
 
-void paintGlassBackground (juce::Graphics& g, juce::Rectangle<float> r, const Palette& p, float corner)
+void paintGlassBackground (juce::Graphics& g, juce::Rectangle<float> r, const Palette& p, float corner, bool plainBezel)
 {
-    paintBezel (g, r, p, corner, true);
+    if (plainBezel)
+    {
+        // Filo fino de la maqueta de ChauS: 2 px negro y 2 px del color oscuro del aparato.
+        auto outer = r.expanded (4.0f);
+        g.setColour (p.bezelDark);
+        g.fillRoundedRectangle (outer, corner + 4.0f);
+        g.setColour (juce::Colour (0xff050407));
+        g.fillRoundedRectangle (outer.reduced (2.0f), corner + 2.0f);
+    }
+    else
+        paintBezel (g, r, p, corner, true);
     juce::ColourGradient gradient (juce::Colour (0xff16101d), r.getX() + r.getWidth() * 0.5f, r.getY() + r.getHeight() * 0.4f,
                                    p.glass, r.getX() + r.getWidth() * 1.1f, r.getY() + r.getHeight() * 1.0f, true);
     gradient.addColour (0.72, p.glass);

@@ -20,6 +20,11 @@ ChauSProcessor::ChauSProcessor()
     if (apvts.state.getProperty ("presetName").toString().isEmpty())
         apvts.state.setProperty ("presetName", presets->getFactoryNames()[0], nullptr);
 
+    // Los anillos del espectro se reservan una sola vez: el editor los lee desde otro hilo y un validador puede
+    // abrirlo antes de `prepareToPlay`.
+    inputRing.prepare (16384);
+    outputRing.prepare (16384);
+
     // Cambian la latencia: el lookahead y su interruptor.
     for (auto* id : { k::look, k::lookOn })
         apvts.addParameterListener (id, this);
@@ -112,6 +117,25 @@ void ChauSProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
         buffer.clear (ch, 0, buffer.getNumSamples());
 
     auto main = getBusBuffer (buffer, false, 0);
+
+    // Suma a mono de entrada y salida para el espectro (en trozos, sin reservar memoria).
+    const auto publish = [&main] (ferb::SampleRing& ring, int start, int count)
+    {
+        float mono[256];
+        const int channels = main.getNumChannels();
+        for (int i = 0; i < count; ++i)
+        {
+            float v = main.getSample (0, start + i);
+            if (channels > 1)
+                v = 0.5f * (v + main.getSample (1, start + i));
+            mono[i] = v;
+        }
+        ring.push (mono, count);
+    };
+    const int total = main.getNumSamples();
+    for (int pos = 0; pos < total; pos += 256)
+        publish (inputRing, pos, std::min (256, total - pos));
+
     const bool sidechainOn = getBusCount (true) > 1 && getBus (true, 1)->isEnabled();
     if (sidechainOn)
     {
@@ -120,6 +144,9 @@ void ChauSProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
     }
     else
         engine.process (main, nullptr, readSettings());
+
+    for (int pos = 0; pos < total; pos += 256)
+        publish (outputRing, pos, std::min (256, total - pos));
 }
 
 int ChauSProcessor::getNumPrograms() { return presets->getFactoryNames().size(); }
