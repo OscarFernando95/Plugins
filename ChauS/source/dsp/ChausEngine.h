@@ -139,7 +139,6 @@ private:
     int requestedDelay = -1, adoptedDelay = -1, stableSamples = 0;
 
     float attackCoeff = 0.0f, shapeCoeff = 0.0f, trackFastCoeff = 0.0f, trackSlowCoeff = 0.0f, gateCoeff = 0.0f;
-    int activeKey = 0;
     // En doble precisión: con `float` el suavizado se estanca ~1e-4 antes del objetivo (cada paso queda bajo medio ulp).
     double bypassMix = 0.0, listenMix = 0.0, outputGain = 1.0, bypassCoeff = 0.0, listenCoeff = 0.0, outputCoeff = 0.0;
     int sinceCoefficients = 0;

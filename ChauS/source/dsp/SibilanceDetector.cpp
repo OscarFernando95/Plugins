@@ -125,9 +125,9 @@ Features extractFeatures (const double* power, int N, double fs, float hpHz, flo
     for (int i = 0; i < 4; ++i)
     {
         const double x = std::log2 (std::sqrt (edges[i] * edges[i + 1]) / 2000.0);
-        int bins = 1;
-        const double sum = bandSum (edges[i], edges[i + 1], &bins);
-        const double y = db10 (sum / bins + 1.0e-14);
+        int subBins = 1;
+        const double sum = bandSum (edges[i], edges[i + 1], &subBins);
+        const double y = db10 (sum / subBins + 1.0e-14);
         sx += x; sy += y; sxx += x * x; sxy += x * y;
     }
     const double denom = 4.0 * sxx - sx * sx;

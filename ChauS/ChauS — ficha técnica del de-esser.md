@@ -254,7 +254,7 @@ Lee la ficha técnica de ChauS e implementa el hito M1: extractor de los cinco r
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) y M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S) y M3 (parámetros, presets, A/B y deshacer). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -339,3 +339,24 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y u
 **Límites de M2 (para decidir):**
 - La meta «0 ms de retraso del 90 % de la reducción» de la ficha no es alcanzable con una reducción 1:1 sobre el exceso: el 90 % de la meseta llega cuando el nivel de la s llega a su meseta. Lo que sí se mide es que el lookahead recorta el faltante máximo de 5,3 a 3,3 dB y deja 0,5 ms con más de 3 dB de falta. Con lookahead 0 no hay «a tiempo» posible: el clasificador ve la s unos 5 ms después de empezar.
 - El nivel de referencia por defecto (Umbral −30) deja la mayor parte de las eses por debajo del umbral efectivo (la referencia es el percentil 90 de los picos): para reducir más hay que bajar el Umbral. Es lo que dice la ficha; se afina de oído.
+
+**Parámetros y presets (M3)**
+
+- **24 parámetros** con `ParameterID{id, 1}`: los 22 de la tabla de la sección 4 (sin `bypass`, que es el del anfitrión y no entra en los presets ni en el A/B) más `qAuto` y `releaseAuto` (Bool, encendidos por defecto), que sustituyen al valor «Auto» de `q` y `release`. Rangos y defectos de la ficha (HP 4 kHz, LP 12 kHz, Umbral −30, Rango 8, Lookahead 10 ms, Enlace 100 %, Forma Auto). `ms` se llama «Apagado / Mid / Side» en el anfitrión; la interfaz muestra L/R, Mid y Side. **No renombrar estos IDs.**
+- La maqueta usa HP 3,5 kHz y LP 11 kHz como valor de las perillas; manda la ficha (4 y 12 kHz). El preset *Voz masculina* sí lleva 3,5 y 11 kHz.
+- **10 presets de fábrica** (Init, Voz masculina, Voz femenina, Locución, Rap, Coros, Voz agresiva, Podcast, Batería (platillos), Mezcla completa). Voz masculina, Voz femenina, Locución, Voz agresiva y Mezcla completa usan los valores de la maqueta; los otros cinco son valores iniciales. Un preset carga solo los parámetros que menciona; el resto vuelve a su defecto. Aparecen también como programas del anfitrión.
+- Estado: `setStateInformation` usa `ferb::syncParametersFromState`. A/B (no se guarda con la sesión) y deshacer con `UndoManager`.
+- La latencia la declara el procesador en cuanto cambian `look` o `lookOn`; el motor adopta el valor a los 150 ms.
+
+**Resultados medidos de M3** (48 kHz salvo que se diga)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| `ChauSProcessorTests` (parámetros aleatorios, 44,1 a 192 kHz, bloques 1 a 4096, mono y estéreo, estado, editor, canales y sidechain) | Sin fallos | 18,15 millones de comprobaciones, 16 casos |
+| Latencia declarada frente a la medida con un impulso | Igual | Exacta con 0, 4, 10 y 15 ms a 44,1, 48 y 96 kHz |
+| Latencia al mover el lookahead o apagarlo | Se actualiza | 480 → 720 → 0 → 720 muestras |
+| Estado guardado y restaurado (24 parámetros, valores aleatorios, también Bool fraccionarios) | Igual | Cumple |
+| Presets | 10 cargan, son programas del anfitrión y Init es el defecto | Cumple |
+| `processBlock` | Sin reservas | 0 reservas |
+| `auval -v aufx ChaS Ferb` | Pasa | Pasa |
+| `pluginval` nivel 10, VST3 y AU, sin pruebas de interfaz | Pasa | Pasa (queda la corrida completa con interfaz en M5) |

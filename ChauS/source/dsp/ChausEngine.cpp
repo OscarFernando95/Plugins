@@ -246,7 +246,7 @@ void ChausEngine::updateCoefficients (Lane& lane, const Settings& s, float reduc
 
 void ChausEngine::configureLane (Lane& lane, const Settings& s) noexcept
 {
-    if (s.hpHz != lastHp || s.lpHz != lastLp)
+    if (std::abs (s.hpHz - lastHp) > 1.0e-3f || std::abs (s.lpHz - lastLp) > 1.0e-3f)
         lane.detector.setBand (s.hpHz, s.lpHz);
     lane.detector.setClassifierEnabled (s.voiceMode);
 }

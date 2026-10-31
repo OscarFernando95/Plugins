@@ -17,6 +17,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - M0: esqueleto (código `ChaS`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base 960×580, `ChauSProcessorTests` y `ChausSnapshot`.
 - M1: detector de sibilantes (seis rasgos espectrales, regresión logística con histéresis, nivel de banda en el dominio del tiempo) y umbral adaptativo (percentil 90, 5 s); `ChauSTests`.
 - M2: motor de EQ dinámico (campana y estante con seguimiento de frecuencia y Q, banda ancha, lookahead de 0 a 15 ms con latencia informada, enlace estéreo, Mid/Side, sidechain externo, escuchas, salida y bypass).
+- M3: 24 parámetros (IDs fijados), 10 presets de fábrica, A/B y deshacer, latencia declarada por el procesador.
 
 ## Cremita 1.0.0 — 2026-10-31
 

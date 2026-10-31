@@ -6,12 +6,15 @@
 #include <PresetManager.h>
 
 #include "Parameters.h"
+#include "dsp/ChausEngine.h"
 
-class ChauSProcessor : public juce::AudioProcessor
+class ChauSProcessor : public juce::AudioProcessor,
+                       private juce::AudioProcessorValueTreeState::Listener,
+                       private juce::AsyncUpdater
 {
 public:
     ChauSProcessor();
-    ~ChauSProcessor() override = default;
+    ~ChauSProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -43,10 +46,19 @@ public:
     juce::UndoManager undoManager;
     juce::AudioProcessorValueTreeState apvts;
 
+    chaus::ChausEngine& getEngine() noexcept { return engine; }
+    chaus::Settings readSettings() const noexcept;
     ferb::PresetManager& getPresets() noexcept { return *presets; }
     ferb::AbCompare& getAb() noexcept { return *ab; }
 
 private:
+    void parameterChanged (const juce::String& id, float value) override;
+    void handleAsyncUpdate() override;
+    void updateLatency();
+
+    chaus::ChausEngine engine;
+    double currentSampleRate = 48000.0;
+    int lastLatency = -1;
     std::unique_ptr<ferb::PresetManager> presets;
     std::unique_ptr<ferb::AbCompare> ab;
 

@@ -19,9 +19,74 @@ ChauSProcessor::ChauSProcessor()
     ab = std::make_unique<ferb::AbCompare> (apvts, excluded);
     if (apvts.state.getProperty ("presetName").toString().isEmpty())
         apvts.state.setProperty ("presetName", presets->getFactoryNames()[0], nullptr);
+
+    // Cambian la latencia: el lookahead y su interruptor.
+    for (auto* id : { k::look, k::lookOn })
+        apvts.addParameterListener (id, this);
 }
 
-void ChauSProcessor::prepareToPlay (double, int) {}
+ChauSProcessor::~ChauSProcessor()
+{
+    for (auto* id : { k::look, k::lookOn })
+        apvts.removeParameterListener (id, this);
+    cancelPendingUpdate();
+}
+
+void ChauSProcessor::parameterChanged (const juce::String&, float)
+{
+    triggerAsyncUpdate(); // el anfitrión puede cambiar parámetros desde el hilo de audio
+}
+
+void ChauSProcessor::handleAsyncUpdate() { updateLatency(); }
+
+void ChauSProcessor::updateLatency()
+{
+    const int latency = chaus::ChausEngine::latencyFor (readSettings(), currentSampleRate);
+    if (latency != lastLatency)
+    {
+        lastLatency = latency;
+        setLatencySamples (latency);
+    }
+}
+
+void ChauSProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    currentSampleRate = sampleRate;
+    engine.prepare (sampleRate, samplesPerBlock);
+    lastLatency = -1;
+    updateLatency();
+}
+
+chaus::Settings ChauSProcessor::readSettings() const noexcept
+{
+    const auto raw = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+    const auto on = [&raw] (const char* id) { return raw (id) >= 0.5f; };
+    chaus::Settings s;
+    s.voiceMode = juce::roundToInt (raw (k::mode)) == k::VoiceOnly;
+    s.thresholdDb = raw (k::thr);
+    s.adaptive = on (k::adaptive);
+    s.rangeDb = raw (k::range);
+    s.hpHz = raw (k::hp);
+    s.lpHz = raw (k::lp);
+    s.track = on (k::track);
+    s.qAuto = on (k::qAuto);
+    s.q = raw (k::q);
+    s.wideBand = juce::roundToInt (raw (k::band)) == k::Wide;
+    s.shape = static_cast<chaus::Shape> (juce::jlimit (0, 2, juce::roundToInt (raw (k::shape))));
+    s.sensSoftDb = raw (k::sensSoft);
+    s.sensHardDb = raw (k::sensHard);
+    s.lookaheadMs = on (k::lookOn) ? raw (k::look) : 0.0f;
+    s.releaseAuto = on (k::releaseAuto);
+    s.releaseMs = raw (k::release);
+    s.linkPercent = raw (k::link);
+    s.stereo = static_cast<chaus::Stereo> (juce::jlimit (0, 2, juce::roundToInt (raw (k::ms))));
+    s.externalSidechain = on (k::scExt);
+    s.listenTrigger = on (k::listenTrig);
+    s.listenSidechain = on (k::listenSC);
+    s.outputDb = raw (k::output);
+    s.bypass = on (k::bypass);
+    return s;
+}
 
 bool ChauSProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
@@ -43,9 +108,18 @@ bool ChauSProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 void ChauSProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    // M0: paso directo. Las salidas sin entrada correspondiente se silencian.
     for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
+
+    auto main = getBusBuffer (buffer, false, 0);
+    const bool sidechainOn = getBusCount (true) > 1 && getBus (true, 1)->isEnabled();
+    if (sidechainOn)
+    {
+        auto sidechain = getBusBuffer (buffer, true, 1);
+        engine.process (main, &sidechain, readSettings());
+    }
+    else
+        engine.process (main, nullptr, readSettings());
 }
 
 int ChauSProcessor::getNumPrograms() { return presets->getFactoryNames().size(); }

@@ -57,7 +57,7 @@ if(FERB_BUILD_TESTS)
     add_executable(ChauSProcessorTests tests/ProcessorTests.cpp)
     target_compile_definitions(ChauSProcessorTests PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_include_directories(ChauSProcessorTests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/source ${PROJECT_SOURCE_DIR}/ui ${PROJECT_SOURCE_DIR}/ui/vintage ${PROJECT_SOURCE_DIR}/core ${PROJECT_SOURCE_DIR}/tests/common)
+        ${CMAKE_CURRENT_SOURCE_DIR}/source ${CMAKE_CURRENT_SOURCE_DIR}/tests ${PROJECT_SOURCE_DIR}/ui ${PROJECT_SOURCE_DIR}/ui/vintage ${PROJECT_SOURCE_DIR}/core ${PROJECT_SOURCE_DIR}/tests/common)
     target_link_libraries(ChauSProcessorTests PRIVATE ChauS juce::juce_gui_basics juce::juce_audio_utils Catch2::Catch2WithMain)
     add_test(NAME ChauSProcessorTests COMMAND ChauSProcessorTests)
 endif()

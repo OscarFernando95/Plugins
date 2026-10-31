@@ -40,7 +40,7 @@ inline double rms (const std::vector<float>& x)
     double s = 0.0;
     for (float v : x)
         s += double (v) * v;
-    return std::sqrt (s / std::max<size_t> (1, x.size()));
+    return std::sqrt (s / static_cast<double> (std::max<size_t> (1, x.size())));
 }
 
 /** Lleva la señal a un valor eficaz dado (dBFS). */
