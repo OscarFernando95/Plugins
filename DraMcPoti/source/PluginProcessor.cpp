@@ -16,6 +16,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
     raw.era = ptr (k::era);       raw.voice = ptr (k::voice);   raw.tune = ptr (k::tune); raw.link = ptr (k::link);
     raw.xo1 = ptr (k::xo1);       raw.xo2 = ptr (k::xo2);       raw.xo3 = ptr (k::xo3);   raw.delta = ptr (k::delta);
     raw.os = ptr (k::os);
+    raw.air = ptr (k::airCorner);
     for (int b = 0; b < k::numBands; ++b)
     {
         const auto i = static_cast<size_t> (b);
@@ -55,6 +56,7 @@ mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
     s.xo3 = raw.xo3->load();
     s.delta = raw.delta->load() >= 0.5f;
     s.osIndex = juce::roundToInt (raw.os->load());
+    s.airCornerHz = raw.air->load();
     for (size_t b = 0; b < k::numBands; ++b)
     {
         auto& band = s.bands[b];

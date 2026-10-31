@@ -386,3 +386,71 @@ TEST_CASE ("McPoti: Seda solo realza, sin armónicos, y respeta la latencia")
     }
     CHECK (peakAt == 10 + McPotiEngine::latencySamples());
 }
+
+namespace
+{
+/** Amplitud (relativa a la entrada) de `measureFreq` en la salida Delta de un seno de `freq` a `levelDb`. */
+double deltaGain (int era, int voice, double freq, double levelDb, double measureFreq, Settings s = settings (100.0f))
+{
+    const int n = int (fs);
+    s.era = era;
+    s.voice = voice;
+    s.delta = true;
+    const double amp = fromDb (levelDb);
+    const auto out = run (sine (n, freq, fs, amp), s);
+    return measureAmplitude (out.data() + n / 2, n / 2, measureFreq, fs) / amp;
+}
+} // namespace
+
+TEST_CASE ("McPoti: Dinámico (compander) realza más el detalle suave que los picos y no crea armónicos")
+{
+    const double soft = deltaGain (1, 0, 1000.0, -50.0, 1000.0);
+    const double loud = deltaGain (1, 0, 1000.0, -6.0, 1000.0);
+    INFO ("suave " << soft << ", fuerte " << loud);
+    CHECK (soft > 0.8);          // bajo el umbral, la copia suma casi todo
+    CHECK (loud < soft * 0.7);   // sobre el umbral la copia comprimida suma menos
+    CHECK (deltaGain (1, 0, 1000.0, -30.0, 2000.0) < 0.01);
+
+    // Dinámica fija la relación: con 8:1 comprime más que con 2:1.
+    auto s2 = settings (100.0f), s8 = settings (100.0f);
+    for (auto& b : s2.bands) b.dyn = -50.0f;
+    for (auto& b : s8.bands) b.dyn = 50.0f;
+    CHECK (deltaGain (1, 0, 1000.0, -6.0, 1000.0, s8) < deltaGain (1, 0, 1000.0, -6.0, 1000.0, s2));
+}
+
+TEST_CASE ("McPoti: Aire realza las agudas, se aplana al comprimir y no crea armónicos")
+{
+    auto s = settings (100.0f);
+    s.airCornerHz = 8000.0f;
+    const double soft = deltaGain (1, 3, 12000.0, -50.0, 12000.0, s);
+    const double loud = deltaGain (1, 3, 12000.0, -6.0, 12000.0, s);
+    INFO ("suave " << soft << ", fuerte " << loud);
+    CHECK (soft > 1.0);
+    CHECK (loud < soft * 0.8);
+    CHECK (deltaGain (1, 3, 400.0, -50.0, 400.0, s) < 0.2);   // graves casi sin realce
+    CHECK (deltaGain (1, 3, 6000.0, -50.0, 12000.0, s) < 0.01); // sin armónicos
+}
+
+TEST_CASE ("McPoti: Adaptativo sube el drive si falta presencia y lo baja si sobra")
+{
+    // Referencia: Válvula fija (Vintage) con la misma señal. Adaptativo = Válvula con el drive guiado por la razón Presencia/Medios.
+    const int n = int (fs * 6.0);
+    auto harmonic = [&] (int era, int voice, double presenceAmp)
+    {
+        auto s = settings (40.0f);
+        s.era = era;
+        s.voice = voice;
+        s.delta = true;
+        auto in = sine (n, 800.0, fs, 0.2);
+        const auto hi = sine (n, 4000.0, fs, presenceAmp);
+        for (size_t i = 0; i < in.size(); ++i)
+            in[i] += hi[i];
+        const auto out = run (in, s);
+        return measureAmplitude (out.data() + n - 24000, 24000, 8000.0, fs);
+    };
+    const double dullRef = harmonic (0, 2, 0.02), dullAdaptive = harmonic (1, 1, 0.02);
+    const double brightRef = harmonic (0, 2, 0.4), brightAdaptive = harmonic (1, 1, 0.4);
+    INFO ("apagado " << dullAdaptive / dullRef << ", brillante " << brightAdaptive / brightRef);
+    CHECK (dullAdaptive > dullRef * 1.3);
+    CHECK (brightAdaptive < brightRef * 0.8);
+}

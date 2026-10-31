@@ -35,12 +35,13 @@ struct Settings
     std::array<BandSettings, numBands> bands;
     bool delta = false;
     int osIndex = 2; // 0 a 3 = 1×, 2×, 4×, 8×
+    float airCornerHz = 16000.0f;
 };
 
 /** Fase 2 (parcial): cruce de cuatro bandas y generador de armónicos de los cuatro caracteres Vintage con
-    ADAA de primer orden y sobremuestreo de 1× a 8×, dinámica por banda, el carácter Moderno Seda (shelf paralelo), mezcla, Delta y Solo.
+    ADAA de primer orden y sobremuestreo de 1× a 8×, dinámica por banda, los cuatro caracteres Modernos (Dinámico, Adaptativo, Seda y Aire), mezcla, Delta y Solo.
     La latencia es constante (la de 8×): el seco, Solo y los factores menores se retrasan lo que falta.
-    Pendiente: Dinámico, Adaptativo y Aire, Color, Fase, Suavizar, guarda, M/S, fase lineal e Igualar. */
+    Pendiente: Color, Fase, Suavizar, guarda, M/S, fase lineal e Igualar. */
 class McPotiEngine
 {
 public:
@@ -77,7 +78,7 @@ private:
     {
         ferb::FourBandSplit split;
         std::array<ferb::Biquad, nb> hpIn, hpOut, shelf;
-        std::array<float, nb> env {};
+        std::array<float, nb> env {}, gcTarget, gcSmooth;
         std::array<ferb::UpN, nb> up;
         std::array<ferb::DownN, nb> down;
         std::array<AdaaState, nb> adaa;
@@ -109,5 +110,7 @@ private:
     std::array<float, 3> smoothXo {};
     float smoothTune = 4000.0f, freqCoeff = 0.0f;
     std::array<float, 3> shelfXo {};
+    float smoothAir = 16000.0f, shelfAir = 0.0f, adaptGain = 1.0f, tonalCoeff = 0.0f;
+    std::array<float, 2> tonal {}; // potencia de Medios y de Presencia, promedio de 2 s
 };
 } // namespace mcpoti

@@ -9,7 +9,10 @@ namespace
 constexpr float gamma = 0.5f; // normalización inicial de lo añadido (por afinar)
 constexpr float refVocalDb = -24.0f;
 constexpr float refMasterDb = -18.0f;
-constexpr int seda = 4 + 2; // era Moderno (4) + voicing 3 (índice 2)
+// Claves era·4 + voicing de la era Moderno.
+constexpr int dinamico = 4, adaptativo = 5, seda = 6, aire = 7;
+constexpr bool linearVoice (int key) noexcept { return key == dinamico || key == seda || key == aire; } // sin generador no lineal
+constexpr float adaptTargetDb = -9.0f; // razón Presencia/Medios a la que tiende Adaptativo (valor inicial)
 
 float smoothCoeff (double fs, double ms) { return 1.0f - std::exp (-1.0f / float (0.001 * ms * fs)); }
 
@@ -73,6 +76,7 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
     inSmooth.coeff = outSmooth.coeff = mixSmooth.coeff = c20;
     gate.coeff = smoothCoeff (fs, 5.0);
     freqCoeff = 1.0f - std::exp (-float (controlInterval) / float (0.030 * fs)); // 30 ms por paso de control
+    tonalCoeff = smoothCoeff (fs, 2000.0);
     envAttack = smoothCoeff (fs, 5.0);
     envRelease = smoothCoeff (fs, 120.0);
 
@@ -117,7 +121,11 @@ void McPotiEngine::reset() noexcept
             c.addDelay[b].reset();
         }
         c.env.fill (0.0f);
+        c.gcTarget.fill (1.0f);
+        c.gcSmooth.fill (1.0f);
     }
+    tonal.fill (0.0f);
+    adaptGain = 1.0f;
     dynFactor.fill (1.0f);
     lastHp.fill (0.0f);
     lastXo.fill (0.0f);
@@ -133,11 +141,11 @@ void McPotiEngine::reset() noexcept
     snapControl = true;
 }
 
-/** Lo añadido por el generador pasa por subir y bajar (latencia propia del factor); Seda no sobremuestrea, así que
+/** Lo añadido por el generador pasa por subir y bajar (latencia propia del factor); Los caracteres lineales (Dinámico, Seda y Aire) no sobremuestrean, así que
     se retrasa la latencia total. En los dos casos lo añadido llega alineado con el seco. */
 void McPotiEngine::applyAddDelays() noexcept
 {
-    const int delay = activeVoice == seda ? latencySamples() : latencySamples() - ferb::OsDesign::latencyFor (factor, false);
+    const int delay = linearVoice (activeVoice) ? latencySamples() : latencySamples() - ferb::OsDesign::latencyFor (factor, false);
     for (auto& c : channels)
         for (auto& d : c.addDelay)
         {
@@ -146,17 +154,21 @@ void McPotiEngine::applyAddDelays() noexcept
         }
 }
 
-/** Shelf de segundo orden de +15 dB en el borde inferior de cada banda (Cuerpo: 100 Hz); Drive mezcla el realce. */
+/** Seda: shelf de +15 dB en el borde inferior de cada banda (Cuerpo: 100 Hz). Aire: shelf de +10 dB en la esquina de aire
+    (acotada a 0,45·fs: por encima de Nyquist no hay señal que realzar a esta frecuencia de muestreo). Drive mezcla el realce. */
 void McPotiEngine::designShelves() noexcept
 {
-    const double corners[nb] = { 100.0, double (lastXo[0]), double (lastXo[1]), double (lastXo[2]) };
+    const bool air = activeVoice == aire;
+    const double edges[nb] = { 100.0, double (lastXo[0]), double (lastXo[1]), double (lastXo[2]) };
     for (size_t b = 0; b < nb; ++b)
     {
-        const auto shelf = ferb::Biquad::highShelf (fs, std::min (corners[b], 0.45 * fs), 15.0);
+        const double corner = air ? std::max (double (smoothAir), edges[b]) : edges[b];
+        const auto shelf = ferb::Biquad::highShelf (fs, std::min (corner, 0.45 * fs), air ? 10.0 : 15.0);
         for (auto& c : channels)
             c.shelf[b].setCoefficients (shelf);
     }
     shelfXo = lastXo;
+    shelfAir = smoothAir;
 }
 
 /** Cambia el factor de sobremuestreo (el motor ya está en silencio para lo añadido) y alinea los retardos:
@@ -192,12 +204,14 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
         snapControl = false;
         smoothXo = target;
         smoothTune = s.tuneHz;
+        smoothAir = s.airCornerHz;
     }
     else
     {
         for (size_t i = 0; i < 3; ++i)
             smoothXo[i] += freqCoeff * (target[i] - smoothXo[i]);
         smoothTune += freqCoeff * (s.tuneHz - smoothTune);
+        smoothAir += freqCoeff * (s.airCornerHz - smoothAir);
     }
     const float x1 = smoothXo[0], x2 = smoothXo[1], x3 = smoothXo[2];
     bool moved = false;
@@ -208,9 +222,11 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
         lastXo = smoothXo;
         for (auto& c : channels)
             c.split.setFrequencies (fs, x1, x2, x3);
-        if (activeVoice == seda)
+        if (activeVoice == seda || activeVoice == aire)
             designShelves();
     }
+    else if (activeVoice == aire && std::abs (smoothAir - shelfAir) > 0.002f * smoothAir)
+        designShelves();
 
     // Pasa-altos del generador de cada banda: max(Sintonización, borde inferior); Cuerpo usa 40 Hz.
     const float edges[numBands] = { 40.0f, x1, x2, x3 };
@@ -231,20 +247,38 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
         }
     }
 
+    // Adaptativo: la razón Presencia/Medios (promedio de 2 s) mueve el drive hasta ±6 dB hacia el objetivo tonal.
+    if (activeVoice == adaptativo && tonal[0] > 1.0e-9f)
+    {
+        const float ratioDb = 10.0f * std::log10 ((tonal[1] + 1.0e-12f) / tonal[0]);
+        adaptGain = std::pow (10.0f, juce::jlimit (-6.0f, 6.0f, adaptTargetDb - ratioDb) / 20.0f);
+    }
+    else
+        adaptGain = 1.0f;
+
     // Dinámica por banda: a = drive/100 · 2^(−dyn·e/50), e = clamp((L − Lref)/12, −1, 1), con el nivel enlazado.
+    // En Dinámico la Dinámica fija la relación del compander, no el drive.
     const float ref = s.master ? refMasterDb : refVocalDb;
     const float link = juce::jlimit (0.0f, 1.0f, s.linkPercent * 0.01f);
     for (size_t b = 0; b < numBands; ++b)
     {
-        float own = 0.0f, mean = 0.0f;
+        float mean = 0.0f;
         for (auto& c : channels)
             mean += c.env[b];
         mean *= 1.0f / float (maxChannels);
-        own = channels[0].env[b];
-        const float power = link * mean + (1.0f - link) * own;
+        const float power = link * mean + (1.0f - link) * channels[0].env[b];
         const float levelDb = 10.0f * std::log10 (power + 1.0e-12f);
         const float e = juce::jlimit (-1.0f, 1.0f, (levelDb - ref) / 12.0f);
-        dynFactor[b] = std::exp2 (-s.bands[b].dyn * e / 50.0f);
+        dynFactor[b] = activeVoice == dinamico ? 1.0f : std::exp2 (-s.bands[b].dyn * e / 50.0f) * adaptGain;
+
+        // Compander de Dinámico (−20 dB, 2:1 a 8:1) y aplanado del shelf de Aire (−24 dB, 4:1), con el nivel propio de cada canal.
+        const float thresholdDb = activeVoice == dinamico ? -20.0f : -24.0f;
+        const float ratio = activeVoice == dinamico ? 2.0f + 6.0f * (s.bands[b].dyn + 50.0f) * 0.01f : 4.0f;
+        for (auto& c : channels)
+        {
+            const float over = 10.0f * std::log10 (c.env[b] + 1.0e-12f) - thresholdDb;
+            c.gcTarget[b] = over > 0.0f ? std::pow (10.0f, -over * (1.0f - 1.0f / ratio) / 20.0f) : 1.0f;
+        }
     }
 }
 
@@ -277,7 +311,7 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         activeVoice = voiceKey;
         configureFactor (targetFactor);
         updateControl (s);
-        if (activeVoice == seda)
+        if (activeVoice == seda || activeVoice == aire)
             designShelves();
     }
 
@@ -303,9 +337,10 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                         c.adaa[b] = {};
                         c.hpOut[b].reset();
                         c.shelf[b].reset();
+                        c.gcSmooth[b] = 1.0f;
                     }
                 applyAddDelays();
-                if (activeVoice == seda)
+                if (activeVoice == seda || activeVoice == aire)
                     designShelves();
             }
         }
@@ -314,9 +349,9 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
     bool anySolo = false;
     for (const auto& b : s.bands)
         anySolo = anySolo || b.solo;
-    const bool shelfMode = activeVoice == seda;
-    const int voice = activeVoice & 3;
-    const bool implemented = activeVoice < 4 || shelfMode; // Dinámico, Adaptativo y Aire llegan después
+    const bool shelfMode = linearVoice (activeVoice); // Dinámico, Seda y Aire: sin generador no lineal
+    const int voice = activeVoice == adaptativo ? 2 : activeVoice & 3; // Adaptativo = Válvula ligera
+    const bool implemented = true;
 
     std::array<float*, maxChannels> data {};
     for (int ch = 0; ch < numCh; ++ch)
@@ -349,9 +384,22 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                 c.bandSig[b][static_cast<size_t> (i)] = bands[b];
                 const float p = bands[b] * bands[b];
                 c.env[b] += (p > c.env[b] ? envAttack : envRelease) * (p - c.env[b]);
+                if (b == 1 || b == 2)
+                    tonal[b - 1] += tonalCoeff * (p - tonal[b - 1]);
                 const float a = driveBuf[b][static_cast<size_t> (i)];
                 if (shelfMode)
-                    c.nlOut[b][static_cast<size_t> (i)] = c.shelf[b].process (bands[b]) - bands[b]; // solo el realce
+                {
+                    float& gc = c.gcSmooth[b];
+                    gc += 0.05f * (c.gcTarget[b] - gc);
+                    float added = 0.0f;
+                    if (activeVoice == dinamico)
+                        added = bands[b] * gc; // copia comprimida, sumada al original
+                    else if (activeVoice == aire)
+                        added = (c.shelf[b].process (bands[b]) - bands[b]) * gc; // realce que se aplana al comprimir
+                    else
+                        added = c.shelf[b].process (bands[b]) - bands[b]; // Seda: solo el realce
+                    c.nlOut[b][static_cast<size_t> (i)] = added;
+                }
                 else
                     c.nlIn[b][static_cast<size_t> (i)] = c.hpIn[b].process (bands[b]) * (1.0f + 4.0f * a);
             }
