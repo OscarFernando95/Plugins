@@ -312,7 +312,7 @@ Pendiente: comprobación manual en Logic Pro y Ableton Live.
 - **Aliasing de Buena y Mejor** por debajo de la meta del peor caso (ver la nota de calidad).
 - **Valores iniciales por afinar de oído:** el realce de la cinta, `b` del tubo, `k` del germanio, las escalas de intensidad y la fórmula del drive efectivo.
 - **Solo realza:** la ganancia por banda va de 0 a +12 dB.
-- **Solo macOS.** Sin Windows, Linux, AAX, CLAP, sidechain ni MIDI. El soporte AAX existe en el proyecto pero necesita el SDK de Avid y firma PACE, y no está compilado ni probado.
+- **Solo macOS.** Sin Windows, Linux, AAX, CLAP, sidechain ni MIDI. El AAX compila con el SDK de Avid (2.8.0, arm64) pero va sin firmar (PACE), sin validar y sin probar en Pro Tools.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.
 
 # Historial de versiones

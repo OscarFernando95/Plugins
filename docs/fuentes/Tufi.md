@@ -293,7 +293,7 @@ Pendiente: comprobación manual en Logic Pro y Ableton Live (ver la sección sig
 
 - **Sin prueba manual en anfitriones.** Los validadores y las pruebas automáticas pasan, pero falta comprobarlo a mano en Logic Pro y Ableton Live.
 - **Valores iniciales por afinar de oído:** las escalas de las etapas (2,5 · 8 · 0,5) y los coeficientes 0,02 y 0,4 de la forma.
-- **Solo macOS.** Sin Windows, Linux, AAX, CLAP, sidechain, MIDI ni curva editable a mano. El soporte AAX existe en el proyecto pero necesita el SDK de Avid y firma PACE, y no está compilado ni probado.
+- **Solo macOS.** Sin Windows, Linux, AAX, CLAP, sidechain, MIDI ni curva editable a mano. El AAX compila con el SDK de Avid (2.8.0, arm64) pero va sin firmar (PACE), sin validar y sin probar en Pro Tools.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.
 
 # Historial de versiones

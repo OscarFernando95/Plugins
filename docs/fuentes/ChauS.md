@@ -50,7 +50,7 @@ ChauS sirve para domar eses duras en una pista de voz (cantada o hablada), en co
 
 Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el paquete se lleva a otro equipo, macOS puede bloquearlo por no estar notarizado; se desbloquea con `xattr -dr com.apple.quarantine <paquete>`. Tras actualizar la versión de un AU, el anfitrión puede necesitar volver a escanear los plugins.
 
-> **Aviso.** ChauS no está notarizado ni firmado con Developer ID. Está pensado para uso personal en el equipo donde se compila. El formato AAX (Pro Tools) no está disponible: necesita el SDK de Avid y firma PACE.
+> **Aviso.** ChauS no está notarizado ni firmado con Developer ID. Está pensado para uso personal en el equipo donde se compila. El formato AAX (Pro Tools) compila con el SDK de Avid, pero va sin firmar (PACE) y sin validar ni probar: Pro Tools de venta no lo cargará.
 
 # Guía de uso {.pb}
 
@@ -333,7 +333,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 - **Hi-hat y «t»:** activan el detector (ver la sección de calidad); el hi-hat de ruido blanco es indistinguible de una «s» aguda con estos rasgos.
 - **La reducción no llega «a tiempo»** respecto del inicio de la s: el lookahead recorta el faltante, no lo elimina; con lookahead 0 el principio de cada «s» pasa sin tratar.
 - **Sin prueba manual en anfitriones.** Falta probarlo a mano en Ableton, Logic y Pro Tools.
-- **Sin AAX.** Necesita el SDK de Avid y firma PACE; no está compilado ni probado.
+- **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, probado en arm64) y se instala sin firmar; **sin validar** (falta el AAX Validator), **sin firma PACE** y **sin probar en Pro Tools**. Pro Tools de venta solo carga AAX firmados.
 - **Latencia variable** con el lookahead (a diferencia de Tufi, Poty y Cremita).
 - **Ajustes avanzados en menú:** Forma, Ancho y Liberación no tienen perilla; el menú ofrece pasos.
 - **HP y LP** solo se ajustan con las perillas (arrastrarlos sobre la pantalla queda como mejora). El estado de interfaz `displayZoom` de la ficha no está implementado.

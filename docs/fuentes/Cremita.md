@@ -307,7 +307,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 - **Valores iniciales por afinar de oído:** los coeficientes de la curva, las ganancias por banda y la mitad de los presets de fábrica.
 - **Interfaz:** la *Referencia VU* no tiene control (es un parámetro automatizable) y el editor de bandas solo se maneja con el ratón.
 - **A/B** no se guarda con la sesión.
-- **AAX (Pro Tools):** el proyecto lo soporta con el SDK de Avid y firma PACE/iLok, pero no está compilado ni probado; sin firmar solo carga en Pro Tools Developer.
+- **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, probado en arm64) y se instala sin firmar; **sin validar** (falta el AAX Validator), **sin firma PACE** y **sin probar en Pro Tools**. Pro Tools de venta solo carga AAX firmados.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.
 
 # Historial de versiones

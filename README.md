@@ -26,7 +26,7 @@ cmake --build build --target Tufi_VST3 Tufi_AU   # solo un plugin (idem Poty, Cr
 ctest --test-dir build                           # todas las pruebas
 ```
 
-Para iterar más rápido: `-DCMAKE_OSX_ARCHITECTURES=arm64`. Cada compilación copia el plugin a `~/Library/Audio/Plug-Ins/{VST3,Components}` con firma ad hoc (sin notarización). AAX es opcional y requiere el SDK de Avid (`-DFERB_AAX_SDK_PATH=…`); no está compilado ni probado.
+Para iterar más rápido: `-DCMAKE_OSX_ARCHITECTURES=arm64`. Cada compilación copia el plugin a `~/Library/Audio/Plug-Ins/{VST3,Components}` con firma ad hoc (sin notarización). AAX es opcional y requiere el SDK de Avid (`-DFERB_AAX_SDK_PATH=…`; no se copia al repositorio): los seis plugins compilan como AAX (arm64, SDK 2.8.0) pero van sin firmar (PACE), sin validar con el AAX Validator y sin probar en Pro Tools.
 
 ## Calidad
 

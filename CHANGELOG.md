@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ## Sin publicar
 
 ### Repositorio
+- AAX: los seis plugins compilan con el SDK de AAX 2.8.0 (arm64). Sin firma PACE, sin AAX Validator y sin probar en Pro Tools.
 - Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.
 - README del repositorio y este historial.
 - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.

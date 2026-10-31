@@ -3,7 +3,7 @@
 Monorepo de plugins VST3 y AU para macOS (JUCE 8.0.15, CMake + Ninja), de uso personal. Etiqueta del creador en la interfaz: **By FERB**.
 
 - **Tufi** (`Tufi/`): saturador armónico analógico. Especificación: `Tufi/Tufi — ficha técnica.md`.
-- **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel, ChauS y Maru completos salvo pruebas en DAW (sin AAX; el detector de ChauS y el estimador de Maru faltan por afinar con escucha). Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
+- **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel, ChauS y Maru completos salvo pruebas en DAW (AAX compila pero sin validar ni firmar; el detector de ChauS y el estimador de Maru faltan por afinar con escucha). Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
 - **Poty** (`Poty/`): enhancer multibanda. Especificación: `Poty/Poty — ficha técnica.md`.
 - `Bosquejo de dos plugins.html`: bosquejo visual aprobado de ambas interfaces.
 
@@ -38,7 +38,7 @@ ctest --test-dir build                           # todas las pruebas
 ```
 
 Universal (arm64 + x86_64) y macOS 11 por defecto. Para iterar más rápido: `-DCMAKE_OSX_ARCHITECTURES=arm64`.
-AAX (Pro Tools), opcional: `-DFERB_AAX_SDK_PATH=/ruta/al/AAX_SDK` añade el formato a ambos plugins (sin esa opción no se compila). El SDK se descarga de developer.avid.com con cuenta de desarrollador; **no está en este equipo**. Pro Tools de venta solo carga AAX firmados con PACE (`wraptool`, requiere iLok); sin firma solo carga en Pro Tools Developer. AAX aún sin compilar ni probar.
+AAX (Pro Tools), opcional: `-DFERB_AAX_SDK_PATH=/ruta/al/AAX_SDK` añade el formato a los seis plugins (sin esa opción no se compila). El SDK (2.8.0) está en `~/Downloads/aax-sdk-2-8-0` y **no se copia al repositorio**. Verificado: los seis compilan como AAX en arm64 (`cmake -S . -B <dir-aparte> -DCMAKE_OSX_ARCHITECTURES=arm64 -DFERB_AAX_SDK_PATH=… -DFERB_BUILD_TESTS=OFF -DFERB_BUILD_TOOLS=OFF`, `--target <Plugin>_AAX`); la compilación los copia a `/Library/Application Support/Avid/Audio/Plug-Ins/`. **Sin validar** (el AAX Validator y DigiShell no están en el SDK: se bajan aparte de developer.avid.com), **sin firma PACE** (`wraptool`, requiere cuenta de Avid e iLok) y **sin probar en Pro Tools**: Pro Tools de venta solo carga AAX firmados; sin firma solo carga en Pro Tools Developer. El SDK 2.8 se licencia como comercial o de código abierto: revisar junto con la licencia de JUCE antes de distribuir.
 Cada build copia a `~/Library/Audio/Plug-Ins/{VST3,Components}`; JUCE firma ad-hoc el paquete antes de copiarlo (sin notarización).
 
 Pruebas (Catch2): `CoreTests`, `UiTests`, `TufiTests`, `PotyTests`, `CremitaTests`, `NelTests`, `ChauSTests` (DSP y medidas) y `TufiProcessorTests`, `PotyProcessorTests`, `CremitaProcessorTests`, `NelProcessorTests`, `ChauSProcessorTests` (procesador completo con editor: parámetros aleatorios, tasas y bloques extremos, estado, vida del editor, latencia, y **cero reservas de memoria en `processBlock`**).
@@ -73,10 +73,10 @@ Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores inic
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (estante de la cinta, `b` del tubo, `k` del germanio, escalas de intensidad).
 
 ### ChauS — hitos M0 a M5 hechos
-Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el detector y el 95 % de aciertos solo se midió con señales sintéticas), probar en Ableton, Logic y Pro Tools, y AAX (sin SDK).
+Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el detector y el 95 % de aciertos solo se midió con señales sintéticas), probar en Ableton, Logic y Pro Tools, y validar y firmar el AAX.
 
 ### Maru — hitos M0 a M5 hechos
-Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y AAX.
+Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y validar y firmar el AAX.
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.

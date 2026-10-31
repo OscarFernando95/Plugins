@@ -49,7 +49,7 @@ Maru sirve para ruido de fondo **estacionario**: ventilador, aire acondicionado,
 
 Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el paquete se lleva a otro equipo, macOS puede bloquearlo por no estar notarizado; se desbloquea con `xattr -dr com.apple.quarantine <paquete>`. Tras actualizar la versión de un AU, el anfitrión puede necesitar volver a escanear los plugins.
 
-> **Aviso.** Maru no está notarizado ni firmado con Developer ID. Está pensado para uso personal en el equipo donde se compila. El formato AAX (Pro Tools) no está disponible: necesita el SDK de Avid y firma PACE.
+> **Aviso.** Maru no está notarizado ni firmado con Developer ID. Está pensado para uso personal en el equipo donde se compila. El formato AAX (Pro Tools) compila con el SDK de Avid, pero va sin firmar (PACE) y sin validar ni probar: Pro Tools de venta no lo cargará.
 
 # Guía de uso {.pb}
 
@@ -302,7 +302,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 - **Estimador con voz continua:** se infla hasta ≈ 7 dB mientras suena la voz y vuelve en las pausas; sin pausas de medio segundo la supresión es floja.
 - **El Rango no se alcanza:** con el 100 % y Rango −60 el ruido blanco baja ≈ 21,5 dB, no 60.
 - **STOI y comparación con NS1:** no medidos.
-- **Sin AAX.** Necesita el SDK de Avid y firma PACE; no está compilado ni probado.
+- **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, probado en arm64) y se instala sin firmar; **sin validar** (falta el AAX Validator), **sin firma PACE** y **sin probar en Pro Tools**. Pro Tools de venta solo carga AAX firmados.
 - **Latencia variable** con el motor, la calidad y el lookahead (a diferencia de Tufi, Poty y Cremita).
 - **Valores iniciales por afinar de oído:** el mapeo de la perilla, el piso de ganancia, la protección de transitorios y los presets que no vienen de la maqueta.
 - **Interfaz:** el enlace es una perilla (no la palanca de la maqueta) y el Gate tiene una segunda fila de controles que la maqueta no traía.
