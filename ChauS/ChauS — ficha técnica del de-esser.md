@@ -254,7 +254,7 @@ Lee la ficha técnica de ChauS e implementa el hito M1: extractor de los cinco r
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (detector de sibilantes y umbral adaptativo). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) y M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -270,6 +270,20 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (detector de sibilantes y 
 | Nivel de banda para el umbral | Energía de la banda | Dominio del tiempo (HP y LP de 2.º orden, envolvente RMS de 1 ms), muestra a muestra; la FFT solo clasifica | El calculador de reducción necesita nivel rápido; los cuadros de 10,7 ms no bastan |
 | Tamaño del cuadro | 512 con salto 128 | 512/128 a 44,1 y 48 kHz; ×2 a 96 kHz y ×4 a 192 kHz | Mismo ancho de bin (≈ 94 Hz) y misma duración en todas las tasas |
 | Referencia adaptativa | Percentil 90 de los picos de los últimos 5 s | Igual, con picos por evento (mínimo 10 ms), referencia inicial −30 dBFS y suavizado de 250 ms; al expirar los eventos de uno en uno el valor sigue la ventana, y sin ninguno conserva el último | Evita saltos del umbral efectivo al terminar cada s |
+| Rango y liberación «Auto» | `range` y `release` con valor «Auto» | `release` (10 a 100 ms) más `releaseAuto` (Bool, defecto encendido); `q` (1 a 8) más `qAuto` (Bool, defecto encendido) | `AudioProcessorValueTreeState` no tiene un Float con «Auto»; son los IDs que se fijan en M3 |
+| Reducción | Exceso con rodilla de 3 dB, limitado por Rango | Igual; el umbral efectivo es `referencia + (Umbral + 30)` con adaptativo (o el Umbral absoluto) menos la sensibilidad de la clase. Clase de la s: «dura» si su nivel pasa de la referencia (mezcla lineal de −6 a +6 dB sobre la referencia) | La ficha no daba la fórmula de la clase |
+| Balística | Ataque 0,5 ms, liberación 10 a 60 ms | Ataque 0,5 ms (constante de tiempo); liberación automática = ¼ de la duración de la s, entre 10 y 60 ms | Interpretación de «depende de la duración» |
+| Seguimiento | Centroide suavizado 20 ms; mediana de 2 s | Igual; con la s activa 20 ms, sin ella vuelve a la mediana (de los últimos 750 cuadros con sibilante) con constante de 200 ms; con «Seguir» apagado, el centro geométrico de HP y LP | |
+| Ancho Q automático | Dispersión del espectro, de 2 a 6 | `Q = 0,5 / σ` (σ = dispersión en octavas), limitado a 2–6; se mantiene entre eses | Valor inicial a afinar de oído |
+| Forma automática | Estante si la s cae sobre 9 kHz y el ancho es grande | Estante si `fc > 9 kHz` y `Q < 2,5` (con Q automática solo se da con Q = 2); fundido de 30 ms entre campana y estante (se calculan las dos) | |
+| Coeficientes | Recalculados cada 16 muestras e interpolados | Igual: interpolación lineal de los cinco coeficientes (campana y estante) | |
+| Enlace estéreo | Reducción por canal = mezcla de la propia y la mayor | Igual, sobre la reducción pedida (antes de la balística); cada canal conserva su detector y su frecuencia | Con 100 % las dos reducciones son idénticas muestra a muestra |
+| Mid/Side | «Mid y side se procesan por separado» | Una sola vía de detección y reducción sobre el componente elegido (Mid o Side); el otro solo se retrasa. Con L/R, dos vías | «Solo cambia el canal side» en modo Side |
+| Banda ancha | «Baja todo el audio con la misma curva» | Ganancia de banda ancha igual a la reducción (sin filtro) | |
+| Escuchar disparo / sidechain | Dos funciones de escucha | Sidechain = la banda HP–LP que oye el detector; Disparo = esa banda con la puerta de la sibilante (2 ms). Ambas retrasadas el lookahead y con fundido de 10 ms | |
+| Latencia | Informada al soltar el control, fundido de 50 ms | `latencyFor` = lookahead en muestras enteras (0 con lookahead apagado); el procesador la declara en cuanto cambia el parámetro y el motor adopta el valor cuando lleva 150 ms estable, con un fundido de 50 ms entre dos tomas de retardo | Evita encadenar fundidos al arrastrar; igual que Nel |
+| Cambios de estructura | — | Mid/Side y banda ancha: fundido a silencio de 5 ms con `ModeSwitch` (igual que Cremita y Poty) | Regla del repositorio |
+| Suavizados | — | Salida, bypass y escucha en doble precisión: con `float` el suavizado se estanca a ~1e-4 del objetivo (medí un error de 4·10⁻⁵ sobre una señal de 1,8 con salida +6 dB) | |
 
 **Resultados medidos** (48 kHz, estéreo, bloque de 256)
 
@@ -300,3 +314,28 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (detector de sibilantes y 
 - El ajuste usa señales sintéticas que escribí yo, así que el 99,5 % de detección es sobre mi modelo de «s», no sobre voz grabada. La meta de 95 % sobre eses reales y los falsos positivos en hi-hat y «t» quedan para M6 con grabaciones (cuando pases voces con eses duras).
 - Con un ruido blanco filtrado y un hi-hat, o una «s» muy aguda, los seis rasgos espectrales no separan: es un límite del método, no del ajuste. Una «t» o un hi-hat activarán el detector y recibirán algo de reducción; en la práctica el modo *Voz sola* es para pistas de voz.
 - Los pesos son valores iniciales: `Classifier::initial()` (regularización L2 de 0,01; sesgo bajado 0,3 sobre el ajuste). Se reproducen con `./build/ChauS/ChauSTests "[.train]"`; el barrido de sesgo, con `"[.report]"` (y `CHAUS_TTS_DIR` para las voces).
+
+**Resultados medidos de M2** (señales sintéticas, 44,1/48/96 kHz, estéreo salvo que se diga, bloque de 256)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Rango 0 (banda dividida y ancha, L/R, Mid y Side, tres formas) | Salida idéntica a la entrada retrasada | Por debajo de −110 dBFS en todas las combinaciones |
+| Latencia | Pico del impulso en la muestra declarada | Exacta con 0, 3, 10 y 15 ms a 44,1, 48 y 96 kHz |
+| Rango | La reducción nunca lo supera | Máximo ≤ Rango + 0,001 dB; llega a Rango − 0,5 dB con eses fuertes (3, 8 y 24 dB; banda dividida y ancha) |
+| Banda dividida, Rango 24 | Fuera de la banda de la s, menos de 0,5 dB | Por debajo de 2 kHz: −0,02 dB; la banda de 5,5 a 9,5 kHz baja 13,0 a 13,2 dB |
+| Seguimiento, s que sube de 6 a 9 kHz | Error medio menor de 300 Hz | 84 Hz (44,1 kHz), 95 Hz (48 kHz) y 189 Hz (96 kHz) |
+| Umbral adaptativo, misma frase a −6 y a −12 dB (Umbral −38) | Diferencia de reducción menor de 1,5 dB | 0,00 dB (44,1 kHz) y 0,04 dB (48 kHz); con umbral absoluto, 1,5 a 2,5 dB (Rango 12) |
+| Lookahead de 10 ms, reducción al 90 % de la meseta | Antes del pico de la s | Todas las eses medidas (7 a 9 por frase) a 44,1, 48 y 96 kHz |
+| **Retraso entre el inicio de la s y el 90 % de la reducción** | 0 ms | **No es 0**: +28,6 ms sin lookahead, +23,5 / +18,5 / +12,9 ms con 5 / 10 / 15 ms. La reducción es 1:1 sobre el exceso y la s de mi modelo tarda ≈ 30 ms en subir, así que el 90 % de la meseta solo puede llegar cuando el nivel llega a su meseta |
+| Lo que falta por quitar en cada instante (reducción pedida por el nivel menos la aplicada), por s | — | Máximo 5,3 dB sin lookahead; 4,0 / 3,3 / 2,6 dB con 5 / 10 / 15 ms. Tiempo con más de 3 dB de falta: 3,8 / 1,5 / 0,5 / 0,1 ms. Es el retraso del cuadro de la FFT (≈ 5 ms) más el ataque de 0,5 ms |
+| Enlace 100 % | Misma reducción en L y R | Idéntica muestra a muestra; con 0 %, difieren más de 1 dB |
+| Mid/Side | Side: solo cambia side | El componente que no se procesa sale idéntico (< −110 dBFS) en Side y en Mid |
+| Modo General, sidechain externo, escuchas, salida y bypass | Comportamiento descrito arriba | Pasan |
+| Sin clics (20 controles y cambios de estructura, alternando cada 400 ms) | ≤ 1,3 veces la señal estable | Cumple |
+| Robustez | Sin NaN ni picos | Silencio, continua, NaN, infinitos y subnormales; 44,1 a 192 kHz; bloques de 1 a 4096; el resultado no depende del tamaño del bloque (< −100 dBFS) |
+| `process` | Sin reservas de memoria | 0 reservas (mono y estéreo, con estructura, lookahead, bandas y escuchas cambiando) |
+| CPU, estéreo 48 kHz, lookahead 10 ms | Menos de 2 % | 0,59 % (voz sola, banda dividida); 0,56 % (banda ancha); 0,19 % (General) |
+
+**Límites de M2 (para decidir):**
+- La meta «0 ms de retraso del 90 % de la reducción» de la ficha no es alcanzable con una reducción 1:1 sobre el exceso: el 90 % de la meseta llega cuando el nivel de la s llega a su meseta. Lo que sí se mide es que el lookahead recorta el faltante máximo de 5,3 a 3,3 dB y deja 0,5 ms con más de 3 dB de falta. Con lookahead 0 no hay «a tiempo» posible: el clasificador ve la s unos 5 ms después de empezar.
+- El nivel de referencia por defecto (Umbral −30) deja la mayor parte de las eses por debajo del umbral efectivo (la referencia es el percentil 90 de los picos): para reducir más hay que bajar el Umbral. Es lo que dice la ficha; se afina de oído.

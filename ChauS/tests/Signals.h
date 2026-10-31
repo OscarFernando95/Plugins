@@ -179,4 +179,31 @@ inline void mixAt (std::vector<float>& bed, const std::vector<float>& part, int 
     for (size_t i = 0; i < part.size() && size_t (start) + i < bed.size(); ++i)
         bed[size_t (start) + i] += part[i];
 }
+inline int ms (double fs, double milliseconds) { return int (milliseconds * 0.001 * fs); }
+
+/** Frase sintética: vocales continuas con eses de 6 a 9 kHz entre ellas (modeladas como ruido de banda con envolvente). */
+struct Phrase
+{
+    std::vector<float> audio;
+    struct Event { int start, end; double levelDb; };
+    std::vector<Event> events;
+};
+
+inline Phrase makePhrase (double fs, int count, unsigned seed, double sibLevelDb = -22.0, double lo = 6000.0, double hi = 9000.0, double vowelDb = -24.0)
+{
+    Rng rng (seed);
+    Phrase p;
+    p.audio = vowels (fs, int ((0.5 + 0.55 * count) * fs), rng.uni (100.0f, 220.0f), vowelDb, rng);
+    int pos = ms (fs, 250);
+    for (int i = 0; i < count; ++i)
+    {
+        const double dur = rng.uni (0.09f, 0.2f), level = sibLevelDb + rng.uni (-5.0f, 4.0f);
+        const auto s = sibilant (fs, lo, hi, dur, level, rng);
+        mixAt (p.audio, s, pos);
+        p.events.push_back ({ pos, pos + int (s.size()), level });
+        pos += int (s.size()) + ms (fs, rng.uni (260.0f, 420.0f));
+    }
+    return p;
+}
+
 } // namespace sig

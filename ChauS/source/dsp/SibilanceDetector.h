@@ -53,6 +53,7 @@ public:
         float levelDb;  // nivel de la banda de sibilante en este instante
         float score;    // puntuación 0 a 1 (suavizada)
         bool active;    // con histéresis
+        float band;     // la señal filtrada entre HP y LP (lo que «oye» el detector)
     };
 
     static constexpr float onThreshold = 0.6f, offThreshold = 0.4f;

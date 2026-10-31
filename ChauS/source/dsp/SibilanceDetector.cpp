@@ -207,7 +207,7 @@ SibilanceDetector::Output SibilanceDetector::tick (float x) noexcept
         score = 1.0f;
         active = true;
     }
-    return { db10 (envelope), score, active };
+    return { db10 (envelope), score, active, band };
 }
 
 void SibilanceDetector::analyse() noexcept

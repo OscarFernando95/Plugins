@@ -10,6 +10,7 @@
 #include "AllocGuard.h"
 #include "Signals.h"
 #include "TestUtils.h"
+#include "dsp/ChausEngine.h"
 #include "dsp/SibilanceDetector.h"
 
 using Catch::Approx;
@@ -42,32 +43,9 @@ Trace run (const std::vector<float>& x, double fs, float hp = 4000.0f, float lp 
     return t;
 }
 
-int ms (double fs, double milliseconds) { return int (milliseconds * 0.001 * fs); }
-
-/** Frase sintética: vocales continuas con eses de 6 a 9 kHz entre ellas (modeladas como ruido de banda con envolvente). */
-struct Phrase
-{
-    std::vector<float> audio;
-    struct Event { int start, end; double levelDb; };
-    std::vector<Event> events;
-};
-
-Phrase makePhrase (double fs, int count, unsigned seed, double sibLevelDb = -22.0, double lo = 6000.0, double hi = 9000.0, double vowelDb = -24.0)
-{
-    sig::Rng rng (seed);
-    Phrase p;
-    p.audio = sig::vowels (fs, int ((0.5 + 0.55 * count) * fs), rng.uni (100.0f, 220.0f), vowelDb, rng);
-    int pos = ms (fs, 250);
-    for (int i = 0; i < count; ++i)
-    {
-        const double dur = rng.uni (0.09f, 0.2f), level = sibLevelDb + rng.uni (-5.0f, 4.0f);
-        const auto s = sig::sibilant (fs, lo, hi, dur, level, rng);
-        sig::mixAt (p.audio, s, pos);
-        p.events.push_back ({ pos, pos + int (s.size()), level });
-        pos += int (s.size()) + ms (fs, rng.uni (260.0f, 420.0f));
-    }
-    return p;
-}
+using sig::Phrase;
+using sig::makePhrase;
+using sig::ms;
 
 /** ¿Estaba activo el detector en el pico de la sibilante (el centro de su meseta)? */
 bool activeAtPeak (const Trace& t, const Phrase::Event& e) { return t.active[size_t ((e.start + e.end) / 2)] != 0; }
@@ -441,6 +419,52 @@ TEST_CASE ("tick no reserva memoria")
         total = scope.allocations();
     }
     REQUIRE (total == 0);
+}
+
+TEST_CASE ("ChausEngine::process no reserva memoria, ni con controles y estructura cambiando")
+{
+    for (int channels : { 1, 2 })
+        for (int block : { 64, 512, 1000 })
+        {
+            const double fs = 48000.0;
+            chaus::ChausEngine engine;
+            engine.prepare (fs, block);
+            juce::AudioBuffer<float> buf (channels, block), side (2, block);
+            const auto phrase = makePhrase (fs, 8, 7);
+            sig::Rng rng (3);
+            long total = 0;
+            size_t pos = 0;
+            for (int b = 0; b < 400; ++b)
+            {
+                chaus::Settings s;
+                if (b % 7 == 0) // cambios de todo: estructura, lookahead, bandas, escucha…
+                {
+                    s.voiceMode = rng.index (2) == 0;
+                    s.stereo = static_cast<chaus::Stereo> (rng.index (3));
+                    s.wideBand = rng.index (2) == 0;
+                    s.shape = static_cast<chaus::Shape> (rng.index (3));
+                    s.lookaheadMs = rng.uni (0.0f, 15.0f);
+                    s.hpHz = rng.uni (2000.0f, 9000.0f);
+                    s.lpHz = rng.uni (9500.0f, 20000.0f);
+                    s.listenTrigger = rng.index (4) == 0;
+                    s.externalSidechain = rng.index (2) == 0;
+                    s.thresholdDb = rng.uni (-60.0f, 0.0f);
+                    s.bypass = rng.index (5) == 0;
+                }
+                for (int ch = 0; ch < channels; ++ch)
+                    for (int i = 0; i < block; ++i)
+                        buf.setSample (ch, i, phrase.audio[(pos + size_t (i)) % phrase.audio.size()]);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int i = 0; i < block; ++i)
+                        side.setSample (ch, i, rng.uni (-0.3f, 0.3f));
+                pos += size_t (block);
+                allocguard::Scope scope;
+                engine.process (buf, &side, s);
+                total += scope.allocations();
+            }
+            INFO ("canales " << channels << ", bloque " << block);
+            REQUIRE (total == 0);
+        }
 }
 
 TEST_CASE ("El contador de reservas detecta una reserva deliberada")
