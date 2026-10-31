@@ -233,7 +233,7 @@ Lee la ficha técnica de Maru y crea el esqueleto del proyecto (M0): CMake con J
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) M2 (motor Gate) M3 (parámetros, presets, A/B y deshacer) y M4 (interfaz). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 a M5 (falta el AAX, el afinado de oído y las pruebas en anfitriones). Detalle: M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) M2 (motor Gate) M3 (parámetros, presets, A/B y deshacer) y M4 (interfaz). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones**
 
@@ -347,3 +347,41 @@ Los valores de la tabla de mapeo (β, reducción por tramos 0 / 6 / 12 / 21 dB y
 | `MaruTests` (27 casos) y `MaruProcessorTests` (17 casos, con el editor abierto, redimensionado y cerrado, también sin `prepareToPlay`) | Sin fallos | Pasan |
 | `pluginval` nivel 10, VST3 y AU, **con** pruebas de interfaz | Pasa | Pasa |
 | `auval -v aufx Maru Ferb` | Pasa | Pasa |
+
+**Audio real (31 oct 2026)** — 9 pistas de la sesión «Luna - Zoe (By Maru)» (mono, 48 kHz, 24 bits): 5 voces (LEAD 1 ×2 y REFUERZOS ×3) y 4 pistas de instrumentos. Herramienta: `MARU_REAL_FILE=… MARU_REAL_OUT=… ./build/Maru/MaruTests "[.real]"` (solo lee el archivo; escribe CSV y el audio procesado). **No hay etiquetas ni se ha escuchado**: son medidas de nivel por ventanas de 85 ms.
+
+| Qué | Resultado |
+| --- | --- |
+| Piso de ruido real de las voces (percentil 5 del nivel por ventana) | ≈ −73 dBFS |
+| Piso estimado por Maru en esas voces (tras 5 s) | Mediana −65,1 a −66,4 dB; percentil 10 de −70,9 a −73. **Se infla ≈ 7 a 8 dB mientras canta la voz** (el límite declarado del método), y vuelve al piso en las pausas |
+| Supresión al 50 % (valores de fábrica), tramos cantados (≥ −40 dBFS, 395 a 1759 ventanas por pista) | Ganancia mediana −0,02 a −0,04 dB; percentil 10 de −0,11 a −0,24 dB; peor ventana −1,0 a −1,6 dB (−4,1 dB en una ventana de REFUERZOS 1 #05, en una transición) |
+| Supresión al 50 %, pausas (< −62 dBFS) | Bajan una mediana de 8,2 a 11,2 dB (percentil 10 de 11,6 a 11,8 dB) |
+| Supresión al 80 % | Pausas −13,3 a −19,7 dB (percentil 10 de −20,6 a −21,5); voz −0,02 a −0,05 dB de mediana; peor ventana −1,8 y −5,4 dB |
+| Gate en automático al 60 % (LEAD 1 #04) | Cantado 0,00 dB (peor −0,10); pausas −30,0 dB (el Rango) |
+| Reducción media / máxima mostrada con los valores de fábrica | 2,1 a 3,2 dB / 12 dB en las voces |
+
+**Lectura honesta:** sobre voz real, Maru deja la voz intacta (mediana ≈ 0 dB) y baja las pausas del orden de 11 dB al 50 %. Falta **oírlo**: la ausencia de «ruido musical» y de burbujeo solo la puede juzgar el oído, y no hay en estas pistas un ruido de fondo continuo de ventilador sobre el que medir los 20 dB de la meta con ruido real (la meta se midió con ruido blanco sintético). Los valores de fábrica y del mapeo siguen siendo iniciales.
+
+**Validación (M5)** — 31 oct 2026, binarios recién construidos
+
+| Validador | Resultado |
+| --- | --- |
+| `ctest` (todos los ejecutables del repositorio) | Pasan |
+| `auval -v aufx Maru Ferb` | Pasa |
+| `pluginval` nivel 10, VST3 y AU, **con** pruebas de interfaz | Pasa |
+| AAX Validator de Avid | **No ejecutado** (el SDK está en el equipo, pero el AAX aún no se compila ni se firma) |
+
+**Resumen frente a los objetivos de la sección 6**
+
+| Objetivo | Estado |
+| --- | --- |
+| CPU Supresión estéreo a 48 kHz < 3 % | Cumple: 0,41 % |
+| CPU Gate estéreo < 0,5 % | Cumple: 0,41 % |
+| Latencia alta ≈ 21 ms y baja ≈ 11 ms | Cumple: 1024 y 512 muestras (21,3 y 10,7 ms a 48 kHz) |
+| Latencia del Gate = su lookahead | Cumple (exacta) |
+| Reducción de ruido blanco a −40 dBFS al 100 % ≥ 20 dB | Cumple: 21,4 dB. **El Rango no se alcanza** (con Rango 60 solo ≈ 21,5 dB) |
+| Pérdida de inteligibilidad (STOI) al 50 % < 0,03 | **No medido** (no hay STOI en el repositorio); como indicador: la voz sintética baja −0,02 dB y la real −0,02 a −0,04 dB de mediana |
+| Estimador a ±1,5 dB con ruido blanco en 3 s | Cumple; **con voz continua se infla hasta ≈ 7 dB** |
+| Ruido musical sin picos aislados | Estadística cumple (≤ 3 veces las del ruido original); **falta la escucha** |
+
+**Pendiente:** el AAX (con el SDK de Avid y firma PACE), probar a mano en Ableton, Logic y Pro Tools, la escucha comparada con un supresor de referencia, afinar de oído el mapeo del control principal, el piso de ganancia y la protección de transitorios, y un estimador que se infle menos con voz continua.

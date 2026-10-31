@@ -46,7 +46,7 @@ target_link_libraries(Maru
         juce::juce_recommended_warning_flags)
 
 if(FERB_BUILD_TESTS)
-    add_executable(MaruTests tests/MaruEngineTests.cpp tests/GateTests.cpp)
+    add_executable(MaruTests tests/MaruEngineTests.cpp tests/GateTests.cpp tests/RealAudio.cpp)
     target_compile_definitions(MaruTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_include_directories(MaruTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${PROJECT_SOURCE_DIR}/tests/common)
     target_link_libraries(MaruTests PRIVATE maru_dsp juce::juce_dsp Catch2::Catch2WithMain)

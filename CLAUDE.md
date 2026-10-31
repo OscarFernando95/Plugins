@@ -3,7 +3,7 @@
 Monorepo de plugins VST3 y AU para macOS (JUCE 8.0.15, CMake + Ninja), de uso personal. Etiqueta del creador en la interfaz: **By FERB**.
 
 - **Tufi** (`Tufi/`): saturador armónico analógico. Especificación: `Tufi/Tufi — ficha técnica.md`.
-- **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel y ChauS completos salvo pruebas en DAW (Nel y ChauS sin AAX; el detector de ChauS falta ajustarlo con voces grabadas); Maru por hacer. Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
+- **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel, ChauS y Maru completos salvo pruebas en DAW (sin AAX; el detector de ChauS y el estimador de Maru faltan por afinar con escucha). Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
 - **Poty** (`Poty/`): enhancer multibanda. Especificación: `Poty/Poty — ficha técnica.md`.
 - `Bosquejo de dos plugins.html`: bosquejo visual aprobado de ambas interfaces.
 
@@ -43,7 +43,7 @@ Cada build copia a `~/Library/Audio/Plug-Ins/{VST3,Components}`; JUCE firma ad-h
 
 Pruebas (Catch2): `CoreTests`, `UiTests`, `TufiTests`, `PotyTests`, `CremitaTests`, `NelTests`, `ChauSTests` (DSP y medidas) y `TufiProcessorTests`, `PotyProcessorTests`, `CremitaProcessorTests`, `NelProcessorTests`, `ChauSProcessorTests` (procesador completo con editor: parámetros aleatorios, tasas y bloques extremos, estado, vida del editor, latencia, y **cero reservas de memoria en `processBlock`**).
 Informes de medidas, que no son pruebas: `./build/Poty/PotyTests "[.report]"`, `./build/Tufi/TufiTests "[.report]"` (aliasing, CPU, respuesta lineal) y `./build/ChauS/ChauSTests "[.report]"` (barrido del sesgo del detector, lookahead, CPU; con `CHAUS_TTS_DIR` las voces de `say`). El ajuste de los pesos de ChauS se repite con `ChauSTests "[.train]"`; con grabaciones propias, `CHAUS_REAL_FILE=… CHAUS_REAL_OUT=… ChauSTests "[.real]"` vuelca CSV y audio procesado (no escribir dentro de la carpeta de las grabaciones).
-Interfaz: `./build/Poty/PotySnapshot salida.png [escala] [preset]` (idem `TufiSnapshot`; en ChauS `ChausSnapshot`, con `FERB_SNAPSHOT_BLOCKS=232` cae en medio de una «s») y comparar con el bosquejo o la maqueta (Chrome headless `--screenshot` sobre `…html#chaus`).
+Interfaz: `./build/Poty/PotySnapshot salida.png [escala] [preset]` (idem `TufiSnapshot`; en ChauS `ChausSnapshot` y en Maru `MaruSnapshot` con `FERB_SNAPSHOT_BLOCKS=500`; en ChauS con `FERB_SNAPSHOT_BLOCKS=232` cae en medio de una «s») y comparar con el bosquejo o la maqueta (Chrome headless `--screenshot` sobre `…html#chaus`).
 Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 --validate-in-process <paquete>`. `pluginval` no queda instalado: se baja de https://github.com/Tracktion/pluginval/releases (`pluginval_macOS.zip`) a una carpeta aislada. Nivel 10 pasa en Tufi, Poty, Cremita, Nel y ChauS (VST3 y AU).
 
 ## Reglas
@@ -64,7 +64,7 @@ Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 -
 
 ## Estado
 
-Versiones: Tufi, Poty, Cremita, Nel y ChauS en 1.0.0 (la de Maru, prevista). PDF de documentación hechos: Tufi, Poty, Cremita, Nel y ChauS.
+Versiones: Tufi, Poty, Cremita, Nel, ChauS y Maru en 1.0.0. PDF de documentación hechos: los seis.
 
 ### Tufi — hitos 1 a 9 hechos
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).
@@ -74,6 +74,9 @@ Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores inic
 
 ### ChauS — hitos M0 a M5 hechos
 Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el detector y el 95 % de aciertos solo se midió con señales sintéticas), probar en Ableton, Logic y Pro Tools, y AAX (sin SDK).
+
+### Maru — hitos M0 a M5 hechos
+Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y AAX.
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.

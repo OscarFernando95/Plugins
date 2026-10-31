@@ -44,6 +44,8 @@ PLUGINS = {
                  formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (modos Estéreo, Mid y Side)", cat="Fx|Distortion", bundle="com.ferb.poty", snapshot="Poty/PotySnapshot"),
     "Nel": dict(var="NEL", code="Nel1", theme="nel", tagline="Limitador de true peak", kind="Limitador de true peak con medición de sonoridad",
                 formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo", cat="Fx|Dynamics", bundle="com.ferb.nel", snapshot="Nel/NelSnapshot"),
+    "Maru": dict(var="MARU", code="Maru", theme="maru", tagline="Supresor de ruido · Gate", kind="Supresor de ruido y gate de un solo control",
+                 formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (enlace estéreo), sidechain externo opcional", cat="Fx|Restoration", bundle="com.ferb.maru", snapshot="Maru/MaruSnapshot"),
     "ChauS": dict(var="CHAUS", code="ChaS", theme="chaus", tagline="De-esser · EQ dinámico", kind="De-esser con EQ dinámico que sigue la sibilante",
                   formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opciones Mid y Side), sidechain externo opcional", cat="Fx|Dynamics", bundle="com.ferb.chaus", snapshot="ChauS/ChausSnapshot"),
     "Cremita": dict(var="CREMITA", code="Crem", theme="cremita", tagline="Inflator · sonoridad y calidez", kind="Inflator (sonoridad y calidez sin comprimir)",
@@ -89,7 +91,9 @@ def render_screenshots(names: list[str]) -> None:
         if not exe.exists():
             raise SystemExit(f"Falta {exe}: compila antes (cmake --build build --target {name}Snapshot)")
         out = str(DOCS / "imagenes" / f"{name.lower()}.png")
-        if name == "ChauS":  # voz sintética con eses: la captura cae en medio de una «s», con un preset de voz
+        if name == "Maru":  # voz sintética con pausas y ruido de fondo
+            subprocess.check_call([str(exe), out, "2", "Voz de podcast"], env={**os.environ, "FERB_SNAPSHOT_BLOCKS": "500"})
+        elif name == "ChauS":  # voz sintética con eses: la captura cae en medio de una «s», con un preset de voz
             subprocess.check_call([str(exe), out, "2", "Voz masculina"], env={**os.environ, "FERB_SNAPSHOT_BLOCKS": "232"})
         else:
             subprocess.check_call([str(exe), out, "2"])
@@ -151,6 +155,12 @@ def figures(name: str, curves: dict) -> dict[str, str]:
             ["Input\n(+ Mid/Side)", "Bandas LR4\n(opcional, 3)", "*Sobremuestreo\n+ curva + ADAA", "Mezcla\nEfecto"],
             ["Filtro DC\n(solo el aporte)", "Igualar\nsonoridad", "Output", "Clip 0 dB\n(al final)"]],
             "#E08A2E"), "Cadena de señal de Cremita. No hay detector ni envolvente: el procesado es estático.")
+    elif name == "Maru":
+        out["flujo"] = figure(fg.flow([
+            ["Entrada\n(mono o estéreo)", "STFT √Hann\n(N = 1024, salto N/4)", "*Estimador de piso\n(MCRA, sobre la suma mid)", "*Ganancia por bin\n(LSA + decision-directed)"],
+            ["Suavizado en\nfrecuencia y tiempo", "STFT inversa\ny solape-suma", "Escuchar lo quitado\ny Salida", "Bypass del\nanfitrión"],
+            ["Gate: detector HP/LP\n+ umbral = piso + margen", "Gate: ganancia\ncon lookahead"]],
+            "#62786B"), "Flujo de señal de Maru. El estimador de piso de ruido es común a los dos motores; la Supresión actúa por bin en la STFT y el Gate actúa en el tiempo, con la señal retrasada su lookahead. Las cajas rellenas son las que deciden la reducción.")
     elif name == "ChauS":
         out["flujo"] = figure(fg.flow([
             ["Entrada\n(+ Mid/Side)", "Detector: nivel de\nbanda + 6 rasgos", "*Reducción\n(umbral adaptativo)", "Balística\n(ataque 0,5 ms)"],

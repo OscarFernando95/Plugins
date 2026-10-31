@@ -12,14 +12,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.
 - README del repositorio y este historial.
 - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
-- Documentación en PDF de Tufi, Poty, Cremita, Nel y ChauS (`docs/`), con identidad propia y generador (`docs/construir.py`).
+- Documentación en PDF de Tufi, Poty, Cremita, Nel, ChauS y Maru (`docs/`), con identidad propia y generador (`docs/construir.py`).
 
-### Maru (en curso, aún sin versión publicada)
-- M0: esqueleto (código `Maru`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base de rack 1260×300, `MaruProcessorTests` y `MaruSnapshot`.
-- M1: estimador de piso de ruido (MCRA) y motor de Supresión espectral (STFT √Hann con solape-suma, ganancia LSA con decision-directed, protección de transitorios, enlace estéreo, latencia N exacta); `MaruTests`.
-- M2: motor Gate (detector con HP y LP o sidechain externo, umbral automático sobre el piso de ruido de la banda, histéresis, hold, ataque y release con rampa de coseno, lookahead, enlace estéreo, cambio sin clics con la Supresión).
-- M3: 19 parámetros (IDs fijados), 10 presets de fábrica, A/B y deshacer, latencia declarada por el procesador, sidechain.
-- M4: interfaz de rack completa (ventana del piso de ruido, palancas, perilla grande, vúmetro, lámpara, ventanas y selector de latencia) con los datos del motor por telemetría; segunda fila de controles en Gate.
+## Maru 1.0.0 — 2026-10-31
+
+Supresor de ruido de un solo control y gate (VST3 y AU). Reúne los hitos M0 a M5.
+- Estimador de piso de ruido (MCRA) y motor de Supresión espectral (STFT √Hann, ganancia LSA con decision-directed, protección de transitorios, enlace estéreo, latencia N exacta de 1024 o 512 muestras a 48 kHz).
+- Motor Gate: detector con HP y LP o sidechain externo, umbral automático sobre el piso de ruido de la banda, histéresis, hold, ataque y release con rampa de coseno, lookahead de 0 a 10 ms.
+- 19 parámetros (IDs fijados), 10 presets de fábrica, A/B, deshacer y rehacer; interfaz de rack de la maqueta con ventana del piso de ruido, vúmetro y lámpara, y una segunda fila de controles en Gate.
+- Sin clics, sin reservas de memoria en `processBlock` y CPU de 0,41 % (estéreo, 48 kHz).
+- Validación: `auval` y `pluginval` nivel 10 con interfaz (VST3 y AU). Con tus grabaciones: la voz cantada queda a −0,02 dB de mediana y las pausas bajan 8–11 dB al 50 %. **Límites conocidos:** el estimador se infla ≈ 7 dB con voz continua, el Rango no se alcanza (≈ 21,5 dB), y falta escucharlo, el STOI y el AAX. Detalle en la ficha.
 
 ## ChauS 1.0.0 — 2026-10-31
 
