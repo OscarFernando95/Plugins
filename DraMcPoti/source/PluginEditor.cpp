@@ -35,6 +35,36 @@ std::function<juce::String (float)> hz()
 }
 } // namespace
 
+/** Válvula de vidrio: el filamento brilla con lo que añade su banda (−60 a −20 dB de RMS absoluto; escala inicial). */
+class DraMcPotiEditor::Tube : public juce::Component
+{
+public:
+    void setGlow (float g)
+    {
+        if (std::abs (g - glow) > 0.01f)
+        {
+            glow = g;
+            repaint();
+        }
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        const auto r = getLocalBounds().toFloat().reduced (2.0f);
+        g.setColour (juce::Colour (0xff1b1410));
+        g.fillRoundedRectangle (r, r.getWidth() * 0.5f);
+        const auto amber = juce::Colour (0xffffa030);
+        g.setGradientFill (juce::ColourGradient (amber.withAlpha (0.15f + 0.8f * glow), r.getCentreX(), r.getBottom() - 4.0f,
+                                                 amber.withAlpha (0.0f), r.getCentreX(), r.getY(), false));
+        g.fillRoundedRectangle (r.reduced (2.0f), r.getWidth() * 0.5f);
+        g.setColour (juce::Colours::white.withAlpha (0.15f));
+        g.drawRoundedRectangle (r, r.getWidth() * 0.5f, 1.2f);
+    }
+
+private:
+    float glow = 0.0f;
+};
+
 DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     : ferb::ScaledEditor (p, p.apvts.state, baseWidth, baseHeight, 0.75), owner (p)
 {
@@ -64,6 +94,12 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     seg (k::era, { "VINTAGE", "MODERNO" }, 78, 30, 124);
     seg (k::voice, { "1", "2", "3", "4" }, 39, 30, 164);
 
+    voiceName.setBounds (30, 192, 160, 16);
+    voiceName.setJustificationType (juce::Justification::centredLeft);
+    voiceName.setFont (juce::FontOptions (12.0f));
+    voiceName.setColour (juce::Label::textColourId, juce::Colour (0xff2b2118));
+    content.addAndMakeVisible (voiceName);
+
     addKnob (k::input, "ENTRADA", 56, false, 24, 214, 78, db());
     addKnob (k::mix, "MEZCLA", 56, false, 90, 214, 78, percent());
     addKnob (k::output, "SALIDA", 56, false, 156, 214, 78, db());
@@ -77,6 +113,10 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
         addKnob (k::bandId ("drive", b), names[b], 84, true, x + 30, 84, 110, plain());
         addKnob (k::bandId ("dyn", b), "DINÁMICA", 50, false, x + 4, 250, 80, signedInt());
         addKnob (k::bandId ("mix", b), "NIVEL", 50, false, x + 100, 250, 80, percent());
+        auto tube = std::make_unique<Tube>();
+        tube->setBounds (x + 74, 212, 26, 36);
+        content.addAndMakeVisible (*tube);
+        tubes.push_back (std::move (tube));
         addToggle (k::bandId ("on", b), "ON", x + 18, 360, 70);
         addToggle (k::bandId ("solo", b), "SOLO", x + 98, 360, 70);
     }
@@ -90,9 +130,9 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     addKnob (k::phase, "FASE", 50, false, rx + 90, 84, 80, percent());
     addKnob (k::color, "COLOR", 50, false, rx + 180, 84, 80, signedInt());
     addKnob (k::soften, "SUAVIZAR", 50, false, rx, 200, 80, hz());
-    addKnob (k::guard, "GUARDA", 50, false, rx + 90, 200, 80, percent());
-    addKnob (k::width, "ANCHO", 50, false, rx + 180, 200, 80, percent());
-    addKnob (k::airCorner, "ESQUINA", 50, false, rx, 316, 80, hz());
+    guardKnob = &addKnob (k::guard, "GUARDA", 50, false, rx + 90, 200, 80, percent());
+    widthKnob = &addKnob (k::width, "ANCHO", 50, false, rx + 180, 200, 80, percent());
+    airKnob = &addKnob (k::airCorner, "ESQUINA", 50, false, rx, 316, 80, hz());
     addKnob (k::link, "ENLACE", 50, false, rx + 90, 316, 80, percent());
 
     // Pie.
@@ -101,6 +141,34 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     addToggle (k::delta, "DELTA", 340, 488, 80);
     addToggle (k::match, "IGUALAR", 430, 488, 90);
     addToggle (k::monoSafe, "MONO SEGURO", 530, 488, 136);
+    monoButton = buttons.back().get();
+
+    timerCallback();
+    startTimerHz (20);
+}
+
+DraMcPotiEditor::~DraMcPotiEditor() { stopTimer(); }
+
+/** Comportamiento por modo y era (sección 6 de la ficha): atenúa lo que no actúa y rotula el carácter. */
+void DraMcPotiEditor::timerCallback()
+{
+    const auto raw = [this] (const char* id) { return owner.apvts.getRawParameterValue (id)->load(); };
+    const bool master = juce::roundToInt (raw (k::mode)) == k::Master;
+    const int era = juce::roundToInt (raw (k::era)), voice = juce::roundToInt (raw (k::voice));
+    constexpr const char* names[2][4] = { { "CLÁSICO", "CINTA", "VÁLVULA", "TRANSISTOR" }, { "DINÁMICO", "ADAPTATIVO", "SEDA", "AIRE" } };
+    voiceName.setText (U (names[juce::jlimit (0, 1, era)][juce::jlimit (0, 3, voice)]), juce::dontSendNotification);
+
+    guardKnob->setAlpha (master ? 0.35f : 1.0f);   // Guarda: solo Vocal
+    widthKnob->setAlpha (master ? 1.0f : 0.35f);   // Ancho y Mono seguro: solo Master
+    monoButton->setAlpha (master ? 1.0f : 0.35f);
+    airKnob->setAlpha (era == k::Moderno && voice == 3 ? 1.0f : 0.35f); // Esquina de aire: solo con el carácter Aire
+
+    for (size_t b = 0; b < tubes.size(); ++b)
+    {
+        const float level = owner.getEngine().addedLevel (static_cast<int> (b));
+        const float db = 20.0f * std::log10 (level + 1.0e-6f);
+        tubes[b]->setGlow (juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 40.0f));
+    }
 }
 
 VKnob& DraMcPotiEditor::addKnob (const juce::String& id, const char* label, int size, bool big, int x, int y, int w,
