@@ -1,8 +1,13 @@
 // Renderiza el editor de un plugin a un PNG, sin anfitrión. Herramienta de desarrollo:
-//   PotySnapshot salida.png [escala] [calidad-de-presets-por-nombre]
+//   PotySnapshot salida.png [escala] [preset-por-nombre] [clave=valor del estado de la interfaz]
+// La variable de entorno FERB_SNAPSHOT_BLOCKS (por defecto 180) fija cuántos bloques de 512 muestras se procesan,
+// con 10 ms de bucle de eventos cada uno (para que los temporizadores del editor y del procesador avancen).
 // Pasa unos segundos de audio de prueba por el procesador para que el analizador y el VU tengan datos.
 
 #include <juce_gui_basics/juce_gui_basics.h>
+
+#include <cstdlib>
+#include <cstring>
 
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
@@ -57,8 +62,15 @@ int main (int argc, char** argv)
     processor.setPlayConfigDetails (2, 2, 48000.0, 512);
     processor.prepareToPlay (48000.0, 512);
 
-    if (argc > 3)
+    if (argc > 3 && std::strlen (argv[3]) > 0)
         processor.getPresets().load (juce::String::fromUTF8 (argv[3]));
+    if (argc > 4)
+    {
+        const juce::String kv (argv[4]);
+        processor.apvts.state.setProperty (kv.upToFirstOccurrenceOf ("=", false, false), kv.fromFirstOccurrenceOf ("=", false, false).getIntValue(), nullptr);
+    }
+    const char* blocksEnv = std::getenv ("FERB_SNAPSHOT_BLOCKS");
+    const int numBlocks = blocksEnv != nullptr ? std::atoi (blocksEnv) : 180;
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     const double scale = argc > 2 ? std::atof (argv[2]) : 1.0;
@@ -70,7 +82,7 @@ int main (int argc, char** argv)
     TestSignal signal;
     juce::AudioBuffer<float> buffer (2, 512);
     juce::MidiBuffer midi;
-    for (int block = 0; block < 180; ++block)
+    for (int block = 0; block < numBlocks; ++block)
     {
         for (int i = 0; i < 512; ++i)
         {

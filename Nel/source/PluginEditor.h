@@ -18,9 +18,12 @@ public:
 
 private:
     class Captions;
+    class SpanButton;
 
     void timerCallback() override;
     void cycleScale();
+    void cycleSpan();
+    void refreshScope();
 
     NelProcessor& owner;
     ferb::vintage::Palette palette = ferb::vintage::Palette::nel();
@@ -30,6 +33,7 @@ private:
     std::unique_ptr<ferb::vintage::Header> header;
     std::unique_ptr<nel::ui::LadderMeter> inLadder, outLadder;
     std::unique_ptr<nel::ui::ScopeView> scope;
+    std::unique_ptr<SpanButton> spanButton;
     std::unique_ptr<nel::ui::ReadoutStrip> strip;
     std::unique_ptr<nel::ui::GrMeter> grMeter;
     std::unique_ptr<nel::ui::LoudnessPanel> loudness;
@@ -47,6 +51,7 @@ private:
     bool lastReleaseAuto = true;
     int lastMode = -1;
     bool lastModified = false;
+    int historyTicks = 0, lastSpan = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NelEditor)
 };

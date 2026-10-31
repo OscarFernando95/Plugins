@@ -551,7 +551,7 @@ Para la interfaz, guarda en `docs/ui/` capturas del diseño interactivo de Nel y
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados los hitos 1 a 14 salvo la lectura contra las señales oficiales de la EBU (se usan señales sintéticas) y el AAX (hito 15, sin SDK). Pasan `CoreTests`, `NelTests`, `NelProcessorTests`, `auval -v aufx Nel1 Ferb` y `pluginval` nivel 10 (VST3 y AU, con pruebas de interfaz). Pendiente: prueba manual en Ableton, Logic y Pro Tools, y afinar de oído los valores iniciales de los modos. Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados los hitos 1 a 14. Quedan el AAX (hito 15, sin SDK) y la lectura contra los archivos oficiales de la EBU (no descargables). Pasan `CoreTests`, `NelTests`, `NelProcessorTests`, `auval -v aufx Nel1 Ferb` y `pluginval` nivel 10 (VST3 y AU, con pruebas de interfaz). Pendiente: prueba manual en Ableton, Logic y Pro Tools, y afinar de oído los valores iniciales de los modos y de los perfiles de dither. Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -570,11 +570,26 @@ Fecha: 31 oct 2026. Implementados los hitos 1 a 14 salvo la lectura contra las s
 | Interfaz | — | Botón GUARDAR añadido a la cabecera; sin botón de tamaño (se usa la esquina de la ventana) | La maqueta lleva GUARDAR |
 
 **No implementado en esta versión**
-- Historial de sonoridad de hasta 10 h y relación de la fuente (entrada o salida) en la interfaz: el motor mide la fuente que se le pide (`setLoudnessFromInput`) pero la maqueta no tiene control.
-- RMS con referencia AES17 (el RMS que se muestra es el plano).
-- AAX.
-- Lectura contra las señales oficiales de la EBU Tech 3341 y 3342: se verifican con senoidales y niveles sintéticos (1 kHz a −18 dBFS marca −17,99 LUFS a 44,1 y 48 kHz; dos niveles separados 10 LU dan un LRA de 10,00 LU).
+- AAX (sin SDK).
+- Lectura contra los archivos oficiales de la EBU Tech 3341 y 3342: la EBU bloquea la descarga (403). Se usan señales sintéticas construidas con la misma idea de la norma: senoidal estéreo de 1 kHz a −18, −23 y −33 dBFS, puertas con tramos de −36 y −23 LUFS, dos niveles separados 10 LU para el LRA y senoidales a fs/4 con fase de 45° para el true peak.
+- Categorías en carpetas para los presets de usuario (los de fábrica sí van agrupados por categoría en el menú).
+- Escalas estándar de −16 y −32 dB (la escalera siempre abarca −48 a 0 dB; quedan ESTÁNDAR, K-12, K-14 y K-20).
 - El A/B no se guarda con la sesión.
+
+**Añadido en esta revisión** (lo que la ficha pedía y faltaba)
+- **Historial de sonoridad de 10 h:** M, S y true peak, con tres niveles de resolución decreciente (1 s hasta 10 min, 10 s hasta 2 h y 60 s hasta 10 h; el promedio de M y S es en energía y el true peak conserva el máximo). Vive en el procesador, así que sigue llenándose con el editor cerrado. Se ve en la pantalla: un clic en el pie derecho alterna 6 s en vivo, 10 min, 2 h y 10 h.
+- **Fuente de la sonoridad:** botón SAL/ENT en el panel de Loudness (reinicia la medida al cambiar).
+- **RMS con referencia AES17:** un clic en la lectura de RMS de cualquiera de los dos medidores suma 3 dB y rotula «AES17».
+- **Aviso de true peak aproximado:** con 1× o 2× el interruptor muestra «TRUE PEAK ~».
+- **Factor de sobremuestreo efectivo:** a 96 kHz o más (8×) y a 176,4 kHz o más (4×), el rótulo dice «SOBREMUESTREO · EFECTIVO 8X».
+- **Categorías de los presets de fábrica** en el menú (Utilidad, Streaming, Master, Bus, Mezcla, Vintage, Broadcast y Voz).
+
+**Más decisiones que cambiaron**
+
+| Tema | Ficha original | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Antialiasing del recorte previo y de Carácter | Sin especificar | ADAA de primer orden en las dos etapas (con la reposición de media muestra) | Medido: sin él el aliasing del modo Moderno a 4× era −73 dBc a 14 kHz y el de Agresivo −61; con él, −88 y −74 |
+| Latencia y «+1 escalón» de render | «Latencia informada»; el escalón de render la cambiaba | La latencia declarada no cambia en render: se declara la del escalón más alto y el factor menor se retrasa lo que falta. Con 1× el escalón no se aplica | Los anfitriones no siempre releen la latencia a mitad de un bounce. El coste: con «+1 escalón» activo, 2× declara 45 muestras en vez de 39 |
 
 **Resultados medidos** (48 kHz, estéreo, bloque de 256)
 
@@ -586,8 +601,10 @@ Fecha: 31 oct 2026. Implementados los hitos 1 a 14 salvo la lectura contra las s
 | Latencia, impulso | Medida igual a la informada | Exacta en fase lineal; ±1 muestra en fase mínima. Con sobremuestreo 1×, 2×, 4×, 8×, 16×, 32×: lineal 0, 39, 45, 47, 47, 48 muestras y mínima 0, 4, 5, 5, 6, 6, más el lookahead |
 | Sobremuestreador, banda de paso | Plana | ±0,05 dB (lineal) y ±0,15 dB (mínima) hasta 17 kHz |
 | Sobremuestreador, imágenes | Menos de −80 dB | Cumple en todos los factores y las dos fases |
-| Aliasing, senoidal empujada 6 dB sobre el techo, Moderno | −80 dB con 4× | 10 kHz: −31 dBc (1×), −56 (2×), **−77 (4×)**, −96 (8×); 14 kHz: −31, −65, **−73**, −89. **No llega a −80 dB con 4×**; sí con 8× |
-| Aliasing, Agresivo | — | 4×: −68 dBc a 10 kHz y −61 dBc a 14 kHz; 8×: −86 y −81 |
+| Aliasing, senoidal empujada 6 dB sobre el techo, de 10 a 18 kHz | −80 dBc con 4× | Los siete modos distintos de Agresivo cumplen −80 dBc con 4× hasta 16 kHz (peor caso −80 a 16 kHz y **−78,4 a 18 kHz en Moderno**). Agresivo: −72 hasta 16 kHz y **−69,7 a 18 kHz**. Con 8×, todos los modos cumplen (peor caso −90 dBc). El resto es rizado de ganancia que cualquier limitador muestreado produce al ver los picos en una rejilla |
+| Lookahead | La reducción llega antes del pico | Verificado de 0,5 a 5 ms con 1× y 4×: la ganancia empieza a bajar `lookahead` ms antes del pico (la rampa arranca de forma cuadrática, ~7 % de la ventana) y al llegar el pico ya está al techo sin pasarlo |
+| True peak del medidor | Dentro de las tolerancias (+0,2 / −0,4 dB) | Cumple con senoidales a fs/4 y 45° de −12 a −1,5 dBTP (el pico de muestra lee 3 dB menos) |
+| Historial de sonoridad | Hasta 10 h | Tres niveles que cubren 10 min, 2 h y 10 h; probado con 11 h simuladas (memoria fija, el máximo de true peak se conserva) |
 | Sin clics (14 controles y cambios de estructura) | ≤ 1,3 veces la señal estable | Cumple |
 | Robustez | Sin NaN ni picos | Silencio, continua, NaN, infinitos y subnormales; 44,1 a 192 kHz; bloques de 1 a 4096 |
 | `processBlock` | Sin reservas de memoria | 0 reservas (mono y estéreo, parámetros aleatorios) |

@@ -20,10 +20,12 @@ NelProcessor::NelProcessor()
     // Cambian la latencia: sobremuestreo, fase, lookahead y la mejora de render.
     for (auto* id : { k::oversample, k::osPhase, k::lookahead, k::osOffline })
         apvts.addParameterListener (id, this);
+    startTimerHz (1);
 }
 
 NelProcessor::~NelProcessor()
 {
+    stopTimer();
     for (auto* id : { k::oversample, k::osPhase, k::lookahead, k::osOffline })
         apvts.removeParameterListener (id, this);
     cancelPendingUpdate();
@@ -35,6 +37,18 @@ void NelProcessor::parameterChanged (const juce::String&, float)
 }
 
 void NelProcessor::handleAsyncUpdate() { updateLatency(); }
+
+void NelProcessor::timerCallback()
+{
+    // Un punto por segundo, solo mientras el medidor avanza (con el audio parado no se añaden líneas planas).
+    auto& meter = engine.getLoudness();
+    const float elapsed = meter.elapsedSeconds();
+    const float peak = engine.getHistoryPeak().consume();
+    if (std::abs (elapsed - lastElapsed) < 0.05f)
+        return;
+    lastElapsed = elapsed;
+    history.push (meter.momentary(), meter.shortTerm(), peak > 1.0e-5f ? 20.0f * std::log10 (peak) : -100.0f);
+}
 
 void NelProcessor::updateLatency()
 {

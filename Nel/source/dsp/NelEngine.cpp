@@ -11,16 +11,44 @@ constexpr double adoptSeconds = 0.150;
 constexpr int switchHoldSamples = 1024; // más que la latencia de la cadena
 constexpr float marginMin = 0.1f, marginMax = 0.5f, marginUp = 0.05f, marginDownPerSecond = 0.01f;
 
-/** Recorte suave con rodilla: idéntico a x hasta `knee · techo` (no toca lo que queda por debajo) y, por
-    encima, una curva tipo tanh con pendiente continua que se acerca al techo sin pasarlo. */
-float softClip (float x, float ceilingLin) noexcept
+/** Recorte suave con rodilla, normalizado al techo (u = x / techo): idéntico a u hasta `knee` y, por
+    encima, una curva tipo tanh con pendiente continua que se acerca a 1 sin pasarlo. */
+constexpr double softKnee0 = 0.6;
+
+double logCosh (double a) noexcept
 {
-    constexpr float knee = 0.6f;
-    const float u = std::abs (x) / ceilingLin;
-    if (u <= knee)
-        return x;
-    const float y = knee + (1.0f - knee) * std::tanh ((u - knee) / (1.0f - knee));
-    return std::copysign (y * ceilingLin, x);
+    a = std::abs (a);
+    return a + std::log1p (std::exp (-2.0 * a)) - 0.6931471805599453;
+}
+
+double softClipN (double u) noexcept
+{
+    const double a = std::abs (u);
+    if (a <= softKnee0)
+        return u;
+    return std::copysign (softKnee0 + (1.0 - softKnee0) * std::tanh ((a - softKnee0) / (1.0 - softKnee0)), u);
+}
+
+/** Antiderivada de `softClipN` (función par). */
+double softClipF (double u) noexcept
+{
+    const double a = std::abs (u);
+    if (a <= softKnee0)
+        return 0.5 * a * a;
+    const double w = 1.0 - softKnee0;
+    return 0.5 * softKnee0 * softKnee0 + softKnee0 * (a - softKnee0) + w * w * logCosh ((a - softKnee0) / w);
+}
+
+/** ADAA de primer orden de una función f con antiderivada F, con la reposición de media muestra
+    (f(x) − f(x₋₁))/2: en los tramos lineales la salida es exactamente la entrada, sin retardo, y el
+    aliasing de las esquinas baja (el promedio de f entre dos muestras suprime los armónicos que se
+    pliegan). Mismo método que en Cremita. */
+template <typename F, typename Anti>
+double adaa (F f, Anti anti, double x, double xPrev) noexcept
+{
+    const double dx = x - xPrev;
+    const double y = std::abs (dx) > 1.0e-6 ? (anti (x) - anti (xPrev)) / dx : f (0.5 * (x + xPrev));
+    return y + 0.5 * (f (x) - f (xPrev));
 }
 
 size_t idx (int i) noexcept { return static_cast<size_t> (i); }
@@ -31,7 +59,7 @@ float gainToDb (float g) noexcept { return 20.0f * std::log10 (std::max (g, 1.0e
 int NelEngine::effectiveExponent (const Settings& s, double fs) noexcept
 {
     int e = std::clamp (s.oversample, 0, 5);
-    if (s.nonRealtime && s.offlineBoost)
+    if (s.nonRealtime && s.offlineBoost && e > 0) // con 1× se pide la latencia mínima: no se sube
         e = std::min (e + 1, 5);
     if (fs >= 176000.0)
         e = std::min (e, 2); // a 176,4 kHz o más, hasta 4×
@@ -45,9 +73,22 @@ int NelEngine::lookaheadSamples (const Settings& s, double fs) noexcept
     return static_cast<int> (std::lround (static_cast<double> (std::clamp (s.lookaheadMs, 0.0f, 5.0f)) * fs / 1000.0));
 }
 
+int NelEngine::naturalLatency (int exponent, bool minimumPhase, int lookaheadBase)
+{
+    return ferb::OsDesign::latencyFor (1 << exponent, minimumPhase) + lookaheadBase;
+}
+
 int NelEngine::latencyFor (const Settings& s, double fs)
 {
-    return ferb::OsDesign::latencyFor (1 << effectiveExponent (s, fs), s.minimumPhase) + lookaheadSamples (s, fs);
+    auto realtime = s;
+    realtime.nonRealtime = false;
+    const int look = lookaheadSamples (s, fs);
+    const int base = naturalLatency (effectiveExponent (realtime, fs), s.minimumPhase, look);
+    if (! s.offlineBoost)
+        return base;
+    auto boosted = realtime;
+    boosted.nonRealtime = true;
+    return std::max (base, naturalLatency (effectiveExponent (boosted, fs), s.minimumPhase, look));
 }
 
 void NelEngine::prepare (double newSampleRate, int)
@@ -83,6 +124,7 @@ void NelEngine::prepare (double newSampleRate, int)
         audioDelay[c].prepare (maxWindow + 2);
         rawDelay[c].prepare (maxLatency);
         gainedDelay[c].prepare (maxLatency);
+        alignDelay[c].prepare (64);
     }
     for (auto* r : { &gainRamp, &ceilRamp, &charRamp, &bypassRamp, &unityRamp, &auditionRamp })
         r->assign (idx (chunkSize), 1.0f);
@@ -116,6 +158,7 @@ void NelEngine::reset()
         envFast[c] = envSlow[c] = 0.0f;
     }
     reductionMeter.reset();
+    historyPeak.reset();
     reductionNow.store (0.0f);
     marginDb.store (marginMin);
     overs.store (0);
@@ -130,11 +173,12 @@ void NelEngine::applyStructure (int key) noexcept
 {
     exponent = key & 7;
     minPhase = (key & 8) != 0;
-    lookaheadBase = key >> 4;
+    lookaheadBase = (key >> 4) & 0xfff;
     factor = 1 << exponent;
     const int n = lookaheadBase * factor;
     windowOs = n + 1;
-    latency = ferb::OsDesign::latencyFor (factor, minPhase) + lookaheadBase;
+    latencyPad = key >> 16;
+    latency = naturalLatency (exponent, minPhase, lookaheadBase) + latencyPad;
 
     for (size_t c = 0; c < maxChannels; ++c)
     {
@@ -143,9 +187,12 @@ void NelEngine::applyStructure (int key) noexcept
         peakStages[c].configure (windowOs);
         audioDelay[c].setDelay (n);
         audioDelay[c].reset();
+        alignDelay[c].setDelay (latencyPad);
+        alignDelay[c].reset();
         followers[c].reset();
         bodyGainPrev[c] = 1.0f;
         bodySmooth[c] = 0.0f;
+        charPrev[c] = clipPrev[c] = 0.0;
         detectorHighPass[c] = ferb::Biquad::highPass (sampleRate * factor, 80.0);
         gainedDelay[c].setDelay (latency);
         gainedDelay[c].reset();
@@ -230,7 +277,8 @@ void NelEngine::processChunk (juce::AudioBuffer<float>& chunk, const Settings& s
 
     // 2. Estructura: se adopta cuando el valor pedido lleva 150 ms estable; el cambio se hace en silencio.
     const int exp = effectiveExponent (s, sampleRate);
-    const int key = makeKey (exp, s.minimumPhase, std::min (lookaheadSamples (s, sampleRate), maxLookaheadBase));
+    const int look = std::min (lookaheadSamples (s, sampleRate), maxLookaheadBase);
+    const int key = makeKey (exp, s.minimumPhase, look, latencyFor (s, sampleRate) - naturalLatency (exp, s.minimumPhase, look));
     if (needsInit || asleep)
     {
         applyStructure (key);
@@ -309,11 +357,29 @@ void NelEngine::processChunk (juce::AudioBuffer<float>& chunk, const Settings& s
                 envSlow[idx (ch)] = a + slowCoef * (envSlow[idx (ch)] - a);
                 x *= 1.0f + boostMax * std::clamp (envFast[idx (ch)] / (envSlow[idx (ch)] + 1.0e-9f) - 1.0f, 0.0f, 1.0f);
             }
+
+            double v = x;
             if (c > 0.0f)
-                x += c * (std::tanh (kk * x) / kk - x);
+            {
+                // Carácter: tanh con antialiasing; mezcla con la señal sin tratar.
+                const double kd = kk;
+                const auto g = [kd] (double u) { return std::tanh (kd * u) / kd; };
+                const auto G = [kd] (double u) { return logCosh (kd * u) / (kd * kd); };
+                const double y = adaa (g, G, v, charPrev[idx (ch)]);
+                charPrev[idx (ch)] = v;
+                v += static_cast<double> (c) * (y - v);
+            }
             if (mode.preClip > 0.0f)
-                x += mode.preClip * (softClip (x, ceilNow) - x);
-            os[idx (ch)][idx (k)] = x;
+            {
+                // Recorte previo con antialiasing, en unidades del techo.
+                const double cd = ceilNow;
+                const auto s = [cd] (double u) { return cd * softClipN (u / cd); };
+                const auto S = [cd] (double u) { return cd * cd * softClipF (u / cd); };
+                const double y = adaa (s, S, v, clipPrev[idx (ch)]);
+                clipPrev[idx (ch)] = v;
+                v += static_cast<double> (mode.preClip) * (y - v);
+            }
+            os[idx (ch)][idx (k)] = static_cast<float> (v);
         }
     }
 
@@ -399,7 +465,12 @@ void NelEngine::processChunk (juce::AudioBuffer<float>& chunk, const Settings& s
 
     // 8. Submuestreo.
     for (int ch = 0; ch < channels; ++ch)
+    {
         downs[idx (ch)].process (os[idx (ch)].data(), outBase[idx (ch)].data(), n);
+        if (latencyPad > 0)
+            for (int i = 0; i < n; ++i)
+                outBase[idx (ch)][idx (i)] = alignDelay[idx (ch)].process (outBase[idx (ch)][idx (i)]);
+    }
 
     // 9. True peak de la salida (4×): mide, cuenta «overs» y ajusta el margen del techo interno.
     {
@@ -413,6 +484,7 @@ void NelEngine::processChunk (juce::AudioBuffer<float>& chunk, const Settings& s
                 tp[ch] = std::max (tp[ch], std::abs (tpScratch[idx (ch)][idx (j)]));
             truePeakMeter[idx (ch)].publishMax (tp[ch]);
         }
+        historyPeak.publishMax (std::max (tp[0], tp[1]));
         const float measured = s.truePeak ? std::max (tp[0], tp[1]) : samplePeak;
         const float limit = ceilRamp[idx (n - 1)] * 1.0001f;
         float m = marginDb.load (std::memory_order_relaxed);

@@ -33,6 +33,7 @@ inline constexpr const char* uiMeterScale = "meterScale";
 inline constexpr const char* uiLoudnessSource = "loudnessSource";
 inline constexpr const char* uiRmsRef = "rmsRef";
 inline constexpr const char* uiAdvancedOpen = "advancedOpen";
+inline constexpr const char* uiScopeSpan = "scopeSpan"; // 0 = 6 s en vivo, 1 = 10 min, 2 = 2 h, 3 = 10 h
 
 enum Phase { Linear = 0, Minimum };
 inline constexpr int ditherBitsFor[] = { 0, 16, 18, 20, 22, 24 };

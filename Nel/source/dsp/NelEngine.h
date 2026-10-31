@@ -68,8 +68,11 @@ public:
     static int effectiveExponent (const Settings&, double sampleRate) noexcept;
     /** Muestras base de lookahead. */
     static int lookaheadSamples (const Settings&, double sampleRate) noexcept;
-    /** Latencia total en muestras base: sobremuestreo + lookahead. */
+    /** Latencia total en muestras base: sobremuestreo + lookahead. No depende de `nonRealtime`: con la mejora de
+        render se declara la del escalón más alto y el factor menor se retrasa lo que falta. */
     static int latencyFor (const Settings&, double sampleRate);
+    /** Latencia natural de una estructura (sin relleno). */
+    static int naturalLatency (int exponent, bool minimumPhase, int lookaheadBase);
 
     void prepare (double sampleRate, int maxBlockSize);
     void reset();
@@ -84,6 +87,7 @@ public:
     ferb::LevelMeter& getTruePeak (int ch) noexcept { return truePeakMeter[static_cast<size_t> (ch)]; }
     float getRms (int ch) const noexcept { return rms[static_cast<size_t> (ch)].load (std::memory_order_relaxed); }
     float getInputRms (int ch) const noexcept { return inRms[static_cast<size_t> (ch)].load (std::memory_order_relaxed); }
+    ferb::LevelMeter& getHistoryPeak() noexcept { return historyPeak; } // máximo true peak desde la última lectura (solo para el historial)
     ferb::LevelMeter& getReductionMeter() noexcept { return reductionMeter; } // dB, máximo desde la última lectura
     float getReductionDb() const noexcept { return reductionNow.load (std::memory_order_relaxed); }
     int getOvers() const noexcept { return overs.load (std::memory_order_relaxed); }
@@ -97,7 +101,8 @@ private:
 
     void processChunk (juce::AudioBuffer<float>& chunk, const Settings& settings) noexcept;
     void applyStructure (int key) noexcept;
-    static int makeKey (int exponent, bool minPhase, int lookaheadBase) noexcept { return exponent | (minPhase ? 8 : 0) | (lookaheadBase << 4); }
+    // Clave de estructura: exponente (3 bits), fase (1), lookahead en muestras base (12) y relleno de latencia (8).
+    static int makeKey (int exponent, bool minPhase, int lookaheadBase, int pad) noexcept { return exponent | (minPhase ? 8 : 0) | (lookaheadBase << 4) | (pad << 16); }
 
     double sampleRate = 48000.0;
     int maxLookaheadBase = 0;
@@ -110,22 +115,23 @@ private:
     std::array<ferb::DcBlocker, maxChannels> dcBlockers;
     std::array<PeakStage, maxChannels> peakStages;
     std::array<BodyFollower, maxChannels> followers;
-    std::array<ferb::DelayLine, maxChannels> rawDelay, gainedDelay, audioDelay;
+    std::array<ferb::DelayLine, maxChannels> rawDelay, gainedDelay, audioDelay, alignDelay;
     std::array<ferb::Biquad, maxChannels> detectorHighPass;
     std::array<Dither, maxChannels> dithers;
     std::array<float, maxChannels> bodyGainPrev {}, bodySmooth {}, envFast {}, envSlow {};
+    std::array<double, maxChannels> charPrev {}, clipPrev {}; // muestra anterior de los antialiasing ADAA
 
     ferb::ModeSwitch modeSwitch;
     ferb::LoudnessMeter loudness;
     std::array<ferb::LevelMeter, maxChannels> inPeak, outPeak, truePeakMeter;
-    ferb::LevelMeter reductionMeter;
+    ferb::LevelMeter reductionMeter, historyPeak;
     std::array<std::atomic<float>, maxChannels> rms, inRms;
     std::array<float, maxChannels> rmsState {}, inRmsState {};
     std::atomic<float> reductionNow { 0.0f }, marginDb { 0.1f };
     std::atomic<int> overs { 0 }, effectiveFactor { 4 }, activeLatency { 0 };
 
     // Estructura activa.
-    int exponent = 2, factor = 4, lookaheadBase = 0, latency = 0, windowOs = 1;
+    int exponent = 2, factor = 4, lookaheadBase = 0, latency = 0, windowOs = 1, latencyPad = 0;
     bool minPhase = false;
     int requestedKey = -1, adoptedKey = -1, stableSamples = 0;
     bool asleep = false, needsInit = true;

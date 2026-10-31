@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <AbCompare.h>
+#include <LoudnessHistory.h>
 #include <PresetManager.h>
 
 #include "Parameters.h"
@@ -10,7 +11,8 @@
 
 class NelProcessor : public juce::AudioProcessor,
                      private juce::AudioProcessorValueTreeState::Listener,
-                     private juce::AsyncUpdater
+                     private juce::AsyncUpdater,
+                     private juce::Timer
 {
 public:
     NelProcessor();
@@ -57,10 +59,13 @@ public:
     ferb::PresetManager& getPresets() noexcept { return *presets; }
     ferb::AbCompare& getAb() noexcept { return *ab; }
     nel::Settings readSettings() const noexcept;
+    /** Historial de sonoridad de hasta 10 h (se llena a 1 punto por segundo mientras suena el audio). */
+    const ferb::LoudnessHistory& getHistory() const noexcept { return history; }
 
 private:
     void parameterChanged (const juce::String& id, float value) override;
     void handleAsyncUpdate() override;
+    void timerCallback() override;
     void updateLatency();
 
     nel::NelEngine engine;
@@ -69,6 +74,8 @@ private:
     double currentSampleRate = 48000.0;
     std::atomic<bool> loudnessFromInput { false };
     int lastLatency = -1;
+    ferb::LoudnessHistory history;
+    float lastElapsed = -1.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NelProcessor)
 };

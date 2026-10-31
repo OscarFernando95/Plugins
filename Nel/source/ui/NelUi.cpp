@@ -59,7 +59,7 @@ void lamp (juce::Graphics& g, juce::Point<float> c, float d, bool on, juce::Colo
 
 LadderMeter::LadderMeter (const Palette& p, juce::String t, bool isOutput) : palette (p), title (std::move (t)), output (isOutput)
 {
-    setInterceptsMouseClicks (false, false);
+    setInterceptsMouseClicks (true, false);
     setSize (width, height);
     setTitle ("Medidor de " + title.toLowerCase());
 }
@@ -76,7 +76,7 @@ void LadderMeter::paint (juce::Graphics& g)
     constexpr float h = 272.0f, segH = h / N;
     const auto& peak = output ? state.outPeakDb : state.inPeakDb;
     const auto& hold = output ? state.outHoldDb : state.inHoldDb;
-    const float rms = output ? state.outRmsDb : state.inRmsDb;
+    const float rms = (output ? state.outRmsDb : state.inRmsDb) + (state.rmsAes17 ? 3.0f : 0.0f);
 
     for (int b = 0; b < 2; ++b)
     {
@@ -123,7 +123,13 @@ void LadderMeter::paint (juce::Graphics& g)
     g.setFont (digitFont (11.0f));
     const float peakNow = std::max (peak[0], peak[1]);
     g.drawText ("PICO " + num (peakNow, 1), juce::Rectangle<float> (0.0f, 293.0f, static_cast<float> (width), 12.0f), juce::Justification::centred);
-    g.drawText ("RMS " + num (rms, 1), juce::Rectangle<float> (0.0f, 305.0f, static_cast<float> (width), 12.0f), juce::Justification::centred);
+    g.drawText ((state.rmsAes17 ? "AES17 " : "RMS ") + num (rms, 1), juce::Rectangle<float> (0.0f, 305.0f, static_cast<float> (width), 12.0f), juce::Justification::centred);
+}
+
+void LadderMeter::mouseDown (const juce::MouseEvent& e)
+{
+    if (e.y >= 303 && onRmsReference)
+        onRmsReference();
 }
 
 // ------------------------------------------------------------------ ScopeView
@@ -143,8 +149,124 @@ void ScopeView::push (float inputDb, float outputDb, float reductionDb)
     repaint();
 }
 
+void ScopeView::setHistory (std::vector<ferb::LoudnessHistory::Point> points, int secondsPerPoint, juce::String spanName, float target)
+{
+    history = std::move (points);
+    pointSeconds = secondsPerPoint;
+    spanLabel = std::move (spanName);
+    targetLufs = target;
+    historyMode = true;
+    repaint();
+}
+
+void ScopeView::showLive (juce::String spanName)
+{
+    historyMode = false;
+    spanLabel = std::move (spanName);
+    repaint();
+}
+
+void ScopeView::paintHistory (juce::Graphics& g, float W, float H)
+{
+    constexpr float top = 0.0f, bottom = -50.0f, span = top - bottom;
+    const auto ydb = [&] (float d) { return (top - juce::jlimit (bottom, top, d)) / span * H; };
+
+    g.setFont (digitFont (10.0f));
+    for (int d = 0; d >= -50; d -= 10)
+    {
+        const float y = std::round (ydb (static_cast<float> (d))) + 0.5f;
+        g.setColour (lilac.withAlpha (0.12f));
+        g.drawLine (0.0f, y, W, y, 1.0f);
+        g.setColour (lilac.withAlpha (0.6f));
+        g.drawText (signedNum (static_cast<float> (d), 0).replace ("+", ""), juce::Rectangle<float> (W - 46.0f, y - 14.0f, 40.0f, 12.0f), juce::Justification::centredRight);
+    }
+
+    const int n = static_cast<int> (history.size());
+    if (n >= 2)
+    {
+        const auto xAt = [&] (int i) { return static_cast<float> (i) / static_cast<float> (n - 1) * (W - 1.0f); };
+        const auto floorDb = [] (float v) { return v < -150.0f ? -100.0f : v; };
+
+        juce::Path momentaryArea, momentaryLine, shortLine, peakLine;
+        momentaryArea.startNewSubPath (0.0f, H);
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& p = history[static_cast<size_t> (i)];
+            const float x = xAt (i);
+            momentaryArea.lineTo (x, ydb (floorDb (p.momentary)));
+            i == 0 ? momentaryLine.startNewSubPath (x, ydb (floorDb (p.momentary))) : momentaryLine.lineTo (x, ydb (floorDb (p.momentary)));
+            i == 0 ? shortLine.startNewSubPath (x, ydb (floorDb (p.shortTerm))) : shortLine.lineTo (x, ydb (floorDb (p.shortTerm)));
+            i == 0 ? peakLine.startNewSubPath (x, ydb (p.truePeak)) : peakLine.lineTo (x, ydb (p.truePeak));
+        }
+        momentaryArea.lineTo (W, H);
+        momentaryArea.closeSubPath();
+        g.setColour (juce::Colour (138, 92, 240).withAlpha (0.38f));
+        g.fillPath (momentaryArea);
+        g.setColour (juce::Colour (0xffe6d4ff).withAlpha (0.7f));
+        g.strokePath (momentaryLine, juce::PathStrokeType (1.0f));
+        g.setColour (lilac);
+        g.strokePath (shortLine, juce::PathStrokeType (1.6f));
+        g.setColour (juce::Colour (0xffffb347));
+        g.strokePath (peakLine, juce::PathStrokeType (1.0f));
+    }
+    else
+    {
+        g.setColour (lilac.withAlpha (0.55f));
+        g.setFont (labelFont (12.0f, 1.5f));
+        g.drawText (U ("Sin datos todavía: el historial se llena mientras suena el audio."), juce::Rectangle<float> (0.0f, H * 0.5f - 10.0f, W, 20.0f), juce::Justification::centred);
+    }
+
+    // Objetivo y techo.
+    const float ty = std::round (ydb (targetLufs)) + 0.5f;
+    juce::Path line;
+    line.startNewSubPath (0.0f, ty);
+    line.lineTo (W, ty);
+    juce::Path dashed;
+    const float pattern[] = { 6.0f, 4.0f };
+    juce::PathStrokeType (1.2f).createDashedStroke (dashed, line, pattern, 2);
+    g.setColour (lilac.withAlpha (0.8f));
+    g.fillPath (dashed);
+    g.setFont (digitFont (10.0f));
+    g.drawText ("OBJ " + num (targetLufs, 0), juce::Rectangle<float> (8.0f, ty - 13.0f, 90.0f, 12.0f), juce::Justification::centredLeft);
+
+    // Tiempo.
+    const int totalSeconds = n * pointSeconds;
+    g.setColour (lilac.withAlpha (0.55f));
+    g.drawText (totalSeconds >= 3600 ? "-" + ferb::fmt::comma (totalSeconds / 3600.0, 1) + " h" : "-" + juce::String (totalSeconds / 60) + " min",
+                juce::Rectangle<float> (8.0f, H - 16.0f, 70.0f, 12.0f), juce::Justification::centredLeft);
+    g.drawText (spanLabel, juce::Rectangle<float> (W - 98.0f, H - 16.0f, 90.0f, 12.0f), juce::Justification::centredRight);
+
+    const juce::String names[3] = { U ("momentánea"), U ("corto plazo"), "true peak" };
+    const juce::Colour colours[3] = { juce::Colour (138, 92, 240), lilac, juce::Colour (0xffffb347) };
+    const auto font = labelFont (11.0f, 0.8f);
+    float widthTotal = 16.0f;
+    for (const auto& s : names)
+        widthTotal += 15.0f + juce::GlyphArrangement::getStringWidth (font, s) + 14.0f;
+    widthTotal -= 14.0f;
+    const juce::Rectangle<float> box (84.0f, H - 6.0f - 22.0f, widthTotal, 22.0f);
+    g.setColour (juce::Colour (14, 7, 23).withAlpha (0.78f));
+    g.fillRoundedRectangle (box, 4.0f);
+    float x = box.getX() + 8.0f;
+    g.setFont (font);
+    for (int i = 0; i < 3; ++i)
+    {
+        g.setColour (colours[i]);
+        g.fillRoundedRectangle (x, box.getY() + 6.0f, 10.0f, 10.0f, 2.0f);
+        g.setColour (creamDim);
+        const float tw = juce::GlyphArrangement::getStringWidth (font, names[i]);
+        g.drawText (names[i], juce::Rectangle<float> (x + 15.0f, box.getY(), tw + 2.0f, 22.0f), juce::Justification::centredLeft);
+        x += 15.0f + tw + 14.0f;
+    }
+}
+
 void ScopeView::paintContent (juce::Graphics& g, float W, float H)
 {
+    if (historyMode)
+    {
+        paintHistory (g, W, H);
+        return;
+    }
+
     constexpr float top = 6.0f, bottom = -30.0f, span = top - bottom;
     const float pxdb = H / span;
     const auto ydb = [&] (float d) { return (top - juce::jlimit (bottom - 3.0f, top + 3.0f, d)) / span * H; };
@@ -233,7 +355,7 @@ void ScopeView::paintContent (juce::Graphics& g, float W, float H)
     g.setColour (juce::Colour (0xffff8aa3));
     g.drawText ("TECHO " + num (ceilingDb, 1), juce::Rectangle<float> (8.0f, std::min (cy + 11.0f, H - 4.0f) - 10.0f, 120.0f, 12.0f), juce::Justification::centredLeft);
     g.setColour (lilac.withAlpha (0.55f));
-    g.drawText ("6 s", juce::Rectangle<float> (W - 48.0f, H - 16.0f, 40.0f, 12.0f), juce::Justification::centredRight);
+    g.drawText (spanLabel, juce::Rectangle<float> (W - 98.0f, H - 16.0f, 90.0f, 12.0f), juce::Justification::centredRight);
 
     // Leyenda.
     const juce::String names[3] = { U ("entrada con ganancia"), outputLegend, U ("reducción") };
@@ -373,6 +495,8 @@ void LoudnessPanel::setValues (const Values& v)
     repaint();
 }
 
+juce::Rectangle<float> LoudnessPanel::sourceButton() const { return { 2.0f + 94.0f, 2.0f + 9.0f, 28.0f, 16.0f }; }
+
 juce::Rectangle<float> LoudnessPanel::resetButton() const { return { 2.0f + 162.0f, 2.0f + 8.0f, 56.0f, 18.0f }; }
 
 juce::Rectangle<float> LoudnessPanel::targetButton (int i) const
@@ -387,6 +511,14 @@ void LoudnessPanel::mouseDown (const juce::MouseEvent& e)
     {
         if (onReset)
             onReset();
+        return;
+    }
+    if (sourceButton().contains (e.position))
+    {
+        sourceInput = ! sourceInput;
+        if (onSource)
+            onSource (sourceInput);
+        repaint();
         return;
     }
     static constexpr int targets[] = { -9, -14, -16, -23, -24 };
@@ -418,8 +550,11 @@ void LoudnessPanel::paint (juce::Graphics& g)
     g.setColour (palette.ink);
     drawSpaced (g, "LOUDNESS", at (10.0f, 7.0f, 90.0f, 20.0f), labelFont (11.0f, 2.4f), juce::Justification::centredLeft);
     g.setColour (creamDim);
-    drawSpaced (g, "EBU", at (162.0f - 8.0f - 26.0f, 7.0f, 28.0f, 20.0f), labelFont (9.0f, 1.2f), juce::Justification::centredRight);
-    lamp (g, { origin.x + 162.0f - 8.0f - 34.0f, origin.y + 17.0f }, 7.0f, true, juce::Colour (0xff4cd37f));
+    drawSpaced (g, "EBU", at (138.0f, 7.0f, 24.0f, 20.0f), labelFont (9.0f, 0.8f), juce::Justification::centredLeft);
+    lamp (g, { origin.x + 131.0f, origin.y + 17.0f }, 7.0f, true, juce::Colour (0xff4cd37f));
+    panelButton (g, at (94.0f, 9.0f, 28.0f, 16.0f), palette, 2.0f, false);
+    g.setColour (sourceInput ? juce::Colour (0xffffb347) : palette.ink);
+    drawSpaced (g, sourceInput ? "ENT" : "SAL", at (94.0f, 9.0f, 28.0f, 16.0f), labelFont (9.0f, 0.8f), juce::Justification::centred);
     panelButton (g, at (162.0f, 8.0f, 56.0f, 18.0f), palette, 2.0f, false);
     g.setColour (palette.ink);
     drawSpaced (g, "RESET", at (162.0f, 8.0f, 56.0f, 18.0f), labelFont (9.0f, 1.2f), juce::Justification::centred);

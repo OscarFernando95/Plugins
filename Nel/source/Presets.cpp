@@ -40,7 +40,7 @@ ferb::PresetManager::Factory make (const char* name, const P& p)
 std::vector<ferb::PresetManager::Factory> factoryPresets()
 {
     enum { Moderno, Transparente, Punchy, Dinamico, Versatil, Agresivo, Bus, Seguro };
-    return {
+    auto presets = std::vector<ferb::PresetManager::Factory> {
         make ("Init", { .mode = Moderno }),
         make ("Streaming −14", { .mode = Moderno, .gain = 4.0f, .ceiling = -1.0f, .oversample = 1 }),
         make ("Streaming prudente", { .mode = Seguro, .gain = 2.0f, .ceiling = -1.5f }),
@@ -58,5 +58,21 @@ std::vector<ferb::PresetManager::Factory> factoryPresets()
         make ("Podcast −16", { .mode = Transparente, .gain = 6.0f }),
         make ("Render para 16 bits", { .mode = Moderno, .oversample = 5, .ditherBits = 1, .ditherShape = 2 }),
     };
+
+    // Categorías de la ficha, para agrupar el menú.
+    const std::pair<const char*, const char*> categories[] = {
+        { "Init", "Utilidad" }, { "Render para 16 bits", "Utilidad" },
+        { "Streaming −14", "Streaming" }, { "Streaming prudente", "Streaming" },
+        { "Master pop brillante", "Master" }, { "Master rock", "Master" }, { "Master electrónica", "Master" }, { "Master acústico", "Master" },
+        { "Pegamento de bus", "Bus" }, { "Batería con pegada", "Bus" },
+        { "Voz clara", "Mezcla" },
+        { "Cinta cálida", "Vintage" }, { "Válvula años 60", "Vintage" }, { "Radio saturada", "Vintage" },
+        { "Broadcast R 128", "Broadcast" }, { "Podcast −16", "Voz" },
+    };
+    for (auto& preset : presets)
+        for (const auto& [name, category] : categories)
+            if (preset.name == juce::String::fromUTF8 (name))
+                preset.category = juce::String::fromUTF8 (category);
+    return presets;
 }
 } // namespace nel

@@ -129,3 +129,49 @@ TEST_CASE ("Sonoridad: no produce NaN con silencio, DC ni valores extremos")
     CHECK (std::isfinite (meter.integrated()));
     CHECK (std::isfinite (meter.range()));
 }
+
+#include "LoudnessHistory.h"
+
+TEST_CASE ("Historial de sonoridad: tres niveles que cubren 10 min, 2 h y 10 h con memoria fija")
+{
+    ferb::LoudnessHistory h;
+    CHECK (ferb::LoudnessHistory::tiers[0].capacity * ferb::LoudnessHistory::tiers[0].seconds == 600);
+    CHECK (ferb::LoudnessHistory::tiers[1].capacity * ferb::LoudnessHistory::tiers[1].seconds == 7200);
+    CHECK (ferb::LoudnessHistory::tiers[2].capacity * ferb::LoudnessHistory::tiers[2].seconds == 36000);
+
+    // 11 h de programa: −20 LUFS constante con un pico de −3 dBTP cada hora.
+    for (int s = 0; s < 11 * 3600; ++s)
+        h.push (-20.0f, -20.0f, s % 3600 == 0 ? -3.0f : -30.0f);
+
+    const auto fine = h.snapshot (0), mid = h.snapshot (1), coarse = h.snapshot (2);
+    CHECK (fine.size() == 600);
+    CHECK (mid.size() == 720);
+    CHECK (coarse.size() == 600);
+    for (const auto& p : coarse)
+    {
+        CHECK (p.momentary == Catch::Approx (-20.0f).margin (0.01));
+        CHECK (p.shortTerm == Catch::Approx (-20.0f).margin (0.01));
+    }
+
+    // El máximo de true peak se conserva al pasar a un nivel más grueso: hay un −3 por hora en el de 10 h.
+    int peaks = 0;
+    for (const auto& p : coarse)
+        peaks += p.truePeak > -10.0f ? 1 : 0;
+    CHECK (peaks == 10);
+
+    h.clear();
+    CHECK (h.snapshot (0).empty());
+}
+
+TEST_CASE ("Historial de sonoridad: promedia en energía y trata «sin dato» como energía cero")
+{
+    ferb::LoudnessHistory h;
+    // 10 s: cinco a −20 LUFS y cinco sin dato → un punto de 10 s a −20 − 3,01 LUFS.
+    for (int s = 0; s < 10; ++s)
+        h.push (s < 5 ? -20.0f : ferb::LoudnessHistory::noValue, -20.0f, -6.0f);
+    const auto mid = h.snapshot (1);
+    REQUIRE (mid.size() == 1);
+    CHECK (mid[0].momentary == Catch::Approx (-23.01f).margin (0.02));
+    CHECK (mid[0].shortTerm == Catch::Approx (-20.0f).margin (0.02));
+    CHECK (mid[0].truePeak == Catch::Approx (-6.0f).margin (0.001));
+}

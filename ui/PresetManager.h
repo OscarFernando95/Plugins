@@ -23,6 +23,7 @@ public:
     {
         juce::String name;
         std::vector<std::pair<juce::String, float>> values; // id del parámetro → valor real
+        juce::String category;                              // opcional: agrupa los presets de fábrica en el menú
     };
 
     /** `excluded`: ids que no forman parte de un preset (p. ej. el bypass). `directory` vacío = la de usuario. */
@@ -33,6 +34,7 @@ public:
     juce::File getDirectory() const { return directory; }
 
     juce::StringArray getFactoryNames() const;
+    juce::String getFactoryCategory (const juce::String& name) const;
     juce::StringArray getUserNames() const;
     bool isFactory (const juce::String& name) const;
 

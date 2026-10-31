@@ -230,6 +230,17 @@ TEST_CASE ("Latencia: un impulso sale en la muestra informada, con todos los fac
                 x[10000] = 0.1f;
                 const auto out = runFresh (dual (x), s);
 
+                // En render offline sube un escalón de sobremuestreo, pero la latencia declarada no cambia.
+                auto offline = s;
+                offline.nonRealtime = true;
+                CHECK (nel::NelEngine::latencyFor (offline, 48000.0) == latency);
+                const auto outOffline = runFresh (dual (x), offline);
+                size_t peakOffline = 0;
+                for (size_t i = 0; i < outOffline.l.size(); ++i)
+                    if (std::abs (outOffline.l[i]) > std::abs (outOffline.l[peakOffline]))
+                        peakOffline = i;
+                CHECK (std::abs (int (peakOffline) - 10000 - latency) <= (minPhase ? 1 : 0));
+
                 size_t peak = 0;
                 for (size_t i = 0; i < out.l.size(); ++i)
                     if (std::abs (out.l[i]) > std::abs (out.l[peak]))
@@ -251,6 +262,11 @@ TEST_CASE ("Latencia: a 96 y 192 kHz el sobremuestreo efectivo baja (8× y 4×)"
     CHECK (nel::NelEngine::effectiveExponent (s, 48000.0) == 3); // en render sube un escalón
     s.offlineBoost = false;
     CHECK (nel::NelEngine::effectiveExponent (s, 48000.0) == 2);
+    s.offlineBoost = true;
+    s.oversample = 0;
+    CHECK (nel::NelEngine::effectiveExponent (s, 48000.0) == 0); // 1× = latencia mínima, no se sube
+    s.lookaheadMs = 0.0f;
+    CHECK (nel::NelEngine::latencyFor (s, 48000.0) == 0);
 }
 
 // ------------------------------------------------------------------ funciones
@@ -501,4 +517,119 @@ TEST_CASE ("Informe: aliasing y CPU", "[.report]")
             const double elapsed = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
             WARN ((1 << os) << "×, " << (minPhase ? "mínima" : "lineal") << ": " << 100.0 * elapsed / seconds << " % de un núcleo");
         }
+}
+
+TEST_CASE ("Aliasing: senoidal 6 dB sobre el techo, de 10 a 18 kHz: −80 dBc con 4× hasta 16 kHz (Agresivo −72), y −80 con 8× en todos los modos")
+{
+    double worst4 = -400.0, worst4Aggressive = -400.0, worst8 = -400.0;
+    for (int mode = 0; mode < nel::numModes; ++mode)
+        for (double f : { 10000.0, 12000.0, 14000.0, 16000.0, 18000.0 })
+            for (int os : { 2, 3 })
+            {
+                nel::Settings s;
+                s.gainDb = 11.0f;
+                s.ceilingDb = -1.0f;
+                s.oversample = os;
+                s.mode = mode;
+                s.lookaheadMs = nel::modes[size_t (mode)].lookaheadMs;
+                s.attackMs = nel::modes[size_t (mode)].attackMs;
+                s.releaseMs = nel::modes[size_t (mode)].releaseMs;
+                s.kneeDb = nel::modes[size_t (mode)].kneeDb;
+                const auto out = runFresh (dual (sine (65536 + 16384, f, 48000.0, 0.5)), s);
+                const double alias = aliasingDb (out.l, 16384, f, 48000.0);
+                INFO (nel::modes[size_t (mode)].name << ", " << f << " Hz, " << (1 << os) << "×: " << alias << " dBc");
+                if (os == 3)
+                {
+                    worst8 = std::max (worst8, alias);
+                    CHECK (alias < -80.0);
+                }
+                else if (mode == 5)
+                {
+                    worst4Aggressive = std::max (worst4Aggressive, alias);
+                    CHECK (alias < (f > 17000.0 ? -68.0 : -72.0));
+                }
+                else
+                {
+                    worst4 = std::max (worst4, alias);
+                    CHECK (alias < (f > 17000.0 ? -77.0 : -80.0)); // a 18 kHz, Moderno llega a −78,4 dBc
+                }
+            }
+    WARN ("Peor aliasing: 4× sin Agresivo " << worst4 << " dBc, 4× Agresivo " << worst4Aggressive << " dBc, 8× todos " << worst8 << " dBc");
+}
+
+TEST_CASE ("Lookahead: la reducción empieza `lookahead` ms antes del pico y al llegar el pico ya está al techo")
+{
+    const double fs = 48000.0;
+    for (int os : { 0, 2 })
+        for (float look : { 0.5f, 1.0f, 2.0f, 5.0f })
+        {
+            // Continua de 0,1 que salta a 1,0: con el techo en −6 dB la ganancia necesaria es 0,5.
+            const int stepAt = 24000;
+            std::vector<float> x (48000, 0.1f);
+            for (size_t i = size_t (stepAt); i < x.size(); ++i)
+                x[i] = 1.0f;
+
+            nel::Settings s;
+            s.mode = 7; // Seguro: sin recorte previo
+            s.ceilingDb = -6.0f;
+            s.oversample = os;
+            s.lookaheadMs = look;
+            s.truePeak = false;
+            const int latency = nel::NelEngine::latencyFor (s, fs);
+            const auto out = runFresh (dual (x), s);
+
+            // Salida alineada con la entrada: y[n] = out[n + latencia].
+            const auto y = [&] (int n) { return double (out.l[size_t (n + latency)]); };
+            int dipStart = -1;
+            for (int n = stepAt - int (0.0075 * fs); n < stepAt; ++n)
+                if (y (n) < 0.1 * 0.995)
+                {
+                    dipStart = n;
+                    break;
+                }
+
+            const double measuredMs = dipStart < 0 ? 0.0 : double (stepAt - dipStart) / fs * 1000.0;
+            INFO ("sobremuestreo " << (1 << os) << "×, lookahead " << look << " ms: la reducción empieza " << measuredMs << " ms antes");
+            REQUIRE (dipStart >= 0);
+            // El arranque de la rampa es cuadrático: un umbral del 0,5 % la detecta algo tarde (~7 % de la ventana).
+            CHECK (measuredMs == Approx (look).margin (0.15 + 0.08 * look));
+            // Al llegar el pico, la ganancia ya llegó al techo y ninguna muestra lo supera.
+            CHECK (y (stepAt) <= 0.5 * 1.001);
+            double peak = 0.0;
+            for (int n = stepAt; n < stepAt + 4000; ++n)
+                peak = std::max (peak, std::abs (y (n)));
+            CHECK (peak <= 0.5 * 1.002);
+        }
+}
+
+TEST_CASE ("True peak del medidor: senoidal a fs/4 con fase de 45° (pico de muestra 3 dB bajo el real), como los casos de EBU Tech 3341")
+{
+    // Con fase de 45° las muestras valen ±0,707·A y el pico real es A: un medidor de pico de muestra
+    // leería 3 dB de menos; el de true peak debe leer A (tolerancia de la norma: +0,2 / −0,4 dB).
+    for (double levelDb : { -12.0, -6.0, -3.0, -1.5 })
+    {
+        const int n = 48000 * 2;
+        std::vector<float> x (static_cast<size_t> (n));
+        for (int i = 0; i < n; ++i)
+            x[size_t (i)] = float (fromDb (levelDb) * std::sin (2.0 * 3.14159265358979 * 0.25 * i + 3.14159265358979 / 4.0));
+
+        nel::Settings s;
+        s.oversample = 0;
+        s.lookaheadMs = 0.0f;
+        s.ceilingDb = 0.0f; // sin limitación: el medidor lee la señal tal cual
+        nel::NelEngine engine;
+        engine.prepare (48000.0, block);
+        runStereo (engine, dual (x), s);
+
+        const double tp = toDb (engine.getTruePeak (0).consume());
+        INFO ("nivel real " << levelDb << " dBTP, lectura " << tp);
+        CHECK (tp >= levelDb - 0.4);
+        CHECK (tp <= levelDb + 0.2);
+
+        // El pico de muestra de la misma señal queda 3 dB por debajo.
+        float samplePeak = 0.0f;
+        for (float v : x)
+            samplePeak = std::max (samplePeak, std::abs (v));
+        CHECK (toDb (samplePeak) == Approx (levelDb - 3.01).margin (0.05));
+    }
 }

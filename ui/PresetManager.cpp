@@ -22,6 +22,14 @@ PresetManager::PresetManager (juce::AudioProcessorValueTreeState& state, const j
 {
 }
 
+juce::String PresetManager::getFactoryCategory (const juce::String& name) const
+{
+    for (const auto& f : factory)
+        if (f.name == name)
+            return f.category;
+    return {};
+}
+
 juce::StringArray PresetManager::getFactoryNames() const
 {
     juce::StringArray names;

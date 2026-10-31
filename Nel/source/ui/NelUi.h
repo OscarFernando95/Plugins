@@ -7,6 +7,8 @@
 #include <functional>
 #include <vector>
 
+#include <LoudnessHistory.h>
+
 #include "../PluginProcessor.h"
 
 namespace nel::ui
@@ -19,6 +21,7 @@ struct MeterState
     float inRmsDb = -100.0f, outRmsDb = -100.0f;
     float ceilingDb = -1.0f;
     float meterOffset = 0.0f; // escala K: se suma a las marcas de la escalera
+    bool rmsAes17 = false;    // RMS con referencia AES17: suma 3 dB para que una senoidal a escala completa marque 0
 };
 
 /** Medidor de escalera de 48 segmentos (−48 a 0 dB) con RMS más brillante dentro del pico, retención
@@ -29,6 +32,9 @@ public:
     LadderMeter (const ferb::vintage::Palette&, juce::String title, bool isOutput);
     void setState (const MeterState& s);
     void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+
+    std::function<void()> onRmsReference; // clic en la lectura de RMS: alterna plana y AES17
 
     static constexpr int width = 78, height = 316;
 
@@ -51,6 +57,12 @@ public:
     void setAudition (bool on) noexcept { audition = on; }
     void setLegend (juce::String output) { outputLegend = std::move (output); }
 
+    /** Modo historial: M, S y true peak de los últimos `span` (cada punto cubre `secondsPerPoint`). Con
+        `points` vacío vuelve a la vista en vivo de 6 s. */
+    void setHistory (std::vector<ferb::LoudnessHistory::Point> points, int secondsPerPoint, juce::String spanName, float targetLufs);
+    void showLive (juce::String spanName);
+    bool isHistory() const noexcept { return historyMode; }
+
     static constexpr int historyLength = 180; // 6 s a 30 Hz
 
 protected:
@@ -61,6 +73,13 @@ private:
     float ceilingDb = -1.0f;
     bool audition = false;
     juce::String outputLegend = "salida";
+
+    void paintHistory (juce::Graphics&, float width, float height);
+    bool historyMode = false;
+    std::vector<ferb::LoudnessHistory::Point> history;
+    int pointSeconds = 1;
+    float targetLufs = -14.0f;
+    juce::String spanLabel = "6 s";
 };
 
 /** Vúmetro de reducción de ganancia (0 a 12 dB, la aguja va de derecha a izquierda). */
@@ -97,6 +116,8 @@ public:
 
     std::function<void (int)> onTarget;
     std::function<void()> onReset;
+    std::function<void (bool)> onSource; // true = medir la entrada
+    void setSource (bool fromInput) { sourceInput = fromInput; repaint(); }
 
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
@@ -107,9 +128,12 @@ private:
     juce::Rectangle<float> targetButton (int i) const;
     juce::Rectangle<float> resetButton() const;
 
+    juce::Rectangle<float> sourceButton() const;
+
     ferb::vintage::Palette palette;
     Values values;
     int target;
+    bool sourceInput = false;
 };
 
 /** Ocho botones de modo; el elegido va hundido, con su lámpara encendida. */
@@ -137,6 +161,7 @@ public:
     LampToggle (juce::RangedAudioParameter&, const ferb::vintage::Palette&, juce::String text, juce::UndoManager* = nullptr);
     void paintButton (juce::Graphics&, bool highlighted, bool down) override;
     void setCream (bool shouldBeCream) noexcept { cream = shouldBeCream; repaint(); }
+    void setCaption (const juce::String& text) { if (text != caption) { caption = text; repaint(); } }
 
 private:
     ferb::vintage::Palette palette;

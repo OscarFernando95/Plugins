@@ -85,9 +85,16 @@ void PresetBar::showMenu()
     const auto current = manager.getCurrentName();
 
     const auto factoryNames = manager.getFactoryNames();
-    menu.addSectionHeader (U ("De fábrica"));
-    for (int i = 0; i < factoryNames.size(); ++i)
-        menu.addItem (factoryBase + i, factoryNames[i], true, factoryNames[i] == current);
+    juce::StringArray categories;
+    for (const auto& n : factoryNames)
+        categories.addIfNotAlreadyThere (manager.getFactoryCategory (n));
+    for (const auto& category : categories)
+    {
+        menu.addSectionHeader (category.isEmpty() ? U ("De fábrica") : category);
+        for (int i = 0; i < factoryNames.size(); ++i)
+            if (manager.getFactoryCategory (factoryNames[i]) == category)
+                menu.addItem (factoryBase + i, factoryNames[i], true, factoryNames[i] == current);
+    }
 
     const auto userNames = manager.getUserNames();
     menu.addSectionHeader (U ("Mis presets"));

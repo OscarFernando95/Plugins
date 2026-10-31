@@ -25,6 +25,14 @@ class NelEditor::Captions : public juce::Component
 public:
     explicit Captions (const Palette& p) : palette (p) { setInterceptsMouseClicks (false, false); }
 
+    void setOversampleLabel (const juce::String& text)
+    {
+        if (text == oversampleLabel)
+            return;
+        oversampleLabel = text;
+        repaint (30, 576, 260, 20);
+    }
+
     void setModeLabel (const juce::String& text)
     {
         if (text == modeLabel)
@@ -47,9 +55,9 @@ public:
         rule (g, 410.0f, modeLabel);
         rule (g, 476.0f, U ("TIEMPOS Y ENLACE"));
 
-        const std::pair<float, const char*> groups[] = { { 36.0f, "SOBREMUESTREO" }, { 300.0f, "FASE" }, { 431.0f, "RENDER" }, { 542.0f, "DITHER" }, { 780.0f, "PERFIL" } };
+        const std::pair<float, juce::String> groups[] = { { 36.0f, oversampleLabel }, { 300.0f, "FASE" }, { 431.0f, "RENDER" }, { 542.0f, "DITHER" }, { 780.0f, "PERFIL" } };
         for (const auto& [x, text] : groups)
-            drawEmbossed (g, text, { x, 581.0f, 200.0f, 13.0f }, labelFont (10.0f, 1.8f), juce::Justification::centredLeft, palette);
+            drawEmbossed (g, text, { x, 581.0f, x < 100.0f ? 260.0f : 200.0f, 13.0f }, labelFont (10.0f, 1.8f), juce::Justification::centredLeft, palette);
     }
 
 private:
@@ -67,6 +75,22 @@ private:
 
     Palette palette;
     juce::String modeLabel = U ("MODO · MODERNO");
+    juce::String oversampleLabel = "SOBREMUESTREO";
+};
+
+/** Zona sensible sobre el pie derecho de la pantalla: cada clic pasa de 6 s en vivo a 10 min, 2 h y 10 h de historial. */
+class NelEditor::SpanButton : public juce::Component
+{
+public:
+    explicit SpanButton (std::function<void()> onClick) : click (std::move (onClick))
+    {
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+        setTitle (U ("Escala de tiempo de la pantalla"));
+    }
+    void mouseDown (const juce::MouseEvent&) override { click(); }
+
+private:
+    std::function<void()> click;
 };
 
 NelEditor::NelEditor (NelProcessor& p)
@@ -105,6 +129,9 @@ NelEditor::NelEditor (NelProcessor& p)
     outLadder->setTopLeftPosition (686, 76);
     scope = std::make_unique<nel::ui::ScopeView> (palette);
     scope->setGlassBounds ({ 130, 76, 544, 264 });
+    spanButton = std::make_unique<SpanButton> ([this] { cycleSpan(); });
+    spanButton->setBounds (130 + 544 - 104, 76 + 264 - 24, 104, 22);
+
     strip = std::make_unique<nel::ui::ReadoutStrip> (palette);
     strip->setTopLeftPosition (130, 348);
     strip->onScale = [this] { cycleScale(); };
@@ -122,7 +149,20 @@ NelEditor::NelEditor (NelProcessor& p)
         tpMax = -100.0f;
         grMax = 0.0f;
     };
-    for (auto* c : std::initializer_list<juce::Component*> { inLadder.get(), outLadder.get(), scope.get(), strip.get(), grMeter.get(), loudness.get() })
+    loudness->setSource (static_cast<int> (p.apvts.state.getProperty (k::uiLoudnessSource, 0)) != 0);
+    loudness->onSource = [this] (bool fromInput)
+    {
+        owner.setLoudnessFromInput (fromInput);
+        owner.getEngine().getLoudness().requestReset(); // no se mezclan medidas de dos fuentes
+    };
+    const auto toggleRms = [&p]
+    {
+        const int next = static_cast<int> (p.apvts.state.getProperty (k::uiRmsRef, 0)) == 0 ? 1 : 0;
+        p.apvts.state.setProperty (k::uiRmsRef, next, nullptr);
+    };
+    inLadder->onRmsReference = toggleRms;
+    outLadder->onRmsReference = toggleRms;
+    for (auto* c : std::initializer_list<juce::Component*> { inLadder.get(), outLadder.get(), scope.get(), spanButton.get(), strip.get(), grMeter.get(), loudness.get() })
         content.addAndMakeVisible (*c);
 
     // Perillas.
@@ -193,6 +233,29 @@ void NelEditor::cycleScale()
     owner.apvts.state.setProperty (k::uiMeterScale, next, nullptr);
 }
 
+void NelEditor::cycleSpan()
+{
+    const int next = (static_cast<int> (owner.apvts.state.getProperty (k::uiScopeSpan, 0)) + 1) % 4;
+    owner.apvts.state.setProperty (k::uiScopeSpan, next, nullptr);
+    historyTicks = 0;
+    refreshScope();
+}
+
+void NelEditor::refreshScope()
+{
+    static constexpr const char* names[] = { "6 s", "10 min", "2 h", "10 h" };
+    const int span = juce::jlimit (0, 3, static_cast<int> (owner.apvts.state.getProperty (k::uiScopeSpan, 0)));
+    lastSpan = span;
+    if (span == 0)
+    {
+        scope->showLive (names[0]);
+        return;
+    }
+    const auto tier = static_cast<size_t> (span - 1);
+    scope->setHistory (owner.getHistory().snapshot (tier), ferb::LoudnessHistory::secondsPerPoint (tier), U (names[span]),
+                       static_cast<float> (static_cast<int> (owner.apvts.state.getProperty (k::uiLufsTarget, -14))));
+}
+
 void NelEditor::timerCallback()
 {
     auto& engine = owner.getEngine();
@@ -220,6 +283,7 @@ void NelEditor::timerCallback()
     meters.outRmsDb = meanRms (engine.getRms (0), engine.getRms (1));
     meters.inRmsDb = meanRms (engine.getInputRms (0), engine.getInputRms (1));
     meters.ceilingDb = raw (k::ceiling);
+    meters.rmsAes17 = static_cast<int> (owner.apvts.state.getProperty (k::uiRmsRef, 0)) != 0;
     meters.meterOffset = scaleOffsets[juce::jlimit (0, 3, static_cast<int> (owner.apvts.state.getProperty (k::uiMeterScale, 0)))];
     inLadder->setState (meters);
     outLadder->setState (meters);
@@ -237,6 +301,13 @@ void NelEditor::timerCallback()
     scope->setAudition (raw (k::audition) >= 0.5f);
     scope->setLegend (raw (k::audition) >= 0.5f ? "diferencia" : (raw (k::unityGain) >= 0.5f ? U ("salida (ganancia unitaria)") : "salida"));
     scope->push (inPeak + raw (k::gain), outPeak, gr);
+    if (lastSpan != juce::jlimit (0, 3, static_cast<int> (owner.apvts.state.getProperty (k::uiScopeSpan, 0))) || (lastSpan > 0 && ++historyTicks >= 30))
+    {
+        historyTicks = 0;
+        refreshScope();
+    }
+    if (lastSpan == 0)
+        scope->showLive ("6 s");
 
     nel::ui::LoudnessPanel::Values v;
     auto& lm = engine.getLoudness();
@@ -256,6 +327,16 @@ void NelEditor::timerCallback()
         lastModified = modified;
         modes->setMode (mode);
         captions->setModeLabel (U ("MODO · ") + U (nel::modes[static_cast<size_t> (mode)].name).toUpperCase() + (modified ? "*" : ""));
+    }
+
+    // Factor de sobremuestreo efectivo (a 96 kHz o más baja) y aviso de true peak aproximado con 1× o 2×.
+    {
+        auto settings = owner.readSettings();
+        settings.nonRealtime = false;
+        const int effective = nel::NelEngine::effectiveExponent (settings, owner.getSampleRate() > 0.0 ? owner.getSampleRate() : 48000.0);
+        const int selected = juce::roundToInt (raw (k::oversample));
+        captions->setOversampleLabel (effective != selected ? U ("SOBREMUESTREO · EFECTIVO ") + juce::String (1 << effective) + "X" : juce::String ("SOBREMUESTREO"));
+        toggles[0]->setCaption (raw (k::truePeak) >= 0.5f && effective < 2 ? juce::String ("TRUE PEAK ~") : juce::String ("TRUE PEAK"));
     }
 
     const bool releaseAuto = raw (k::releaseAuto) >= 0.5f;
