@@ -230,3 +230,24 @@ Pruebas unitarias con Catch2 sobre el DSP, sin interfaz, y validadores de format
 ```markdown
 Lee la ficha técnica de Maru y crea el esqueleto del proyecto (M0): CMake con JUCE 8, targets VST3, AU y AAX (AAX opcional por la variable AAX_SDK_PATH), carpeta common/ y tests/ con Catch2. Compila VST3 y AU, firma ad hoc y díme cómo cargarlos en mi DAW. No empieces el DSP todavía.
 ```
+
+## Estado y cambios sobre la ficha
+
+Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca con esta sección, manda esta sección.
+
+**Decisiones**
+
+| Tema | Ficha original | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Bypass | Parámetro propio con crossfade de 20 ms | Bypass del anfitrión (`getBypassParameter`), fuera de los presets y del A/B | Regla del repositorio |
+| Presets | JSON en `~/Library/Application Support/FERB/Maru/Presets/User` y `juce_add_binary_data` | `.ferbpreset` (XML) del `PresetManager` común; fábrica en código | Una sola ruta para todos los plugins |
+| Refresco de la interfaz | `VBlankAttachment` | `Timer` | Funciona también en la captura sin pantalla |
+| `common/` | Carpeta nueva | `core/`, `ui/` y `ui/vintage/` existentes | Se reutilizan |
+
+**Resultados medidos**
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| M0: `MaruProcessorTests` (tasas 44,1 a 192 kHz, bloques 1 a 4096, mono y estéreo, estado, editor, canales y sidechain) | Sin fallos | 18,15 millones de comprobaciones, 10 casos |
+| `auval -v aufx Maru Ferb` | Pasa | Pasa |
+| `pluginval` nivel 5, VST3 y AU | Pasa | Pasa |

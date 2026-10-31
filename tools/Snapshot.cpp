@@ -20,6 +20,8 @@ using Processor = CremitaProcessor;
 using Processor = NelProcessor;
 #elif FERB_PLUGIN_CHAUS
 using Processor = ChauSProcessor;
+#elif FERB_PLUGIN_MARU
+using Processor = MaruProcessor;
 #else
 using Processor = TufiProcessor;
 #endif

@@ -14,6 +14,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
 - Documentación en PDF de Tufi, Poty, Cremita, Nel y ChauS (`docs/`), con identidad propia y generador (`docs/construir.py`).
 
+### Maru (en curso, aún sin versión publicada)
+- M0: esqueleto (código `Maru`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base de rack 1260×300, `MaruProcessorTests` y `MaruSnapshot`.
+
 ## ChauS 1.0.0 — 2026-10-31
 
 De-esser con EQ dinámico que sigue la sibilante (VST3 y AU). Reúne los hitos M0 a M5.
