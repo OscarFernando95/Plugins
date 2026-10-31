@@ -19,6 +19,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
     raw.air = ptr (k::airCorner);
     raw.phase = ptr (k::phase);   raw.color = ptr (k::color); raw.soften = ptr (k::soften);
     raw.width = ptr (k::width);   raw.monoSafe = ptr (k::monoSafe);
+    raw.guard = ptr (k::guard);   raw.match = ptr (k::match);
     for (int b = 0; b < k::numBands; ++b)
     {
         const auto i = static_cast<size_t> (b);
@@ -64,6 +65,8 @@ mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
     s.softenHz = raw.soften->load();
     s.widthPercent = raw.width->load();
     s.monoSafe = raw.monoSafe->load() >= 0.5f;
+    s.guardPercent = raw.guard->load();
+    s.match = raw.match->load() >= 0.5f;
     for (size_t b = 0; b < k::numBands; ++b)
     {
         auto& band = s.bands[b];

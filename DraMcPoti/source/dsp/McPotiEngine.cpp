@@ -104,6 +104,21 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
         for (size_t k = 0; k < 4; ++k)
             c.phaseAp[k].setFrequency (fs, std::min (apFreq[k], 0.45 * fs));
     sideSplit.setFrequency (fs, 150.0);
+    guardFilter[0] = ferb::Biquad::highPass (fs, 5000.0);
+    guardFilter[1] = ferb::Biquad::lowPass (fs, std::min (10000.0, 0.45 * fs));
+    guardFilter[2] = ferb::Biquad::highPass (fs, 300.0);
+    guardFilter[3] = ferb::Biquad::lowPass (fs, 3000.0);
+    guardEnvCoeff = smoothCoeff (fs, 2.0);
+    guardAttack = smoothCoeff (fs, 1.0);   // ataque de 1 ms; el lookahead lo da el retardo de lo añadido (≈ 1 ms)
+    guardRelease = smoothCoeff (fs, 40.0);
+    powerCoeff = smoothCoeff (fs, 3000.0);
+    guardBuf.assign (size, 1.0f);
+    for (auto& c : channels)
+        for (size_t k = 0; k < 2; ++k)
+        {
+            c.kDry[k] = k == 0 ? ferb::KWeighting::shelf (fs) : ferb::KWeighting::highPass (fs);
+            c.kOut[k] = c.kDry[k];
+        }
     factor = 0;
     reset();
 }
@@ -129,11 +144,19 @@ void McPotiEngine::reset() noexcept
         for (auto& ap : c.phaseAp)
             ap.reset();
         c.soften.reset();
+        for (auto& f : c.kDry) f.reset();
+        for (auto& f : c.kOut) f.reset();
         c.env.fill (0.0f);
         c.gcTarget.fill (1.0f);
         c.gcSmooth.fill (1.0f);
     }
     sideSplit.reset();
+    for (auto& f : guardFilter) f.reset();
+    guardHi = guardMid = guardDb = 0.0f;
+    sibilant = false;
+    powerDry = powerOut = 0.0f;
+    matchLin = 1.0f;
+    matchDb.store (0.0f);
     lastSoften = 0.0f;
     tonal.fill (0.0f);
     adaptGain = 1.0f;
@@ -396,10 +419,12 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             levelBuf[b][static_cast<size_t> (i)] = levelSmooth[b].step (s.bands[b].level * 0.01f);
         }
 
+        float detector = 0.0f;
         for (int ch = 0; ch < numCh; ++ch)
         {
             auto& c = channels[static_cast<size_t> (ch)];
             const float x = data[static_cast<size_t> (ch)][i] * inGain;
+            detector += x / float (numCh);
             data[static_cast<size_t> (ch)][i] = x; // la pasada 2 parte de la entrada ya con ganancia
             std::array<float, nb> bands {};
             c.split.process (x, bands);
@@ -428,6 +453,17 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                     c.nlIn[b][static_cast<size_t> (i)] = c.hpIn[b].process (bands[b]) * (1.0f + 4.0f * a);
             }
         }
+
+        // Guarda de sibilancia: energía de 5–10 kHz frente a 300 Hz–3 kHz, con histéresis (por afinar con voz real).
+        const float hiBand = guardFilter[1].process (guardFilter[0].process (detector));
+        const float midBand = guardFilter[3].process (guardFilter[2].process (detector));
+        guardHi += guardEnvCoeff * (hiBand * hiBand - guardHi);
+        guardMid += guardEnvCoeff * (midBand * midBand - guardMid);
+        const float ratio = guardHi / (guardMid + 1.0e-9f);
+        sibilant = sibilant ? ratio > 0.25f : (ratio > 0.5f && guardHi > 1.0e-6f);
+        const float guardTarget = sibilant ? -12.0f * juce::jlimit (0.0f, 1.0f, s.guardPercent * 0.01f) : 0.0f;
+        guardDb += (guardTarget < guardDb ? guardAttack : guardRelease) * (guardTarget - guardDb);
+        guardBuf[static_cast<size_t> (i)] = s.master ? 1.0f : std::pow (10.0f, guardDb / 20.0f);
     }
 
     const float color = juce::jlimit (-1.0f, 1.0f, s.colorPercent * 0.01f);
@@ -484,6 +520,8 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                 const float delayedBand = c.bandDelay[b].process (c.bandSig[b][static_cast<size_t> (i)]);
                 float h = c.addDelay[b].process (c.nlOut[b][static_cast<size_t> (i)]);
                 h = implemented ? h * driveBuf[b][static_cast<size_t> (i)] * (shelfMode ? 1.0f : gamma) * levelBuf[b][static_cast<size_t> (i)] * g : 0.0f;
+                if (b >= 2)
+                    h *= guardBuf[static_cast<size_t> (i)];
                 addedPower[b] += (h * h - addedPower[b]) * 0.0005f;
                 addedSum[k] += h;
                 if (s.bands[b].solo)
@@ -516,12 +554,32 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             addedSum[1] = mid - side;
         }
 
+        // Igualar: la sonoridad K de 3 s de la salida se lleva a la de la entrada (±12 dB); apagado en Delta y Solo.
+        const bool matching = s.match && ! s.delta && ! anySolo;
+        std::array<float, maxChannels> out {};
+        float kDry = 0.0f, kOut = 0.0f;
         for (int ch = 0; ch < numCh; ++ch)
         {
             const auto k = static_cast<size_t> (ch);
-            const float y = s.delta ? mix * addedSum[k] : (anySolo ? soloSum[k] : dry[k] + mix * addedSum[k]);
-            data[k][i] = y * outGain;
+            auto& c = channels[k];
+            out[k] = s.delta ? mix * addedSum[k] : (anySolo ? soloSum[k] : dry[k] + mix * addedSum[k]);
+            const float kd = c.kDry[1].process (c.kDry[0].process (dry[k]));
+            const float ko = c.kOut[1].process (c.kOut[0].process (out[k]));
+            kDry += kd * kd;
+            kOut += ko * ko;
         }
+        powerDry += powerCoeff * (kDry - powerDry);
+        powerOut += powerCoeff * (kOut - powerOut);
+        if ((i % controlInterval) == 0)
+        {
+            const float wantedDb = matching && powerDry > 1.0e-9f && powerOut > 1.0e-9f
+                                       ? juce::jlimit (-12.0f, 12.0f, 10.0f * std::log10 (powerDry / powerOut))
+                                       : 0.0f;
+            matchDb.store (wantedDb, std::memory_order_relaxed);
+        }
+        matchLin += 0.002f * (dbToGain (matchDb.load (std::memory_order_relaxed)) - matchLin);
+        for (int ch = 0; ch < numCh; ++ch)
+            data[static_cast<size_t> (ch)][i] = out[static_cast<size_t> (ch)] * matchLin * outGain;
     }
 
     for (size_t b = 0; b < nb; ++b)

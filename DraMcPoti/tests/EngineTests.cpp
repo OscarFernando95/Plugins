@@ -546,3 +546,44 @@ TEST_CASE ("McPoti: Ancho escala el lateral de lo añadido y Mono seguro lo deja
     CHECK (side (200.0f, false, 3000.0) > 1.8 * side (100.0f, false, 3000.0)); // Ancho 200 % ≈ doble
     CHECK (side (100.0f, true, 60.0) < 0.2 * side (100.0f, false, 60.0));     // Mono seguro: sin lateral grave
 }
+
+TEST_CASE ("McPoti: la guarda baja Presencia y Aire ante una sibilancia y no toca una vocal")
+{
+    const int n = int (fs);
+    auto added = [&] (double freq, float guard, double measure)
+    {
+        auto s = settings (100.0f, 3);
+        s.delta = true;
+        s.guardPercent = guard;
+        const auto out = run (sine (n, freq, fs, 0.2), s);
+        return measureAmplitude (out.data() + n / 2, n / 2, measure, fs);
+    };
+    const double sibOff = added (7000.0, 0.0f, 7000.0), sibOn = added (7000.0, 100.0f, 7000.0);
+    INFO ("sibilancia " << toDb (sibOn / sibOff) << " dB");
+    CHECK (sibOn < sibOff * 0.35);   // hasta −12 dB (0,25) con margen del suavizado
+    const double vowelOff = added (800.0, 0.0f, 2400.0), vowelOn = added (800.0, 100.0f, 2400.0);
+    CHECK (vowelOn == Catch::Approx (vowelOff).epsilon (0.05)); // una vocal no activa el detector
+}
+
+TEST_CASE ("McPoti: Igualar lleva la sonoridad de la salida a la de la entrada (±12 dB)")
+{
+    const int n = int (fs * 9.0);
+    const auto in = noise (n, 0.15f);
+    auto levelDiffDb = [&] (bool match)
+    {
+        auto s = settings (100.0f, 3);
+        s.match = match;
+        const auto out = run (in, s);
+        double ein = 0.0, eout = 0.0;
+        for (size_t i = size_t (n) - 48000; i < size_t (n); ++i)
+        {
+            ein += double (in[i]) * in[i];
+            eout += double (out[i]) * out[i];
+        }
+        return toDb (std::sqrt (eout / ein));
+    };
+    const double off = levelDiffDb (false), on = levelDiffDb (true);
+    INFO ("sin Igualar " << off << " dB, con Igualar " << on << " dB");
+    CHECK (std::abs (on) < 1.0);
+    CHECK (std::abs (on) < std::abs (off));
+}

@@ -9,6 +9,7 @@
 #include <Biquad.h>
 #include <Crossover.h>
 #include <DelayLine.h>
+#include <Loudness.h>
 #include <OversamplerN.h>
 
 namespace mcpoti
@@ -38,12 +39,14 @@ struct Settings
     float airCornerHz = 16000.0f;
     float phasePercent = 40.0f, colorPercent = 0.0f, softenHz = 20000.0f, widthPercent = 100.0f;
     bool monoSafe = false;
+    float guardPercent = 0.0f;
+    bool match = false;
 };
 
 /** Fase 2 (parcial): cruce de cuatro bandas y generador de armónicos de los cuatro caracteres Vintage con
     ADAA de primer orden y sobremuestreo de 1× a 8×, dinámica por banda, los cuatro caracteres Modernos (Dinámico, Adaptativo, Seda y Aire), mezcla, Delta y Solo.
     La latencia es constante (la de 8×): el seco, Solo y los factores menores se retrasan lo que falta.
-    Color, Fase, Suavizar, Ancho y Mono seguro (Master) ya están. Pendiente: guarda, fase lineal e Igualar. */
+    Color, Fase, Suavizar, Ancho, Mono seguro, guarda de sibilancia e Igualar ya están. Pendiente: fase lineal. */
 class McPotiEngine
 {
 public:
@@ -56,6 +59,8 @@ public:
     void process (juce::AudioBuffer<float>& buffer, const Settings& s) noexcept;
 
     /** Nivel añadido por banda (RMS suavizado, lineal), para las válvulas de la interfaz. */
+    /** Ganancia que aplica Igualar, en dB (para la interfaz). */
+    float matchGainDb() const noexcept { return matchDb.load (std::memory_order_relaxed); }
     float addedLevel (int band) const noexcept { return added[static_cast<size_t> (band)].load (std::memory_order_relaxed); }
 
 private:
@@ -85,7 +90,8 @@ private:
         std::array<ferb::DownN, nb> down;
         std::array<AdaaState, nb> adaa, adaaOdd; // adaaOdd: la rama con −u, para Color hacia los impares
         std::array<ferb::Lr4, 4> phaseAp;        // red de pasa-todo de lo añadido (600, 1800, 5000 y 11000 Hz)
-        ferb::Biquad soften;                      // corte superior de lo añadido
+        ferb::Biquad soften;
+        std::array<ferb::Biquad, 2> kDry, kOut;   // ponderación K de la entrada y de la salida (Igualar)                      // corte superior de lo añadido
         ferb::DelayLine dryDelay;
         std::array<ferb::DelayLine, nb> bandDelay, addDelay;
         std::array<std::vector<float>, nb> bandSig, nlIn, nlOut;
@@ -117,6 +123,14 @@ private:
     float smoothAir = 16000.0f, shelfAir = 0.0f, adaptGain = 1.0f, tonalCoeff = 0.0f;
     ferb::Lr4 sideSplit;       // Mono seguro: el lateral de lo añadido pierde lo que queda bajo 150 Hz
     float smoothSoften = 20000.0f, lastSoften = 0.0f;
+    // Guarda de sibilancia: detector de 5–10 kHz frente a 300 Hz–3 kHz con histéresis; baja Presencia y Aire (Vocal).
+    std::array<ferb::Biquad, 4> guardFilter; // paso alto 5 kHz, paso bajo 10 kHz, paso alto 300 Hz, paso bajo 3 kHz
+    float guardHi = 0.0f, guardMid = 0.0f, guardDb = 0.0f, guardEnvCoeff = 0.0f, guardAttack = 0.0f, guardRelease = 0.0f;
+    bool sibilant = false;
+    std::vector<float> guardBuf;
+    // Igualar: sonoridad K de 3 s de la entrada frente a la de la salida.
+    float powerDry = 0.0f, powerOut = 0.0f, powerCoeff = 0.0f, matchLin = 1.0f;
+    std::atomic<float> matchDb { 0.0f };
     std::array<float, 2> tonal {}; // potencia de Medios y de Presencia, promedio de 2 s
 };
 } // namespace mcpoti

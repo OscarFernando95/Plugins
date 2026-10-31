@@ -54,7 +54,7 @@ private:
     /** Punteros a los valores de los parámetros, resueltos una vez: buscar por texto en el hilo de audio reservaría memoria. */
     struct Raw
     {
-        std::atomic<float> *input, *output, *mix, *mode, *era, *voice, *tune, *link, *xo1, *xo2, *xo3, *delta, *os, *air, *phase, *color, *soften, *width, *monoSafe;
+        std::atomic<float> *input, *output, *mix, *mode, *era, *voice, *tune, *link, *xo1, *xo2, *xo3, *delta, *os, *air, *phase, *color, *soften, *width, *monoSafe, *guard, *match;
         std::array<std::atomic<float>*, mcpoti::numBands> drive, dyn, level, on, solo;
     } raw {};
 
