@@ -16,6 +16,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 
 ### Maru (en curso, aún sin versión publicada)
 - M0: esqueleto (código `Maru`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base de rack 1260×300, `MaruProcessorTests` y `MaruSnapshot`.
+- M1: estimador de piso de ruido (MCRA) y motor de Supresión espectral (STFT √Hann con solape-suma, ganancia LSA con decision-directed, protección de transitorios, enlace estéreo, latencia N exacta); `MaruTests`.
 
 ## ChauS 1.0.0 — 2026-10-31
 

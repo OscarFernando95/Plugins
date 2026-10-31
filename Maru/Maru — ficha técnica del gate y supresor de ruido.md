@@ -233,7 +233,7 @@ Lee la ficha técnica de Maru y crea el esqueleto del proyecto (M0): CMake con J
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (estimador de ruido y motor de Supresión). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones**
 
@@ -243,6 +243,12 @@ Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca 
 | Presets | JSON en `~/Library/Application Support/FERB/Maru/Presets/User` y `juce_add_binary_data` | `.ferbpreset` (XML) del `PresetManager` común; fábrica en código | Una sola ruta para todos los plugins |
 | Refresco de la interfaz | `VBlankAttachment` | `Timer` | Funciona también en la captura sin pantalla |
 | `common/` | Carpeta nueva | `core/`, `ui/` y `ui/vintage/` existentes | Se reutilizan |
+| **Recuperación** | «Subida de ganancia (Supresión)» | **Bajada de la ganancia**: la supresión «recupera» con la constante de Recuperación (10 a 1000 ms); la ganancia sube rápido (2 ms) hacia valores altos (> 0,5) cuando aparece la señal. Hacia ganancias bajas sube con la constante lenta | La maqueta aprobada lo hace así (atenuación lenta al subir, 4 ms al bajar); con la subida lenta la voz bajaba 4,6 dB y una pulsación 10 dB |
+| Estimador de ruido | Estadística de mínimos (Martin) con probabilidad de presencia (MCRA) | MCRA: suavizado de 30 ms en tiempo y 3 bins en frecuencia, mínimo de 1 a 1,5 s (tres subventanas de 0,5 s), δ = 5, presencia suavizada α = 0,2 y promedio recursivo α = 0,95; un bin 10 veces sobre el ruido estimado cuenta como voz de inmediato | Sin esto, el principio de cada sílaba contaminaba el ruido estimado (+20 dB) |
+| Piso de ruido mostrado | Valor global en dBFS | Media cuadrática del espectro estimado (Parseval con la ventana √Hann), de la suma mid | Igual que el nivel RMS de un ruido blanco |
+| Decision-directed | α = 0,98 | α = 0,98, y 0,3 durante la protección de transitorios (30 ms tras un salto del flujo espectral) | Con 0,98 una pulsación de 8 ms bajaba 10 dB |
+| Reducción máxima del 100 % | −Rango (−30 dB) | Limitada por Rango, pero **con ruido blanco solo se alcanzan ≈ 21,5 dB** (Rango 30 o 60) | La ganancia LSA no lleva todos los bins al piso |
+| Límite de cambio de ganancia por bin | Sí | No implementado (lo cubren el suavizado en tiempo y en frecuencia) | |
 
 **Resultados medidos**
 
@@ -251,3 +257,23 @@ Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca 
 | M0: `MaruProcessorTests` (tasas 44,1 a 192 kHz, bloques 1 a 4096, mono y estéreo, estado, editor, canales y sidechain) | Sin fallos | 18,15 millones de comprobaciones, 10 casos |
 | `auval -v aufx Maru Ferb` | Pasa | Pasa |
 | `pluginval` nivel 5, VST3 y AU | Pasa | Pasa |
+
+**Resultados medidos de M1** (señales sintéticas, 44,1/48/96 kHz, bloque de 256 salvo que se diga)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Supresión 0 %: salida = entrada retrasada N muestras (todas las tasas, alta y baja latencia) | Idéntica | Por debajo de −110 dBFS |
+| Latencia | Pico del impulso en la muestra informada | N exacta: 1024 (44,1 y 48 kHz), 2048 (96 kHz), 4096 (192 kHz); la mitad con latencia baja |
+| Estimador, ruido blanco de −70, −50 y −30 dBFS | ±1,5 dB en 3 s | Cumple a 44,1, 48 y 96 kHz |
+| Estimador con voz sintética a −22 dBFS y ruido a −52 dBFS | — | Mediana de los últimos 4 s a menos de 6 dB del piso real. **El estimador se infla hasta ≈ 7 dB con voz continua**: la fuga de la voz por debajo de 5 veces el ruido se toma como ruido (límite del método) |
+| Estimador, ruido que sube de −55 a −45 dBFS | Lo sigue | ±2 dB a los 5 s |
+| Reducción de ruido blanco a −40 dBFS (Rango 30) | 20 dB o más al 100 %; no crece al bajar la perilla | 0 / 5,5 / 11,4 / 18,7 / **21,4 dB** al 0 / 25 / 50 / 75 / 100 % |
+| Voz con ruido (voz −22, ruido −50 dBFS) | La voz no baja más de 1 dB al 50 % | −0,01 / −0,02 / −0,02 / −0,03 dB al 25 / 50 / 75 / 100 %; el ruido entre palabras baja más de 11 dB al 50 % |
+| Pulsación brillante de 8 ms sobre ruido | Pico dentro de 1,5 dB al 50 % | Cumple |
+| Ruido musical (celdas del espectrograma 10 dB sobre sus vecinas) | Sin picos aislados | No más de 3 veces las del propio ruido (más 0,2 %) |
+| Enlace estéreo | 100 % conserva la imagen; 0 % independiente | Relación L/R de 6,02 dB ±0,1 con enlace 100 %; con 0 % un canal en silencio sigue en silencio |
+| Robustez | Sin NaN ni picos | Silencio, continua, NaN, infinitos y subnormales; 44,1 a 192 kHz; bloques de 1 a 4096; el resultado no depende del tamaño del bloque (< −100 dBFS) |
+| `process` | Sin reservas de memoria | 0 reservas (mono y estéreo, con estructura y controles cambiando) |
+| CPU Supresión, estéreo | Menos de 3 % a 48 kHz | 44,1 kHz 0,37 % · **48 kHz 0,41 %** (latencia baja 0,40 %) · 96 kHz 0,82 % · 192 kHz 1,65 % |
+
+Los valores de la tabla de mapeo (β, reducción por tramos 0 / 6 / 12 / 21 dB y Rango, margen del Gate) siguen siendo iniciales.
