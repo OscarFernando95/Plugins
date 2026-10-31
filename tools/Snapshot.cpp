@@ -22,6 +22,8 @@ using Processor = NelProcessor;
 using Processor = ChauSProcessor;
 #elif FERB_PLUGIN_MARU
 using Processor = MaruProcessor;
+#elif FERB_PLUGIN_DRAMCPOTI
+using Processor = DraMcPotiProcessor;
 #else
 using Processor = TufiProcessor;
 #endif

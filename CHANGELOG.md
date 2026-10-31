@@ -8,6 +8,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 
 ## Sin publicar
 
+### Dra. McPoti 0.1.0 (en desarrollo)
+- Fase 1: carpeta `DraMcPoti/`, 44 parámetros, 20 presets de fábrica más Init, A/B, panel provisional con el kit `ui/vintage/`, `DraMcPotiProcessorTests` y `DraMcPotiSnapshot`. El audio pasa sin procesar; el DSP llega en las fases 2 a 6. Ficha con su sección «Estado y cambios sobre la ficha».
+
 ### Repositorio
 - AAX: los seis plugins compilan con el SDK de AAX 2.8.0 (arm64). Sin firma PACE, sin AAX Validator y sin probar en Pro Tools.
 - Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.

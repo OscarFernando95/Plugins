@@ -10,3 +10,4 @@ set(CREMITA_VERSION "1.0.0")
 set(NEL_VERSION    "1.0.0")
 set(MARU_VERSION   "1.0.0")
 set(CHAUS_VERSION  "1.0.0")
+set(DRAMCPOTI_VERSION "0.1.0") # en desarrollo (fase 1); 1.0.0 al cerrar la fase 6
