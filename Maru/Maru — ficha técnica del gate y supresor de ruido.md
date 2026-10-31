@@ -233,7 +233,7 @@ Lee la ficha técnica de Maru y crea el esqueleto del proyecto (M0): CMake con J
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) y M2 (motor Gate). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) M2 (motor Gate) y M3 (parámetros, presets, A/B y deshacer). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones**
 
@@ -299,3 +299,24 @@ Los valores de la tabla de mapeo (β, reducción por tramos 0 / 6 / 12 / 21 dB y
 | Supresión 0 % | Entrada retrasada | Por debajo de −110 dBFS |
 | Cambio Supresión ↔ Gate cada segundo | Sin clics | Cumple; latencias 144 (3 ms a 48 kHz) y 1024 |
 | CPU Gate, estéreo a 48 kHz | Menos de 0,5 % | 0,41 % (incluye el análisis del piso de ruido, que corre también en este modo) |
+
+**Parámetros y presets (M3)**
+
+- **19 parámetros** con `ParameterID{id, 1}`, los de la tabla de la sección 4 con sus rangos y defectos (el parámetro `range` es negativo, de −60 a −6 dB; `scLP` va de 1 a 20 kHz). `bypass` es el del anfitrión y no entra en los presets ni en el A/B. **No renombrar estos IDs.**
+- **10 presets de fábrica.** Voz de podcast, Locución, Voz con ventilador, Amplificador (gate) y Batería (gate) usan los valores de la maqueta; los otros cinco (Zumbido de sala, Guitarra acústica, Instrumento suave, Rescate fuerte e Init) son valores iniciales. Un preset carga solo los parámetros que menciona (Supresión, Motor, Rango, Sensibilidad, Recuperación, Ataque, Hold e Histéresis); el resto vuelve a su valor de fábrica.
+- La latencia la declara el procesador en cuanto cambian el motor, el lookahead o la calidad: N muestras en Supresión (1024 / 512 a 44,1 y 48 kHz), el lookahead en Gate. El motor adopta el cambio con un fundido a silencio de 5 ms.
+- Estado: `setStateInformation` usa `ferb::syncParametersFromState`. A/B (no se guarda con la sesión) y deshacer con `UndoManager`.
+
+**Resultados medidos de M3**
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| `MaruProcessorTests` (parámetros aleatorios, 44,1 a 192 kHz, bloques 1 a 4096, mono y estéreo, estado, editor, canales y sidechain) | Sin fallos | 18,15 millones de comprobaciones, 17 casos |
+| Latencia declarada frente a la medida con un impulso (Supresión alta y baja, Gate con 0 y 6 ms; 44,1, 48 y 96 kHz) | Igual | Exacta |
+| Latencia al cambiar motor, calidad y lookahead | Se actualiza | 1024 → 512 → 144 → 480 muestras |
+| Estado guardado y restaurado (19 parámetros aleatorios, también Bool y Choice fraccionarios) | Igual | Cumple |
+| Presets | 10 cargan, son programas del anfitrión y Init es el defecto | Cumple |
+| Procesador con ruido blanco al 100 % y bypass del anfitrión | Reduce > 15 dB; bypass = entrada retrasada | Cumple |
+| `processBlock` | Sin reservas | 0 reservas |
+| `auval -v aufx Maru Ferb` | Pasa | Pasa |
+| `pluginval` nivel 10, VST3 y AU, sin pruebas de interfaz | Pasa | Pasa (queda la corrida completa con interfaz en M5) |

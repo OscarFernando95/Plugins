@@ -253,7 +253,7 @@ struct MaruEngine::Stft
     }
 
     /** Una muestra por canal: devuelve la salida con latencia N y, cada salto, procesa una trama. */
-    void tick (const float* in, float* out, bool synthesise, const SuppressionGain::Params& params, float link, Telemetry& telemetry) noexcept
+    void tick (const float* in, float* out, bool synthesise, const SuppressionGain::Params& params, float link, Telemetry& tel) noexcept
     {
         for (int c = 0; c < channels; ++c)
         {
@@ -265,11 +265,11 @@ struct MaruEngine::Stft
         if (++sinceHop >= H)
         {
             sinceHop = 0;
-            frame (synthesise, params, link, telemetry);
+            frame (synthesise, params, link, tel);
         }
     }
 
-    void frame (bool synthesise, const SuppressionGain::Params& params, float link, Telemetry& telemetry) noexcept
+    void frame (bool synthesise, const SuppressionGain::Params& params, float link, Telemetry& tel) noexcept
     {
         for (int c = 0; c < channels; ++c)
         {
@@ -319,10 +319,10 @@ struct MaruEngine::Stft
         for (int k = bandLo; k < bandHi; ++k)
             bandSum += noise[k];
         bandFloorDb = mid.estimator.frames() > static_cast<int> (0.5 * fs / H) ? static_cast<float> (10.0 * std::log10 (std::max (bandSum * normal, 1.0e-12))) : -120.0f;
-        telemetry.noiseFloorDb.store (static_cast<float> (10.0 * std::log10 (std::max (lambdaSum * normal, 1.0e-12))), std::memory_order_relaxed);
+        tel.noiseFloorDb.store (static_cast<float> (10.0 * std::log10 (std::max (lambdaSum * normal, 1.0e-12))), std::memory_order_relaxed);
         const float reduction = gateMode ? -gateGainDb : static_cast<float> (10.0 * std::log10 (std::max (inSum, 1.0e-20) / std::max (outSum, 1.0e-20)));
-        telemetry.reductionDb.store (reduction, std::memory_order_relaxed);
-        telemetry.working.store (reduction > 0.5f, std::memory_order_relaxed);
+        tel.reductionDb.store (reduction, std::memory_order_relaxed);
+        tel.working.store (reduction > 0.5f, std::memory_order_relaxed);
         for (int b = 0; b < Telemetry::bands; ++b)
         {
             double pin = 0.0, pout = 0.0, pn = 0.0;
@@ -337,9 +337,9 @@ struct MaruEngine::Stft
             const auto i = static_cast<size_t> (b);
             const float vIn = dbOf (pin), vOut = dbOf (pout), vNoise = dbOf (pn);
             bandDb[i] += (vIn > bandDb[i] ? 0.6f : 0.15f) * (vIn - bandDb[i]);
-            telemetry.input[i].store (bandDb[i], std::memory_order_relaxed);
-            telemetry.output[i].store (bandDb[i] + (gateMode ? gateGainDb : vOut - vIn), std::memory_order_relaxed);
-            telemetry.noise[i].store (vNoise, std::memory_order_relaxed);
+            tel.input[i].store (bandDb[i], std::memory_order_relaxed);
+            tel.output[i].store (bandDb[i] + (gateMode ? gateGainDb : vOut - vIn), std::memory_order_relaxed);
+            tel.noise[i].store (vNoise, std::memory_order_relaxed);
         }
 
         if (! synthesise)

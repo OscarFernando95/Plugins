@@ -6,12 +6,15 @@
 #include <PresetManager.h>
 
 #include "Parameters.h"
+#include "dsp/MaruEngine.h"
 
-class MaruProcessor : public juce::AudioProcessor
+class MaruProcessor : public juce::AudioProcessor,
+                       private juce::AudioProcessorValueTreeState::Listener,
+                       private juce::AsyncUpdater
 {
 public:
     MaruProcessor();
-    ~MaruProcessor() override = default;
+    ~MaruProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -43,10 +46,21 @@ public:
     juce::UndoManager undoManager;
     juce::AudioProcessorValueTreeState apvts;
 
+    maru::MaruEngine& getEngine() noexcept { return engine; }
+    maru::Settings readSettings() const noexcept;
+    const maru::Telemetry& getTelemetry() const noexcept { return engine.getTelemetry(); }
+    double getSampleRate() const noexcept { return currentSampleRate; }
     ferb::PresetManager& getPresets() noexcept { return *presets; }
     ferb::AbCompare& getAb() noexcept { return *ab; }
 
 private:
+    void parameterChanged (const juce::String& id, float value) override;
+    void handleAsyncUpdate() override;
+    void updateLatency();
+
+    maru::MaruEngine engine;
+    double currentSampleRate = 48000.0;
+    int lastLatency = -1;
     std::unique_ptr<ferb::PresetManager> presets;
     std::unique_ptr<ferb::AbCompare> ab;
 

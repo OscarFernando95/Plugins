@@ -18,6 +18,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - M0: esqueleto (código `Maru`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base de rack 1260×300, `MaruProcessorTests` y `MaruSnapshot`.
 - M1: estimador de piso de ruido (MCRA) y motor de Supresión espectral (STFT √Hann con solape-suma, ganancia LSA con decision-directed, protección de transitorios, enlace estéreo, latencia N exacta); `MaruTests`.
 - M2: motor Gate (detector con HP y LP o sidechain externo, umbral automático sobre el piso de ruido de la banda, histéresis, hold, ataque y release con rampa de coseno, lookahead, enlace estéreo, cambio sin clics con la Supresión).
+- M3: 19 parámetros (IDs fijados), 10 presets de fábrica, A/B y deshacer, latencia declarada por el procesador, sidechain.
 
 ## ChauS 1.0.0 — 2026-10-31
 

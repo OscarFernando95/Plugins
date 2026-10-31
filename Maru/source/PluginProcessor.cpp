@@ -19,9 +19,70 @@ MaruProcessor::MaruProcessor()
     ab = std::make_unique<ferb::AbCompare> (apvts, excluded);
     if (apvts.state.getProperty ("presetName").toString().isEmpty())
         apvts.state.setProperty ("presetName", presets->getFactoryNames()[0], nullptr);
+
+    // Cambian la latencia: el motor, el lookahead y la calidad.
+    for (auto* id : { k::engine, k::lookahead, k::latency })
+        apvts.addParameterListener (id, this);
 }
 
-void MaruProcessor::prepareToPlay (double, int) {}
+MaruProcessor::~MaruProcessor()
+{
+    for (auto* id : { k::engine, k::lookahead, k::latency })
+        apvts.removeParameterListener (id, this);
+    cancelPendingUpdate();
+}
+
+void MaruProcessor::parameterChanged (const juce::String&, float)
+{
+    triggerAsyncUpdate(); // el anfitrión puede cambiar parámetros desde el hilo de audio
+}
+
+void MaruProcessor::handleAsyncUpdate() { updateLatency(); }
+
+void MaruProcessor::updateLatency()
+{
+    const int latency = maru::MaruEngine::latencyFor (readSettings(), currentSampleRate);
+    if (latency != lastLatency)
+    {
+        lastLatency = latency;
+        setLatencySamples (latency);
+    }
+}
+
+void MaruProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    currentSampleRate = sampleRate;
+    engine.prepare (sampleRate, samplesPerBlock);
+    lastLatency = -1;
+    updateLatency();
+}
+
+maru::Settings MaruProcessor::readSettings() const noexcept
+{
+    const auto raw = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+    const auto on = [&raw] (const char* id) { return raw (id) >= 0.5f; };
+    maru::Settings s;
+    s.amount = raw (k::amount) * 0.01f;
+    s.gate = juce::roundToInt (raw (k::engine)) == k::Gate;
+    s.rangeDb = -raw (k::range);
+    s.sens = raw (k::sens);
+    s.recoveryMs = raw (k::recovery);
+    s.gateAuto = on (k::gateAuto);
+    s.gateThreshDb = raw (k::gateThresh);
+    s.attackMs = raw (k::attack);
+    s.holdMs = raw (k::hold);
+    s.hystDb = raw (k::hyst);
+    s.lookaheadMs = raw (k::lookahead);
+    s.scHpHz = raw (k::scHP);
+    s.scLpHz = raw (k::scLP);
+    s.scExt = on (k::scExt);
+    s.linkPercent = raw (k::link);
+    s.lowLatency = juce::roundToInt (raw (k::latency)) == k::Low;
+    s.listen = on (k::listen);
+    s.outputDb = raw (k::output);
+    s.bypass = on (k::bypass);
+    return s;
+}
 
 bool MaruProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
@@ -43,9 +104,18 @@ bool MaruProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 void MaruProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    // M0: paso directo. Las salidas sin entrada correspondiente se silencian.
     for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
+
+    auto main = getBusBuffer (buffer, false, 0);
+    const bool sidechainOn = getBusCount (true) > 1 && getBus (true, 1)->isEnabled();
+    if (sidechainOn)
+    {
+        auto sidechain = getBusBuffer (buffer, true, 1);
+        engine.process (main, &sidechain, readSettings());
+    }
+    else
+        engine.process (main, nullptr, readSettings());
 }
 
 int MaruProcessor::getNumPrograms() { return presets->getFactoryNames().size(); }
