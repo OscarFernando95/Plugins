@@ -254,7 +254,7 @@ Lee la ficha técnica de ChauS e implementa el hito M1: extractor de los cinco r
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (detector de sibilantes y umbral adaptativo). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -264,6 +264,12 @@ Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca 
 | Presets | JSON en `~/Library/Application Support/FERB/ChauS/Presets/User` y `juce_add_binary_data` | `.ferbpreset` en XML del `PresetManager` común; fábrica en código | Una sola ruta para los plugins |
 | Refresco de la interfaz | `VBlankAttachment` | `Timer` | Funciona también en la captura sin pantalla |
 | Hilo del proyecto | Carpeta `common/` | `core/`, `ui/` y `ui/vintage/` ya existentes | Se reutilizan |
+| Rasgos del detector | Cinco | **Seis**: se añade el «aire» (densidad espectral de 12 a 18 kHz frente a 5 a 9 kHz, independiente de HP y LP) | Con solo los cinco, platillos y hi-hats son casi idénticos a una «s» aguda: el centroide y la planitud se miden *dentro* de HP–LP y se pierde lo que queda por encima. Con el aire, los platillos bajan de 23 % a 3 % de golpes que activan |
+| Rasgo «pendiente 2 a 4 kHz» | Pendiente | Regresión de la densidad espectral (potencia media por bin) en cuatro subbandas de igual ancho en octavas | Sumar la energía por subbanda daba una pendiente +3 dB/oct mayor que la real (el ancho crece con la frecuencia) |
+| Centroide | Rasgo lineal | Entra como «cercanía» al centro geométrico de HP–LP: −(log₂(centroide/centro))² | Un clasificador lineal no puede rechazar a la vez lo más agudo (hi-hat) y lo más grave («t») |
+| Nivel de banda para el umbral | Energía de la banda | Dominio del tiempo (HP y LP de 2.º orden, envolvente RMS de 1 ms), muestra a muestra; la FFT solo clasifica | El calculador de reducción necesita nivel rápido; los cuadros de 10,7 ms no bastan |
+| Tamaño del cuadro | 512 con salto 128 | 512/128 a 44,1 y 48 kHz; ×2 a 96 kHz y ×4 a 192 kHz | Mismo ancho de bin (≈ 94 Hz) y misma duración en todas las tasas |
+| Referencia adaptativa | Percentil 90 de los picos de los últimos 5 s | Igual, con picos por evento (mínimo 10 ms), referencia inicial −30 dBFS y suavizado de 250 ms; al expirar los eventos de uno en uno el valor sigue la ventana, y sin ninguno conserva el último | Evita saltos del umbral efectivo al terminar cada s |
 
 **Resultados medidos** (48 kHz, estéreo, bloque de 256)
 
@@ -273,3 +279,24 @@ Fecha: 31 oct 2026. Implementado M0 (esqueleto). Donde el texto de arriba choca 
 | `processBlock` sin reservas (esqueleto en paso directo) | 0 reservas | 0 |
 | `auval -v aufx ChaS Ferb` | Pasa | Pasa |
 | `pluginval` nivel 5, VST3 y AU | Pasa | Pasa |
+
+**Resultados medidos de M1** (señales sintéticas, semillas distintas de las del ajuste; 44,1, 48 y 96 kHz; banda 4–12 kHz)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Sibilante sintética (ruido de 6 a 9 kHz con envolvente, sobre voz sintética), activo en el pico | 95 % o más | 215 de 216 (99,5 %) |
+| Voz sintética sin eses | Sin falsos positivos | 0,0 % del tiempo activo |
+| Platillo sintético (1,2 s sobre la voz) | Menos de 5 % | 1,6 % del tiempo activo; 3 % de los platillos activan alguna vez |
+| **Hi-hat** sintético | Menos de 5 % | **No se cumple**: 12,5 % del tiempo y 33 % de los golpes (hi-hat de parciales metálicos); 35 % y 77 % si lleva mucho ruido blanco (espectralmente es una «s» aguda) |
+| **«t»** sintética | Menos de 5 % | **No se cumple**: 10,9 % del tiempo de la ráfaga y 70 % de las «t» activan alguna vez |
+| Histéresis (0,6 / 0,4) y suavizado de 5 ms | Entre 0,4 y 0,6 conserva el estado; 63 % del escalón en ≈ 5 ms | Cumple (3 a 9 ms con el salto del cuadro) |
+| Umbral adaptativo | Percentil 90 exacto; la misma frase 6 dB más baja da una referencia 6 ± 1,5 dB más baja | Cumple a 44,1 y 48 kHz |
+| Robustez | Silencio, continua, NaN, infinito y subnormales sin NaN ni activaciones | Cumple, de 44,1 a 192 kHz |
+| `tick` sin reservas | 0 | 0 |
+
+**Voces del sistema (informe, no prueba).** Con las voces de macOS (`say`: Mónica, Paulina, Eddy y Flo, en español; 188 palabras de una sola emisión) el detector activa en las 72 palabras con «s» (100 %); en las 92 palabras sin «s» ni fricativas activa en 25 (27 %: sobre todo ráfagas de «t», «k», «p» y «d»), con solo 0,7 % del tiempo activo; en las 24 con «f» o «j», en 14 (58 %). Sobre el mismo material, un ajuste menos regularizado daba 26 % de falsas activaciones con el mismo sesgo y fue descartado.
+
+**Límites de M1 (para decidir):**
+- El ajuste usa señales sintéticas que escribí yo, así que el 99,5 % de detección es sobre mi modelo de «s», no sobre voz grabada. La meta de 95 % sobre eses reales y los falsos positivos en hi-hat y «t» quedan para M6 con grabaciones (cuando pases voces con eses duras).
+- Con un ruido blanco filtrado y un hi-hat, o una «s» muy aguda, los seis rasgos espectrales no separan: es un límite del método, no del ajuste. Una «t» o un hi-hat activarán el detector y recibirán algo de reducción; en la práctica el modo *Voz sola* es para pistas de voz.
+- Los pesos son valores iniciales: `Classifier::initial()` (regularización L2 de 0,01; sesgo bajado 0,3 sobre el ajuste). Se reproducen con `./build/ChauS/ChauSTests "[.train]"`; el barrido de sesgo, con `"[.report]"` (y `CHAUS_TTS_DIR` para las voces).

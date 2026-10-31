@@ -15,6 +15,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 
 ### ChauS (en curso, aún sin versión publicada)
 - M0: esqueleto (código `ChaS`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base 960×580, `ChauSProcessorTests` y `ChausSnapshot`.
+- M1: detector de sibilantes (seis rasgos espectrales, regresión logística con histéresis, nivel de banda en el dominio del tiempo) y umbral adaptativo (percentil 90, 5 s); `ChauSTests`.
 
 ## Cremita 1.0.0 — 2026-10-31
 
