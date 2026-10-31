@@ -233,7 +233,7 @@ Lee la ficha técnica de Maru y crea el esqueleto del proyecto (M0): CMake con J
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (estimador de ruido y motor de Supresión). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (estimador de ruido y motor de Supresión) y M2 (motor Gate). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones**
 
@@ -249,6 +249,12 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (estimador de ruido y moto
 | Decision-directed | α = 0,98 | α = 0,98, y 0,3 durante la protección de transitorios (30 ms tras un salto del flujo espectral) | Con 0,98 una pulsación de 8 ms bajaba 10 dB |
 | Reducción máxima del 100 % | −Rango (−30 dB) | Limitada por Rango, pero **con ruido blanco solo se alcanzan ≈ 21,5 dB** (Rango 30 o 60) | La ganancia LSA no lleva todos los bins al piso |
 | Límite de cambio de ganancia por bin | Sí | No implementado (lo cubren el suavizado en tiempo y en frecuencia) | |
+| Detector del Gate | «Pico o RMS» | RMS de 3 ms, tras un paso alto y un paso bajo de 2.º orden (HP y LP del sidechain) | |
+| Umbral automático | Piso de ruido + 6 + 18·a | El piso se mide **en la banda del sidechain** (suma de la potencia de ruido estimada entre HP y LP; ruido blanco de −60 dBFS = −63 dB en 80 Hz a 12 kHz) más 6 + 18·Supresión más la Sensibilidad. Hasta 0,5 s de análisis el Gate queda abierto | El detector solo ve esa banda |
+| Sensibilidad en el Gate | «Desplaza el margen» | Se suma al margen (y al umbral manual): + = más supresión, como en la Supresión | Mismo sentido en los dos motores |
+| Cierre | Histéresis, hold, release | Abre sobre el umbral; cierra cuando el nivel lleva *hold* ms por debajo de umbral − histéresis (el temporizador se reinicia mientras el nivel esté entre ambos). Rampa lineal en el tiempo (Ataque y Recuperación) y ganancia de coseno elevado. Reducción al cerrar = Rango (la Supresión al 0 % lo anula) | |
+| Estéreo en el Gate | — | Detector y estado sobre la suma mid y por canal; ganancia = enlace · mid + (1 − enlace) · propia | |
+| Cambio de motor | — | Fundido a silencio de 5 ms con `ModeSwitch`; la latencia pasa de N a la del lookahead | |
 
 **Resultados medidos**
 
@@ -277,3 +283,19 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto) y M1 (estimador de ruido y moto
 | CPU Supresión, estéreo | Menos de 3 % a 48 kHz | 44,1 kHz 0,37 % · **48 kHz 0,41 %** (latencia baja 0,40 %) · 96 kHz 0,82 % · 192 kHz 1,65 % |
 
 Los valores de la tabla de mapeo (β, reducción por tramos 0 / 6 / 12 / 21 dB y Rango, margen del Gate) siguen siendo iniciales.
+
+**Resultados medidos de M2** (señales sintéticas, 48 kHz salvo que se diga)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Abre sobre el umbral, cierra bajo umbral − histéresis y entre ambos conserva el estado | Histéresis de 6 dB | Cumple (−60 / −30 / −43 / −52 / −43 / −33 dBFS con umbral −40: cerrado, abierto, abierto, cerrado, cerrado, abierto) |
+| Hold de 40 y 200 ms | Mantiene abierto ese tiempo | Abierto a la mitad del hold y cerrado (> 30 dB) tras hold + release |
+| Ataque de 2 y 10 ms | Rampa de coseno | Tiempo del 10 % al 90 % ≈ 0,6 del ataque, dentro de ± 35 % |
+| Umbral automático (ruido de −60 dBFS, tono de −50 dBFS) | Piso + 6 + 18·a | Abre con 0,25 (margen 10,5) y no con 0,5 ni con 1 |
+| Lookahead de 5 ms | La apertura llega antes del audio | Primer milisegundo del tono: −6 dB o peor sin lookahead; mejor que −1 dB con 5 ms |
+| Sin clics (cambios de ±40 dB en 0,3 s, lookahead 3 ms) | ≤ 1,3 veces la señal | Cumple |
+| Sidechain externo y filtros | Manda el sidechain; HP deja fuera un zumbido de 50 Hz | Cerrado con el sidechain en silencio y el principal sobre el umbral; con HP 400 Hz el zumbido no abre (< −20 dB) y con 20 Hz, sí |
+| Enlace estéreo | 100 %: los dos a la vez; 0 %: independientes | Cumple |
+| Supresión 0 % | Entrada retrasada | Por debajo de −110 dBFS |
+| Cambio Supresión ↔ Gate cada segundo | Sin clics | Cumple; latencias 144 (3 ms a 48 kHz) y 1024 |
+| CPU Gate, estéreo a 48 kHz | Menos de 0,5 % | 0,41 % (incluye el análisis del piso de ruido, que corre también en este modo) |

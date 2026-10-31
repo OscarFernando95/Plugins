@@ -226,6 +226,14 @@ struct MaruEngine::Stft
         bandDb.fill (-120.0f);
     }
 
+    /** Banda (HP a LP del sidechain) en la que se calcula el piso de ruido del Gate. */
+    void setBand (float loHz, float hiHz) noexcept
+    {
+        const double binHz = fs / N;
+        bandLo = std::clamp (static_cast<int> (std::floor (loHz / binHz)), 1, bins - 1);
+        bandHi = std::clamp (static_cast<int> (std::ceil (hiHz / binHz)), bandLo + 1, bins);
+    }
+
     void reset()
     {
         for (auto& c : ch)
@@ -241,6 +249,7 @@ struct MaruEngine::Stft
         mid.suppressor.reset();
         std::fill (mid.gain.begin(), mid.gain.end(), 1.0f);
         writePos = sinceHop = outPos = 0;
+        bandFloorDb = -120.0f;
     }
 
     /** Una muestra por canal: devuelve la salida con latencia N y, cada salto, procesa una trama. */
@@ -306,8 +315,12 @@ struct MaruEngine::Stft
             outSum += double (mid.power[static_cast<size_t> (k)]) * mid.gain[static_cast<size_t> (k)] * mid.gain[static_cast<size_t> (k)];
         }
         const double normal = 4.0 / (double (N) * N);
+        double bandSum = 0.0;
+        for (int k = bandLo; k < bandHi; ++k)
+            bandSum += noise[k];
+        bandFloorDb = mid.estimator.frames() > static_cast<int> (0.5 * fs / H) ? static_cast<float> (10.0 * std::log10 (std::max (bandSum * normal, 1.0e-12))) : -120.0f;
         telemetry.noiseFloorDb.store (static_cast<float> (10.0 * std::log10 (std::max (lambdaSum * normal, 1.0e-12))), std::memory_order_relaxed);
-        const float reduction = static_cast<float> (10.0 * std::log10 (std::max (inSum, 1.0e-20) / std::max (outSum, 1.0e-20)));
+        const float reduction = gateMode ? -gateGainDb : static_cast<float> (10.0 * std::log10 (std::max (inSum, 1.0e-20) / std::max (outSum, 1.0e-20)));
         telemetry.reductionDb.store (reduction, std::memory_order_relaxed);
         telemetry.working.store (reduction > 0.5f, std::memory_order_relaxed);
         for (int b = 0; b < Telemetry::bands; ++b)
@@ -325,7 +338,7 @@ struct MaruEngine::Stft
             const float vIn = dbOf (pin), vOut = dbOf (pout), vNoise = dbOf (pn);
             bandDb[i] += (vIn > bandDb[i] ? 0.6f : 0.15f) * (vIn - bandDb[i]);
             telemetry.input[i].store (bandDb[i], std::memory_order_relaxed);
-            telemetry.output[i].store (bandDb[i] + (vOut - vIn), std::memory_order_relaxed);
+            telemetry.output[i].store (bandDb[i] + (gateMode ? gateGainDb : vOut - vIn), std::memory_order_relaxed);
             telemetry.noise[i].store (vNoise, std::memory_order_relaxed);
         }
 
@@ -378,9 +391,44 @@ struct MaruEngine::Stft
     std::array<float, Telemetry::bands> bandDb {};
     float outScale = 1.0f;
     int writePos = 0, sinceHop = 0, outPos = 0;
+    int bandLo = 1, bandHi = 2;
+    float bandFloorDb = -120.0f;
+    bool gateMode = false;
+    float gateGainDb = 0.0f;
 };
 
 // ───────────────────────────────── Motor ─────────────────────────────────
+
+float MaruEngine::gateStep (GateLane& lane, float x, const Settings& s, float thresholdDb, float floorGain) noexcept
+{
+    // Detector: banda del sidechain y envolvente RMS de 3 ms.
+    const float band = lane.lp.process (lane.hp.process (x));
+    const double c = 1.0 - std::exp (-1.0 / (0.003 * fs));
+    lane.envelope += c * (static_cast<double> (band) * band - lane.envelope);
+    lane.levelDb = static_cast<float> (10.0 * std::log10 (lane.envelope + 1.0e-12));
+
+    // Abre sobre el umbral; cierra cuando el nivel lleva `hold` por debajo de umbral − histéresis.
+    const int holdSamples = static_cast<int> (std::lround (s.holdMs * 0.001 * fs));
+    if (! lane.open)
+    {
+        if (lane.levelDb > thresholdDb)
+        {
+            lane.open = true;
+            lane.holdLeft = holdSamples;
+        }
+    }
+    else if (lane.levelDb >= thresholdDb - s.hystDb)
+        lane.holdLeft = holdSamples;
+    else if (--lane.holdLeft < 0)
+        lane.open = false;
+
+    // Apertura con rampa lineal en el tiempo y ganancia de coseno elevado (sin clics).
+    const float attackStep = 1.0f / std::max (1.0f, static_cast<float> (s.attackMs * 0.001 * fs));
+    const float releaseStep = 1.0f / std::max (1.0f, static_cast<float> (s.recoveryMs * 0.001 * fs));
+    lane.openness = lane.open ? std::min (1.0f, lane.openness + attackStep) : std::max (0.0f, lane.openness - releaseStep);
+    lane.gain = floorGain + (1.0f - floorGain) * 0.5f * (1.0f - std::cos (std::numbers::pi_v<float> * lane.openness));
+    return lane.gain;
+}
 
 MaruEngine::MaruEngine() = default;
 MaruEngine::~MaruEngine() = default;
@@ -444,12 +492,22 @@ void MaruEngine::applyStructure (int key)
         d.setDelay (latency);
     }
     stft[static_cast<size_t> (key & 1)]->reset();
+    for (auto& g : gateLanes)
+    {
+        g.hp.reset();
+        g.lp.reset();
+        g.envelope = 0.0;
+        g.open = false;
+        g.holdLeft = 0;
+        g.openness = 0.0f;
+        g.gain = 1.0f;
+    }
+    lastHp = lastLp = -1.0f;
 }
 
 void MaruEngine::process (juce::AudioBuffer<float>& buffer, const juce::AudioBuffer<float>* sidechain, const Settings& request) noexcept
 {
-    (void) sidechain; // lo usa el Gate (M2)
-    const int channels = std::min (buffer.getNumChannels(), static_cast<int> (maxChannels));
+        const int channels = std::min (buffer.getNumChannels(), static_cast<int> (maxChannels));
     const int total = buffer.getNumSamples();
     if (channels == 0 || total == 0 || stft[0] == nullptr)
         return;
@@ -493,6 +551,29 @@ void MaruEngine::process (juce::AudioBuffer<float>& buffer, const juce::AudioBuf
             applyStructure (step.mode);
         Stft& st = *stft[static_cast<size_t> (step.mode & 1)];
         const bool gate = (step.mode >> 1) != 0;
+        if (std::abs (s.scHpHz - lastHp) > 0.01f || std::abs (s.scLpHz - lastLp) > 0.01f)
+        {
+            lastHp = s.scHpHz;
+            lastLp = s.scLpHz;
+            const double top = std::min (static_cast<double> (std::max (s.scLpHz, s.scHpHz * 1.2f)), 0.45 * fs);
+            for (auto& g : gateLanes)
+            {
+                g.hp.setCoefficients (ferb::Biquad::highPass (fs, std::clamp (static_cast<double> (s.scHpHz), 10.0, 0.4 * fs)));
+                g.lp.setCoefficients (ferb::Biquad::lowPass (fs, top));
+            }
+            st.setBand (s.scHpHz, static_cast<float> (top));
+        }
+        st.gateMode = gate;
+        // Gate: margen sobre el piso de ruido (6 + 18·Supresión, más la Sensibilidad) y ganancia de cierre.
+        const float margin = 6.0f + 18.0f * s.amount + s.sens;
+        const float floorGain = std::pow (10.0f, -s.rangeDb / 20.0f);
+        const bool hasSidechain = s.scExt && sidechain != nullptr && sidechain->getNumChannels() > 0 && sidechain->getNumSamples() >= total;
+        const float* sc[2] = { nullptr, nullptr };
+        if (hasSidechain)
+        {
+            sc[0] = sidechain->getReadPointer (0);
+            sc[1] = sidechain->getNumChannels() > 1 ? sidechain->getReadPointer (1) : sc[0];
+        }
 
         const double bypassTarget = s.bypass ? 1.0 : 0.0, listenTarget = s.listen ? 1.0 : 0.0;
         const double outputTarget = std::pow (10.0, static_cast<double> (s.outputDb) / 20.0);
@@ -509,9 +590,29 @@ void MaruEngine::process (juce::AudioBuffer<float>& buffer, const juce::AudioBuf
                 st.tick (in, wet, true, params, link, telemetry);
             else
             {
+                // Entradas del detector: el sidechain externo, o el propio audio.
+                float det[2] = { in[0], in[1] };
+                if (hasSidechain)
+                {
+                    det[0] = sane (sc[0][index]);
+                    det[1] = sane (sc[1][index]);
+                }
+                const float detMid = channels > 1 ? 0.5f * (det[0] + det[1]) : det[0];
+                const float thresholdDb = s.gateAuto ? (st.bandFloorDb > -119.0f ? st.bandFloorDb + margin : -200.0f) : s.gateThreshDb + s.sens;
+                const float gMid = gateStep (gateLanes[0], detMid, s, thresholdDb, floorGain);
+                float g[2] = { gMid, gMid };
+                if (channels > 1)
+                    for (int c = 0; c < 2; ++c)
+                    {
+                        const float own = gateStep (gateLanes[static_cast<size_t> (1 + c)], det[c], s, thresholdDb, floorGain);
+                        g[c] = link * gMid + (1.0f - link) * own;
+                    }
+                if (s.amount <= 0.0f) // Supresión 0 %: sin efecto
+                    g[0] = g[1] = 1.0f;
+                st.gateGainDb = 20.0f * std::log10 (std::max (g[0], 1.0e-6f));
                 st.tick (in, wet, false, params, link, telemetry); // solo el análisis (piso de ruido)
                 for (int c = 0; c < channels; ++c)
-                    wet[c] = dry[c]; // M2: ganancia del Gate
+                    wet[c] = dry[c] * g[c];
             }
 
             bypassMix += bypassCoeff * (bypassTarget - bypassMix);

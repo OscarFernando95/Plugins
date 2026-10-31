@@ -492,6 +492,7 @@ TEST_CASE ("Informe: cifras de M1 y CPU", "[.report]")
             engine.prepare (rate, 512);
             auto s = base (0.5f);
             s.lowLatency = low;
+            s.gate = low && rate == 48000.0; // una de las pasadas mide el Gate
             juce::AudioBuffer<float> buf (2, 512);
             const auto start = std::chrono::steady_clock::now();
             size_t pos = 0;
@@ -502,6 +503,6 @@ TEST_CASE ("Informe: cifras de M1 y CPU", "[.report]")
                 engine.process (buf, nullptr, s);
             }
             const double seconds = std::chrono::duration<double> (std::chrono::steady_clock::now() - start).count();
-            std::printf ("CPU Supresión estéreo %6.0f Hz, %s: %.2f %% de un núcleo\n", rate, low ? "latencia baja" : "latencia alta", 100.0 * seconds / (double (pos) / rate));
+            std::printf ("CPU %s estéreo %6.0f Hz, %s: %.2f %% de un núcleo\n", s.gate ? "GATE" : "Supresión", rate, low ? "latencia baja" : "latencia alta", 100.0 * seconds / (double (pos) / rate));
         }
 }

@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include <Biquad.h>
 #include <DelayLine.h>
 #include <ModeSwitch.h>
 
@@ -116,6 +117,19 @@ public:
 
 private:
     struct Stft;
+
+    /** Detector y máquina de estados del Gate de un canal (o de la suma mid). */
+    struct GateLane
+    {
+        ferb::Biquad hp, lp;
+        double envelope = 0.0;
+        bool open = false;
+        int holdLeft = 0;
+        float openness = 0.0f; // 0 = cerrado, 1 = abierto; la ganancia es un coseno elevado de este valor
+        float gain = 1.0f;
+        float levelDb = -120.0f;
+    };
+    float gateStep (GateLane&, float detectorInput, const Settings&, float thresholdDb, float floorGain) noexcept;
     void applyStructure (int key);
     int structureLatency (int key) const noexcept;
 
@@ -123,6 +137,8 @@ private:
     std::array<std::unique_ptr<Stft>, 2> stft; // [0] = calidad alta, [1] = latencia baja
     int lookaheadSamples = 0;
     std::array<ferb::DelayLine, maxChannels> dryDelay;
+    std::array<GateLane, 3> gateLanes; // suma mid, izquierdo y derecho
+    float lastHp = -1.0f, lastLp = -1.0f;
     ferb::ModeSwitch modeSwitch;
     bool needsInit = true;
     int activeKey = -1;
