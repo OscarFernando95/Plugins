@@ -112,7 +112,7 @@ private:
     std::array<ferb::DelayLine, maxChannels> rawDelay, gainedDelay, audioDelay;
     std::array<ferb::Biquad, maxChannels> detectorHighPass;
     std::array<Dither, maxChannels> dithers;
-    std::array<float, maxChannels> bodyGainPrev {}, bodySmooth {}, envFast {}, envSlow {}, sustainedRef {};
+    std::array<float, maxChannels> bodyGainPrev {}, bodySmooth {}, envFast {}, envSlow {};
 
     ferb::ModeSwitch modeSwitch;
     ferb::LoudnessMeter loudness;

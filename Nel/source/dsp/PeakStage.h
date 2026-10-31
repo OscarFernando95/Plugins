@@ -63,12 +63,12 @@ public:
 
         sumA += static_cast<double> (minimum) - static_cast<double> (ringA[posA]);
         ringA[posA] = minimum;
-        posA = posA + 1 == lenA ? 0 : posA + 1;
+        posA = posA + 1 == static_cast<size_t> (lenA) ? 0 : posA + 1;
         const float mid = static_cast<float> (sumA / lenA);
 
         sumB += static_cast<double> (mid) - static_cast<double> (ringB[posB]);
         ringB[posB] = mid;
-        posB = posB + 1 == lenB ? 0 : posB + 1;
+        posB = posB + 1 == static_cast<size_t> (lenB) ? 0 : posB + 1;
         return static_cast<float> (sumB / lenB);
     }
 
