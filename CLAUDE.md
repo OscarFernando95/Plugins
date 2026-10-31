@@ -3,7 +3,7 @@
 Monorepo de plugins VST3 y AU para macOS (JUCE 8.0.15, CMake + Ninja), de uso personal. Etiqueta del creador en la interfaz: **By FERB**.
 
 - **Tufi** (`Tufi/`): saturador armónico analógico. Especificación: `Tufi/Tufi — ficha técnica.md`.
-- **Cremita**, **Nel**, **Maru** y **ChauS** (carpetas propias, con su ficha): Cremita y Nel completos salvo pruebas en DAW (Nel sin AAX); Maru y ChauS por hacer. Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
+- **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel y ChauS completos salvo pruebas en DAW (Nel y ChauS sin AAX; el detector de ChauS falta ajustarlo con voces grabadas); Maru por hacer. Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
 - **Poty** (`Poty/`): enhancer multibanda. Especificación: `Poty/Poty — ficha técnica.md`.
 - `Bosquejo de dos plugins.html`: bosquejo visual aprobado de ambas interfaces.
 
@@ -19,7 +19,7 @@ ui/                   Interfaz y presets comunes, con JUCE (PresetManager, Prese
                       SegmentedControl, ParamField, Format) + tests/
 tests/common/         Utilidades de prueba (señales, medidores, AliasingMeter, AllocGuard, ProcessorSuite)
 tools/Snapshot.cpp    Renderiza el editor a un PNG sin anfitrión
-Tufi/                 source/ (dsp/, ui/), assets/fonts/, tests/
+Tufi/                 source/ (dsp/, ui/), assets/fonts/, tests/        (idem Poty, Cremita, Nel y ChauS)
 Poty/                 source/ (dsp/, ui/), assets/fonts/, tests/
 cmake/Versions.cmake  Versión SemVer de cada plugin (única fuente de verdad)
 docs/                 PDF de documentación de cada plugin: fuentes/ (Markdown), estilo/, construir.py
@@ -41,16 +41,17 @@ Universal (arm64 + x86_64) y macOS 11 por defecto. Para iterar más rápido: `-D
 AAX (Pro Tools), opcional: `-DFERB_AAX_SDK_PATH=/ruta/al/AAX_SDK` añade el formato a ambos plugins (sin esa opción no se compila). El SDK se descarga de developer.avid.com con cuenta de desarrollador; **no está en este equipo**. Pro Tools de venta solo carga AAX firmados con PACE (`wraptool`, requiere iLok); sin firma solo carga en Pro Tools Developer. AAX aún sin compilar ni probar.
 Cada build copia a `~/Library/Audio/Plug-Ins/{VST3,Components}`; JUCE firma ad-hoc el paquete antes de copiarlo (sin notarización).
 
-Pruebas (Catch2): `CoreTests`, `UiTests`, `TufiTests`, `PotyTests` (DSP y medidas) y `TufiProcessorTests`, `PotyProcessorTests` (procesador completo con editor: parámetros aleatorios, tasas y bloques extremos, estado, vida del editor, latencia, y **cero reservas de memoria en `processBlock`**).
-Informes de medidas, que no son pruebas: `./build/Poty/PotyTests "[.report]"` y `./build/Tufi/TufiTests "[.report]"` (aliasing, CPU, respuesta lineal).
-Interfaz: `./build/Poty/PotySnapshot salida.png [escala] [preset]` (idem `TufiSnapshot`) y comparar con el bosquejo.
-Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 --validate-in-process <paquete>`. `pluginval` no queda instalado: se baja de https://github.com/Tracktion/pluginval/releases (`pluginval_macOS.zip`) a una carpeta aislada. Nivel 10 pasa en Tufi, Poty, Cremita y Nel (VST3 y AU).
+Pruebas (Catch2): `CoreTests`, `UiTests`, `TufiTests`, `PotyTests`, `CremitaTests`, `NelTests`, `ChauSTests` (DSP y medidas) y `TufiProcessorTests`, `PotyProcessorTests`, `CremitaProcessorTests`, `NelProcessorTests`, `ChauSProcessorTests` (procesador completo con editor: parámetros aleatorios, tasas y bloques extremos, estado, vida del editor, latencia, y **cero reservas de memoria en `processBlock`**).
+Informes de medidas, que no son pruebas: `./build/Poty/PotyTests "[.report]"`, `./build/Tufi/TufiTests "[.report]"` (aliasing, CPU, respuesta lineal) y `./build/ChauS/ChauSTests "[.report]"` (barrido del sesgo del detector, lookahead, CPU; con `CHAUS_TTS_DIR` las voces de `say`). El ajuste de los pesos de ChauS se repite con `ChauSTests "[.train]"`.
+Interfaz: `./build/Poty/PotySnapshot salida.png [escala] [preset]` (idem `TufiSnapshot`; en ChauS `ChausSnapshot`, con `FERB_SNAPSHOT_BLOCKS=232` cae en medio de una «s») y comparar con el bosquejo o la maqueta (Chrome headless `--screenshot` sobre `…html#chaus`).
+Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 --validate-in-process <paquete>`. `pluginval` no queda instalado: se baja de https://github.com/Tracktion/pluginval/releases (`pluginval_macOS.zip`) a una carpeta aislada. Nivel 10 pasa en Tufi, Poty, Cremita, Nel y ChauS (VST3 y AU).
 
 ## Reglas
 
 - **Sin asignaciones de memoria ni bloqueos en `processBlock`.** Todo se reserva en `prepare`, para el máximo (8×); cambiar de modo no asigna. Lo vigila `*ProcessorTests` con un asignador instrumentado. `juce::ScopedNoDenormals` al inicio y parámetros suavizados con `juce::SmoothedValue`.
 - **Latencia constante**: se declara la del factor máximo (8×, 47 muestras) y los demás modos retrasan lo que falta. Cambiar calidad o sobremuestreo nunca cambia la latencia.
 - **Sin clics al mover cualquier control**: suavizado en parámetros continuos, y fundido a silencio y vuelta (`ModeSwitch`) para cambios de estructura. Toda perilla nueva debe pasar una prueba de «sin clics» comparando el salto máximo entre muestras con el de la señal estable.
+- **Un editor se puede abrir antes de `prepareToPlay`** (pluginval lo hace): todo lo que el editor lea desde el procesador (anillos de muestras, telemetría) debe reservarse en el constructor, no en `prepareToPlay`.
 - Todos los parámetros por `AudioProcessorValueTreeState` con `ParameterID{id, 1}`. No renombrar IDs: rompe presets y sesiones. El bypass del plugin es el del anfitrión (`getBypassParameter`) y no forma parte de los presets.
 - Textos de interfaz en español con coma decimal. Cadenas con tildes o `×`: `juce::String::fromUTF8` (un literal `"Cálido"` suelto sale como `CÃ¡lido`).
 - Un hito por vez, ejecutar la prueba que lo define antes de darlo por terminado, un commit por hito. El repositorio es <https://github.com/OscarFernando95/Plugins> (rama `main`).
@@ -63,13 +64,16 @@ Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 -
 
 ## Estado
 
-Versiones: Tufi, Poty, Cremita y Nel en 1.0.0 (las de Maru y ChauS, prevista). PDF de documentación hechos: Tufi, Poty, Cremita y Nel.
+Versiones: Tufi, Poty, Cremita, Nel y ChauS en 1.0.0 (la de Maru, prevista). PDF de documentación hechos: Tufi, Poty, Cremita, Nel y ChauS.
 
 ### Tufi — hitos 1 a 9 hechos
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).
 
 ### Poty — hitos 1 a 11 hechos
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (estante de la cinta, `b` del tubo, `k` del germanio, escalas de intensidad).
+
+### ChauS — hitos M0 a M5 hechos
+Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el detector y el 95 % de aciertos solo se midió con señales sintéticas), probar en Ableton, Logic y Pro Tools, y AAX (sin SDK).
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.

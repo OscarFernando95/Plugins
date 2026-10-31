@@ -13,6 +13,7 @@ La versión sale de cmake/Versions.cmake. Hace falta Google Chrome (imprime el P
 from __future__ import annotations
 
 import datetime
+import os
 import re
 import subprocess
 import sys
@@ -43,6 +44,8 @@ PLUGINS = {
                  formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (modos Estéreo, Mid y Side)", cat="Fx|Distortion", bundle="com.ferb.poty", snapshot="Poty/PotySnapshot"),
     "Nel": dict(var="NEL", code="Nel1", theme="nel", tagline="Limitador de true peak", kind="Limitador de true peak con medición de sonoridad",
                 formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo", cat="Fx|Dynamics", bundle="com.ferb.nel", snapshot="Nel/NelSnapshot"),
+    "ChauS": dict(var="CHAUS", code="ChaS", theme="chaus", tagline="De-esser · EQ dinámico", kind="De-esser con EQ dinámico que sigue la sibilante",
+                  formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opciones Mid y Side), sidechain externo opcional", cat="Fx|Dynamics", bundle="com.ferb.chaus", snapshot="ChauS/ChausSnapshot"),
     "Cremita": dict(var="CREMITA", code="Crem", theme="cremita", tagline="Inflator · sonoridad y calidez", kind="Inflator (sonoridad y calidez sin comprimir)",
                     formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opción Mid/Side)", cat="Fx|Distortion", bundle="com.ferb.cremita", snapshot="Cremita/CremitaSnapshot"),
 }
@@ -85,7 +88,11 @@ def render_screenshots(names: list[str]) -> None:
         exe = ROOT / "build" / PLUGINS[name]["snapshot"]
         if not exe.exists():
             raise SystemExit(f"Falta {exe}: compila antes (cmake --build build --target {name}Snapshot)")
-        subprocess.check_call([str(exe), str(DOCS / "imagenes" / f"{name.lower()}.png"), "2"])
+        out = str(DOCS / "imagenes" / f"{name.lower()}.png")
+        if name == "ChauS":  # voz sintética con eses: la captura cae en medio de una «s», con un preset de voz
+            subprocess.check_call([str(exe), out, "2", "Voz masculina"], env={**os.environ, "FERB_SNAPSHOT_BLOCKS": "232"})
+        else:
+            subprocess.check_call([str(exe), out, "2"])
 
 
 # ───────────────────────────────────────────── figuras
@@ -144,6 +151,12 @@ def figures(name: str, curves: dict) -> dict[str, str]:
             ["Input\n(+ Mid/Side)", "Bandas LR4\n(opcional, 3)", "*Sobremuestreo\n+ curva + ADAA", "Mezcla\nEfecto"],
             ["Filtro DC\n(solo el aporte)", "Igualar\nsonoridad", "Output", "Clip 0 dB\n(al final)"]],
             "#E08A2E"), "Cadena de señal de Cremita. No hay detector ni envolvente: el procesado es estático.")
+    elif name == "ChauS":
+        out["flujo"] = figure(fg.flow([
+            ["Entrada\n(+ Mid/Side)", "Detector: nivel de\nbanda + 6 rasgos", "*Reducción\n(umbral adaptativo)", "Balística\n(ataque 0,5 ms)"],
+            ["Retardo de\nlookahead", "*Campana o estante\n(frecuencia y Q seguidas)", "Mid/Side\ninverso", "Salida y\nbypass"],
+            ["Pantalla\n(anillos y telemetría)"]],
+            "#FF6B5E"), "Flujo de señal de ChauS, por canal. El detector mira la señal sin retardo; el audio se retrasa el lookahead, así la reducción llega antes que la «s». Las cajas rellenas son las que deciden y aplican la reducción.")
     return out
 
 

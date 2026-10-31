@@ -12,14 +12,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 - Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.
 - README del repositorio y este historial.
 - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
-- Documentación en PDF de Tufi, Poty, Cremita y Nel (`docs/`), con identidad propia y generador (`docs/construir.py`).
+- Documentación en PDF de Tufi, Poty, Cremita, Nel y ChauS (`docs/`), con identidad propia y generador (`docs/construir.py`).
 
-### ChauS (en curso, aún sin versión publicada)
-- M0: esqueleto (código `ChaS`/`Ferb`, VST3 y AU), paso directo, sidechain opcional, editor base 960×580, `ChauSProcessorTests` y `ChausSnapshot`.
-- M1: detector de sibilantes (seis rasgos espectrales, regresión logística con histéresis, nivel de banda en el dominio del tiempo) y umbral adaptativo (percentil 90, 5 s); `ChauSTests`.
-- M2: motor de EQ dinámico (campana y estante con seguimiento de frecuencia y Q, banda ancha, lookahead de 0 a 15 ms con latencia informada, enlace estéreo, Mid/Side, sidechain externo, escuchas, salida y bypass).
-- M3: 24 parámetros (IDs fijados), 10 presets de fábrica, A/B y deshacer, latencia declarada por el procesador.
-- M4: interfaz completa (espectro por bandas de 1/6 de octava con la campana dinámica y lo que se quita, línea de tiempo de 3 s con eventos, umbral efectivo y reducción), controles de la maqueta más un menú de ajustes avanzados.
+## ChauS 1.0.0 — 2026-10-31
+
+De-esser con EQ dinámico que sigue la sibilante (VST3 y AU). Reúne los hitos M0 a M5.
+- Detector de sibilantes: seis rasgos espectrales (los cinco de la ficha más el «aire»), regresión logística con histéresis (0,6 / 0,4) y suavizado de 5 ms; nivel de banda en el dominio del tiempo; umbral adaptativo (percentil 90 de 5 s).
+- EQ dinámico: campana o estante con seguimiento de frecuencia y de ancho, banda ancha, lookahead de 0 a 15 ms con la latencia informada, enlace estéreo, Mid y Side, sidechain externo, escuchas de sidechain y de disparo, salida y bypass del anfitrión.
+- 24 parámetros (IDs fijados), 10 presets de fábrica, A/B, deshacer y rehacer; interfaz de la maqueta con espectro por bandas de 1/6 de octava, la campana real del filtro y una línea de tiempo de 3 s, más un menú de ajustes avanzados.
+- Sin clics, sin reservas de memoria en `processBlock` y CPU de 0,6 % (estéreo, 48 kHz).
+- Validación: `auval` y `pluginval` nivel 10 con interfaz (VST3 y AU). **Límites conocidos:** el detector se ajustó con señales sintéticas (hi-hat y «t» activan el detector; sin medir con voz grabada) y la reducción no llega a 0 ms respecto del inicio de la s. Detalle en la ficha.
 
 ## Cremita 1.0.0 — 2026-10-31
 

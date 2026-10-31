@@ -846,6 +846,28 @@ TEST_CASE ("Informe: cifras de M2 y CPU", "[.report]")
         std::vector<float> r (phrase.audio.size());
         for (size_t i = 0; i < r.size(); ++i)
             r[i] = phrase.audio[(i + 97) % r.size()];
+        for (double rate : { 44100.0, 96000.0, 192000.0 })
+        {
+            const auto longPhrase = makePhrase (rate, 40, 5);
+            std::vector<float> r2 (longPhrase.audio.size());
+            for (size_t i = 0; i < r2.size(); ++i)
+                r2[i] = longPhrase.audio[(i + 97) % r2.size()];
+            ChausEngine engine;
+            engine.prepare (rate, 512);
+            auto s = base();
+            s.thresholdDb = -40.0f;
+            juce::AudioBuffer<float> buf (2, 512);
+            const auto start = std::chrono::steady_clock::now();
+            size_t pos = 0;
+            for (; pos + 512 <= longPhrase.audio.size(); pos += 512)
+            {
+                std::copy_n (longPhrase.audio.begin() + long (pos), 512, buf.getWritePointer (0));
+                std::copy_n (r2.begin() + long (pos), 512, buf.getWritePointer (1));
+                engine.process (buf, nullptr, s);
+            }
+            const double seconds = std::chrono::duration<double> (std::chrono::steady_clock::now() - start).count();
+            std::printf ("CPU estéreo %.1f kHz, banda dividida, voz sola: %.2f %% de un núcleo\n", rate / 1000.0, 100.0 * seconds / (double (pos) / rate));
+        }
         for (bool wide : { false, true })
             for (bool voice : { true, false })
             {

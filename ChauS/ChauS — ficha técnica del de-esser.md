@@ -254,7 +254,7 @@ Lee la ficha técnica de ChauS e implementa el hito M1: extractor de los cinco r
 
 ## Estado y cambios sobre la ficha
 
-Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S) M3 (parámetros, presets, A/B y deshacer) y M4 (pantalla de espectro y línea de tiempo, interfaz completa). Donde el texto de arriba choca con esta sección, manda esta sección.
+Fecha: 31 oct 2026. Implementados M0 a M5. Quedan el AAX (M5, sin SDK), M6 (ajuste del detector con grabaciones de voz) y la prueba manual en Ableton, Logic y Pro Tools. Detalle: M0 (esqueleto), M1 (detector de sibilantes y umbral adaptativo) M2 (EQ dinámico con seguimiento, lookahead y estéreo/M-S) M3 (parámetros, presets, A/B y deshacer) y M4 (pantalla de espectro y línea de tiempo, interfaz completa). Donde el texto de arriba choca con esta sección, manda esta sección.
 
 **Decisiones que cambiaron**
 
@@ -396,3 +396,27 @@ Fecha: 31 oct 2026. Implementados M0 (esqueleto), M1 (detector de sibilantes y u
 **Lección:** el primer intento de `pluginval` con interfaz terminó en un fallo de segmentación: el editor leía los anillos de muestras del espectro antes de que `prepareToPlay` los reservara. Mis pruebas y la captura siempre preparaban el procesador antes. Los anillos se reservan ahora una sola vez, en el constructor; reservarlos en `prepareToPlay` habría dejado además una carrera con el editor. Hay una prueba que abre y pinta el editor sin preparar.
 
 **Por verificar:** la legibilidad del coral sobre negro para daltonismo (la lectura numérica de la campana ayuda) sigue sin comprobarse.
+
+**Validación (M5)** — 31 oct 2026, binarios recién construidos
+
+| Validador | Resultado |
+| --- | --- |
+| `ctest` (12 ejecutables: Core, Ui, Tufi, Poty, Cremita, Nel y ChauS, con y sin procesador) | 100 % pasan (se reconstruyó todo tras tocar el kit compartido) |
+| `auval -v aufx ChaS Ferb` | Pasa |
+| `pluginval` nivel 10, VST3 y AU, **con** pruebas de interfaz | Pasa |
+| AAX Validator de Avid | **No ejecutado:** no hay SDK de AAX en este equipo |
+| CPU, estéreo, lookahead 10 ms (% de un núcleo) | 44,1 kHz 0,57 % · 48 kHz 0,6 % (banda ancha 0,58 %; General 0,2 %) · 96 kHz 1,2 % · **192 kHz 2,6 %** (la meta de < 2 % es a 48 kHz) |
+
+**Resumen frente a los objetivos de la sección 6**
+
+| Objetivo | Estado |
+| --- | --- |
+| CPU < 2 % (estéreo, 48 kHz) | Cumple: 0,6 % |
+| Aciertos del detector en voz con eses reales ≥ 95 % | **Sin medir con voz grabada.** Sintético: 99,5 %; voces del sistema (`say`): 72 de 72 palabras con «s» |
+| Falsos positivos en platillo < 5 % | Cumple (1,6 % del tiempo; 3 % de los golpes) |
+| Falsos positivos en hi-hat y «t» < 5 % | **No se cumple** (hi-hat metálico 12,5 % del tiempo; «t» 10,9 %; 70 % de las «t» activan alguna vez) |
+| Error de la frecuencia seguida < 300 Hz | Cumple: 84 a 189 Hz |
+| Retraso del 90 % de la reducción respecto del inicio de la s = 0 ms (lookahead 10 ms) | **No se cumple**: +18,5 ms; el 90 % de la meseta antes del pico de la s sí se cumple |
+| Latencia = lookahead | Cumple (exacta) |
+
+**Pendiente (M6 y más allá):** reajustar los pesos del clasificador con grabaciones de voz con eses duras (masculinas y femeninas) y volver a medir las metas de detección; probar a mano en Ableton, Logic y Pro Tools; AAX cuando haya SDK; comparar de oído con un de-esser de referencia a la misma reducción media (la «escucha» de la sección 8, que no se hizo); afinar de oído Q automática, liberación automática, clase de sibilante y presets.
