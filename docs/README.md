@@ -7,6 +7,7 @@ Un PDF por plugin, con la identidad de [Identidad de documentación.md](Identida
 | Tufi | 1.0.0 | [Tufi — Documentación.pdf](Tufi%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
 | Poty | 1.0.0 | [Poty — Documentación.pdf](Poty%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
 | Cremita | 1.0.0 | [Cremita — Documentación.pdf](Cremita%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
+| Nel | 1.0.0 | [Nel — Documentación.pdf](Nel%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
 
 Cada PDF reúne guía de uso, referencia de parámetros, documentación técnica (DSP, latencia, tiempo real), resultados medidos, validación, limitaciones e historial de versiones.
 

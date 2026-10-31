@@ -23,6 +23,7 @@
 }
 body.tufi    { --accent: #B08D4F; --accent-ink: #7E5F22; --cover-bg: #E4D6B4; --cover-ink: #2B2118; }
 body.cremita { --accent: #E08A2E; --accent-ink: #A8570E; --cover-bg: #E6DABD; --cover-ink: #2A1D14; }
+body.nel     { --accent: #8A5CF0; --accent-ink: #6A3FD0; --cover-bg: #1C1822; --cover-ink: #EFE5CF; }
 body.poty    { --accent: #4CC9F0; --accent-ink: #12708C; --cover-bg: #0E1116; --cover-ink: #E8EDF4; }
 
 /* ── Página ── */
@@ -67,7 +68,11 @@ body.poty .cover .brandline { color: #9AA7B8; }
 body.poty .cover .shot { box-shadow: none; border: .3mm solid #232B36; }
 body.poty .cover .docmeta { border-top-color: #232B36; }
 body.tufi .cover .wordmark { font-family: "DM Serif Display"; }
-body.cremita .cover .wordmark { font-family: "Limelight"; }
+body.cremita .cover .wordmark, body.nel .cover .wordmark { font-family: "Limelight"; }
+body.nel .cover .rail { background: #0B0A0C; }
+body.nel .cover .rail::before, body.nel .cover .rail::after { background: #8C8478; }
+body.nel .cover .frame { border-color: #8A5CF0; }
+body.nel .cover .shot { box-shadow: 0 2mm 6mm rgba(0,0,0,.6); border: .3mm solid #3A3345; }
 
 /* ── Control del documento y contenido ── */
 .front { break-after: page; }
@@ -75,9 +80,9 @@ body.cremita .cover .wordmark { font-family: "Limelight"; }
 table.ctl { width: 100%; border-collapse: collapse; margin: 0 0 9mm; }
 table.ctl td { padding: 1.6mm 0; border-bottom: .2mm solid var(--rule); vertical-align: top; }
 table.ctl td:first-child { width: 38mm; font: 600 7.6pt "Josefin Sans"; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); padding-top: 2.1mm; }
-.toc { columns: 2; column-gap: 10mm; margin: 0; padding: 0; list-style: none; font-size: 8.6pt; }
-.toc li { break-inside: avoid; display: flex; align-items: baseline; padding: 1.1mm 0; border-bottom: .2mm dotted var(--rule); }
-.toc li.l1 { font-weight: 700; margin-top: 2mm; } .toc li.l2 { padding-left: 9mm; font-size: 8.2pt; color: var(--ink-soft); }
+.toc { columns: 2; column-gap: 10mm; margin: 0; padding: 0; list-style: none; font-size: 8.2pt; line-height: 1.3; }
+.toc li { break-inside: avoid; display: flex; align-items: baseline; padding: .55mm 0; border-bottom: .2mm dotted var(--rule); }
+.toc li.l1 { font-weight: 700; margin-top: 1.4mm; } .toc li.l2 { padding-left: 9mm; font-size: 7.8pt; color: var(--ink-soft); }
 .toc .n { width: 9mm; flex: none; font: 700 8.5pt "JetBrains Mono"; color: var(--accent-ink); } .toc li.l2 .n { position: absolute; margin-left: -9mm; font-size: 7.5pt; }
 .toc a { color: inherit; }
 

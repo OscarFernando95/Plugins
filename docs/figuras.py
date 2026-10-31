@@ -36,7 +36,7 @@ def parse_curves(raw: str) -> dict[str, list[tuple[float, float]]]:
 
 def plot(series: list[tuple[str, str, list[tuple[float, float]]]], xlim: float, ylim: float,
          xlabel: str, ylabel: str, width=330, height=330, ticks=(-1, -0.5, 0, 0.5, 1), diagonal=True,
-         legend=True) -> str:
+         legend=True, ylow: float | None = None) -> str:
     """Curvas f(x) en un recuadro cuadrado. `series`: (rótulo, color, puntos)."""
     ml, mr, mt, mb = 46, 14, 14, 40
     pw, ph = width - ml - mr, height - mt - mb
@@ -44,22 +44,24 @@ def plot(series: list[tuple[str, str, list[tuple[float, float]]]], xlim: float, 
     def px(x):
         return ml + (x + xlim) / (2 * xlim) * pw
 
+    y0 = -ylim if ylow is None else ylow
+
     def py(y):
-        return mt + (1 - (y + ylim) / (2 * ylim)) * ph
+        return mt + (1 - (y - y0) / (ylim - y0)) * ph
 
     b = [f'<rect x="{ml}" y="{mt}" width="{pw}" height="{ph}" fill="{PAPER}" stroke="{GRID}"/>']
     for t in ticks:
         if abs(t) <= xlim + 1e-9:
             b.append(f'<line x1="{px(t):.1f}" y1="{mt}" x2="{px(t):.1f}" y2="{mt + ph}" stroke="{GRID}" stroke-width="{1.4 if t == 0 else 0.6}"/>')
             b.append(_text(px(t), mt + ph + 14, f"{t:g}".replace(".", ","), 9, SOFT, "middle", mono=True))
-        if abs(t) <= ylim + 1e-9:
+        if y0 - 1e-9 <= t <= ylim + 1e-9:
             b.append(f'<line x1="{ml}" y1="{py(t):.1f}" x2="{ml + pw}" y2="{py(t):.1f}" stroke="{GRID}" stroke-width="{1.4 if t == 0 else 0.6}"/>')
             b.append(_text(ml - 6, py(t) + 3, f"{t:g}".replace(".", ","), 9, SOFT, "end", mono=True))
-    if diagonal:
+    if diagonal and ylow is None:
         d = min(xlim, ylim)
         b.append(f'<line x1="{px(-d):.1f}" y1="{py(-d):.1f}" x2="{px(d):.1f}" y2="{py(d):.1f}" stroke="{SOFT}" stroke-width="0.8" stroke-dasharray="3 3"/>')
     for _label, color, pts in series:
-        path = " ".join(f"{'M' if i == 0 else 'L'}{px(x):.1f},{py(max(-ylim, min(ylim, y))):.1f}" for i, (x, y) in enumerate(pts))
+        path = " ".join(f"{'M' if i == 0 else 'L'}{px(x):.1f},{py(max(y0, min(ylim, y))):.1f}" for i, (x, y) in enumerate(pts))
         b.append(f'<path d="{path}" fill="none" stroke="{color}" stroke-width="2" stroke-linejoin="round"/>')
     b.append(_text(ml + pw / 2, height - 6, xlabel, 10, SOFT, "middle", 600))
     b.append(f'<text transform="translate(11 {mt + ph / 2:.1f}) rotate(-90)" font-size="10" fill="{SOFT}" text-anchor="middle" font-weight="600">{escape(ylabel)}</text>')

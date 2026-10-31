@@ -41,6 +41,8 @@ PLUGINS = {
                  formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo", cat="Fx|Distortion", bundle="com.ferb.tufi", snapshot="Tufi/TufiSnapshot"),
     "Poty": dict(var="POTY", code="Poty", theme="poty", tagline="Enhancer multibanda", kind="Enhancer multibanda de saturación en paralelo",
                  formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (modos Estéreo, Mid y Side)", cat="Fx|Distortion", bundle="com.ferb.poty", snapshot="Poty/PotySnapshot"),
+    "Nel": dict(var="NEL", code="Nel1", theme="nel", tagline="Limitador de true peak", kind="Limitador de true peak con medición de sonoridad",
+                formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo", cat="Fx|Dynamics", bundle="com.ferb.nel", snapshot="Nel/NelSnapshot"),
     "Cremita": dict(var="CREMITA", code="Crem", theme="cremita", tagline="Inflator · sonoridad y calidez", kind="Inflator (sonoridad y calidez sin comprimir)",
                     formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opción Mid/Side)", cat="Fx|Distortion", bundle="com.ferb.cremita", snapshot="Cremita/CremitaSnapshot"),
 }
@@ -74,7 +76,7 @@ def dump_curves() -> dict:
     CACHE.mkdir(parents=True, exist_ok=True)
     srcs = [DOCS / "herramientas" / "curvas.cpp", ROOT / "Tufi/source/dsp/StageCurves.cpp", ROOT / "core/Saturators.cpp"]
     subprocess.check_call(["clang++", "-std=c++20", "-O1", "-I", str(ROOT / "core"), "-I", str(ROOT / "Tufi/source"),
-                           "-I", str(ROOT / "Cremita/source"), *map(str, srcs), "-o", str(exe)])
+                           "-I", str(ROOT / "Cremita/source"), "-I", str(ROOT / "Nel/source"), *map(str, srcs), "-o", str(exe)])
     return fg.parse_curves(subprocess.check_output([str(exe)], text=True))
 
 
@@ -116,6 +118,19 @@ def figures(name: str, curves: dict) -> dict[str, str]:
             ["*Sobremuestreo\n2× a 8×", "*Saturador\ngᵢ = f(d·Δᵢ)/d + ADAA", "Σ bandas\n× Mezcla", "Suma con el original\n(retrasado 47 muestras)"],
             ["Salida\n(ganancia)", "Analizador\n(entrada y salida)"]],
             "#12708C", width=640), "Flujo de señal de Poty. El realce de cada banda se satura por separado y solo lo añadido se suma a la señal original.")
+    elif name == "Nel":
+        out["knee"] = figure(
+            fg.plot([("Knee 0 dB", "#2A1D14", c["nel_knee_0"]), ("Knee 3 dB", "#8A5CF0", c["nel_knee_3"]),
+                     ("Knee 6 dB", "#C9A24D", c["nel_knee_6"]), ("Knee 10 dB", "#A8321D", c["nel_knee_10"])],
+                    12, 12, "nivel del pico sobre el umbral (dB)", "reducción de ganancia (dB)", ylow=0,
+                    ticks=(-12, -6, 0, 6, 12), legend=True),
+            "Codo suave de la etapa de cuerpo (B) con distintos valores de Knee. Calculada con el código del motor: relación infinita; "
+            "con knee 0 es una esquina, y con valores mayores la reducción empieza antes y de forma gradual.")
+        out["flujo"] = figure(fg.flow([
+            ["Entrada\n+ Ganancia", "Filtro de DC\n(opcional)", "Sobremuestreo\n1× a 32×", "*Carácter y\nrecorte previo (ADAA)"],
+            ["*Etapa B: cuerpo\n(frec. base)", "*Etapa A: picos\ncon lookahead", "*Seguro de pico\n(margen adaptativo)", "Submuestreo"],
+            ["Dither\n(opcional)", "Ganancia unitaria\ny Audición", "Salida", "Medidores y\nsonoridad"]],
+            "#8A5CF0"), "Flujo de señal de Nel. La etapa A es la que garantiza el techo; la B hace el trabajo lento para que A solo recorte lo que sobra. Las cajas rellenas son las que modifican la señal.")
     elif name == "Cremita":
         out["curvas"] = figure(
             fg.plot([("Curva −50", "#6B5B4B", c["crem_m50"]), ("Curva 0", "#E08A2E", c["crem_0"]), ("Curva +50", "#A8321D", c["crem_p50"])],

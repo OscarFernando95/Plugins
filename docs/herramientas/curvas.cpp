@@ -7,6 +7,7 @@
 #include "dsp/ShapeCurve.h"          // Tufi
 #include "dsp/CremitaCurve.h"        // Cremita
 #include <Saturators.h>              // Poty (core)
+#include "dsp/BodyStage.h"           // Nel (codo suave de la etapa de cuerpo)
 
 int main()
 {
@@ -32,6 +33,14 @@ int main()
         {
             const double v = -3.0 + 6.0 * i / (n - 1);
             std::printf ("%s %.6f %.6f\n", satName[t], v, ferb::saturators::f (static_cast<ferb::SatType> (t), v));
+        }
+
+    // Nel: reducción de ganancia (dB) de la etapa de cuerpo frente al nivel sobre el umbral (−12 a +12 dB).
+    for (const float knee : { 0.0f, 3.0f, 6.0f, 10.0f })
+        for (int i = 0; i < n; ++i)
+        {
+            const double x = -12.0 + 24.0 * i / (n - 1);
+            std::printf ("nel_knee_%.0f %.6f %.6f\n", static_cast<double> (knee), x, static_cast<double> (nel::softKnee (static_cast<float> (x), knee)));
         }
 
     // Cremita: Curva −50, 0 y +50 sin sesgo, y Curva 0 con Sesgo 100 %.

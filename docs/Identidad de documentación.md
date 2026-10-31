@@ -4,7 +4,7 @@ Reglas para que todos los documentos de los plugins se vean y se lean como una s
 
 ## Idea
 
-La documentación se parece a lo que documenta: la **portada reproduce el frente del plugin** (marfil y nogal para Tufi y Cremita, oscuro con las cinco barras para Poty) y el **interior es sobrio, claro y apto para imprimir**. Lo que une a todos es la marca **By FERB** (latón), la tipografía y la estructura fija del documento.
+La documentación se parece a lo que documenta: la **portada reproduce el frente del plugin** (marfil y nogal para Tufi y Cremita, oscuro con las cinco barras para Poty, negro y morado para Nel) y el **interior es sobrio, claro y apto para imprimir**. Lo que une a todos es la marca **By FERB** (latón), la tipografía y la estructura fija del documento.
 
 Tono: español neutro, directo, con coma decimal. Cada cifra va con su condición de medida y fecha; lo que no se ha medido o probado se dice (ver «Limitaciones y pendientes»). Nunca se presenta como resultado un valor inicial sin afinar.
 
@@ -26,6 +26,7 @@ Tono: español neutro, directo, con coma decimal. Cada cifra va con su condició
 | Tufi | `#B08D4F` latón | `#7E5F22` | `#E4D6B4` marfil |
 | Cremita | `#E08A2E` ámbar | `#A8570E` | `#E6DABD` marfil |
 | Poty | `#4CC9F0` cian | `#12708C` | `#0E1116` negro azulado |
+| Nel | `#8A5CF0` morado | `#6A3FD0` | `#1C1822` negro con morado |
 
 El acento claro solo se usa en rellenos y filetes; el texto usa la variante oscura (contraste suficiente sobre blanco).
 
@@ -36,7 +37,7 @@ Las mismas fuentes que incrustan los plugins (todas con licencia abierta, en sus
 | Uso | Fuente |
 | --- | --- |
 | Título de sección y logotipo de Tufi | DM Serif Display |
-| Logotipo de Cremita | Limelight |
+| Logotipo de Cremita y Nel | Limelight |
 | Logotipo de Poty y texto corrido | Manrope (500 y 700) |
 | Rótulos en mayúsculas espaciadas | Josefin Sans (600) |
 | Código, valores e IDs | JetBrains Mono |

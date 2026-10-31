@@ -11,7 +11,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ### Repositorio
 - README del repositorio y este historial.
 - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
-- Documentación en PDF de Tufi, Poty y Cremita (`docs/`), con identidad propia y generador (`docs/construir.py`).
+- Documentación en PDF de Tufi, Poty, Cremita y Nel (`docs/`), con identidad propia y generador (`docs/construir.py`).
 
 ## Cremita 1.0.0 — 2026-10-31
 
@@ -42,7 +42,7 @@ Saturador armónico analógico (VST3 y AU). Reúne los hitos 1 a 9 (28 oct 2026)
 
 ## Nel 1.0.0
 
-Limitador (VST3 y AU), con motor, sobremuestreador de 1× a 32×, parámetros, presets, A/B, interfaz vintage y validación (`pluginval` nivel 10). Versión 1.0.0 asignada; falta su documentación en PDF y la prueba en los anfitriones.
+Limitador (VST3 y AU), con motor, sobremuestreador de 1× a 32×, parámetros, presets, A/B, interfaz vintage y validación (`pluginval` nivel 10). Versión 1.0.0 asignada; documentado en PDF; falta la prueba en los anfitriones.
 
 ## Maru y ChauS
 

@@ -11,7 +11,7 @@ Monorepo de plugins de audio para macOS (JUCE 8.0.15, CMake + Ninja), de uso per
 | **Tufi** | 1.0.0 | Saturador armónico analógico (triodo, pentodo, diodo) | Completo; falta probarlo a mano en Logic y Ableton | [PDF](docs/Tufi%20%E2%80%94%20Documentaci%C3%B3n.pdf) · [ficha](Tufi/Tufi%20%E2%80%94%20ficha%20t%C3%A9cnica.md) |
 | **Poty** | 1.0.0 | Enhancer multibanda de cinco bandas con saturación del realce | Completo; falta probarlo a mano en Logic y Ableton | [PDF](docs/Poty%20%E2%80%94%20Documentaci%C3%B3n.pdf) · [ficha](Poty/Poty%20%E2%80%94%20ficha%20t%C3%A9cnica.md) |
 | **Cremita** | 1.0.0 | Inflator: sonoridad y calidez sin comprimir | Completo; falta probarlo en Ableton, Logic y Pro Tools | [PDF](docs/Cremita%20%E2%80%94%20Documentaci%C3%B3n.pdf) · [ficha](Cremita/Cremita%20%E2%80%94%20ficha%20t%C3%A9cnica%20del%20inflator.md) |
-| **Nel** | 1.0.0 | Limitador | Completo; falta probarlo en los anfitriones; documentación en PDF pendiente | [ficha](Nel/Nel%20%E2%80%94%20ficha%20t%C3%A9cnica%20del%20limitador.md) |
+| **Nel** | 1.0.0 | Limitador de true peak con medición de sonoridad | Completo; falta probarlo en los anfitriones | [PDF](docs/Nel%20%E2%80%94%20Documentaci%C3%B3n.pdf) · [ficha](Nel/Nel%20%E2%80%94%20ficha%20t%C3%A9cnica%20del%20limitador.md) |
 | **Maru** | 1.0.0 (prevista) | Gate y supresor de ruido | Por hacer (ficha lista) | [ficha](Maru/Maru%20%E2%80%94%20ficha%20t%C3%A9cnica%20del%20gate%20y%20supresor%20de%20ruido.md) |
 | **ChauS** | 1.0.0 (prevista) | De-esser | Por hacer (ficha lista) | [ficha](ChauS/ChauS%20%E2%80%94%20ficha%20t%C3%A9cnica%20del%20de-esser.md) |
 
@@ -53,7 +53,7 @@ docs/                 Documentación en PDF de cada plugin y su generador
 ## Pendiente en todos
 
 - Probar a mano en los anfitriones (Logic Pro, Ableton Live, Pro Tools).
-- Documentación en PDF de Nel, Maru y ChauS.
+- Documentación en PDF de Maru y ChauS, cuando estén terminados.
 - Revisar las condiciones de licencia de JUCE antes de distribuir.
 - Firma con Developer ID y notarización, si algún día se distribuye.
 

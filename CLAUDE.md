@@ -63,7 +63,7 @@ Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 -
 
 ## Estado
 
-Versiones: Tufi, Poty, Cremita y Nel en 1.0.0 (las de Maru y ChauS, prevista). PDF de documentación hechos: Tufi, Poty y Cremita.
+Versiones: Tufi, Poty, Cremita y Nel en 1.0.0 (las de Maru y ChauS, prevista). PDF de documentación hechos: Tufi, Poty, Cremita y Nel.
 
 ### Tufi — hitos 1 a 9 hechos
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).
