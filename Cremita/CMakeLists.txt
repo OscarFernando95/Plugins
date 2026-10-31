@@ -1,5 +1,6 @@
 juce_add_plugin(Cremita
     COMPANY_NAME "FERB"
+    VERSION ${CREMITA_VERSION}
     BUNDLE_ID com.ferb.cremita
     PLUGIN_MANUFACTURER_CODE Ferb
     PLUGIN_CODE Crem

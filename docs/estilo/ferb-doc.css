@@ -1,0 +1,125 @@
+/* Identidad de documentación FERB — hoja de estilo única para todos los PDF.
+   «@@ROOT@@» lo sustituye docs/construir.py por la ruta del repositorio (para las tipografías).
+   Reglas de la identidad: docs/Identidad de documentación.md */
+
+/* ── Tipografías (las mismas que usan las interfaces de los plugins; licencias en cada assets/fonts) ── */
+@font-face { font-family: "DM Serif Display"; src: url("file://@@ROOT@@/Tufi/assets/fonts/DMSerifDisplay-Regular.ttf"); }
+@font-face { font-family: "Josefin Sans"; font-weight: 600; src: url("file://@@ROOT@@/ui/vintage/fonts/JosefinSans-SemiBold.ttf"); }
+@font-face { font-family: "Limelight"; src: url("file://@@ROOT@@/ui/vintage/fonts/Limelight-Regular.ttf"); }
+@font-face { font-family: "Manrope"; font-weight: 500; src: url("file://@@ROOT@@/Poty/assets/fonts/Manrope-Medium.ttf"); }
+@font-face { font-family: "Manrope"; font-weight: 700; src: url("file://@@ROOT@@/Poty/assets/fonts/Manrope-Bold.ttf"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url("file://@@ROOT@@/Poty/assets/fonts/JetBrainsMono-Medium.ttf"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("file://@@ROOT@@/Poty/assets/fonts/JetBrainsMono-Bold.ttf"); }
+
+/* ── Paleta común y acento por plugin ── */
+:root {
+  --ink: #2A1D14;          /* tinta (texto) */
+  --ink-soft: #6B5B4B;     /* texto secundario */
+  --paper: #FFFFFF;
+  --cream: #F6F1E3;        /* fondos de tablas, código y notas */
+  --rule: #E3DAC6;         /* filetes */
+  --brass: #B08D4F;        /* latón: marca de la familia */
+  --walnut: #4A2D1A;
+}
+body.tufi    { --accent: #B08D4F; --accent-ink: #7E5F22; --cover-bg: #E4D6B4; --cover-ink: #2B2118; }
+body.cremita { --accent: #E08A2E; --accent-ink: #A8570E; --cover-bg: #E6DABD; --cover-ink: #2A1D14; }
+body.poty    { --accent: #4CC9F0; --accent-ink: #12708C; --cover-bg: #0E1116; --cover-ink: #E8EDF4; }
+
+/* ── Página ── */
+@page { size: A4; margin: 24mm 20mm 24mm 20mm;
+  @bottom-left   { content: "@@RUNNING@@"; font: 500 7.5pt "Josefin Sans"; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #6B5B4B; }
+  @bottom-right  { content: counter(page); font: 600 8pt "JetBrains Mono"; color: #6B5B4B; }
+  @top-right     { content: "BY FERB"; font: 600 7.5pt "Josefin Sans"; letter-spacing: .3em; color: #B08D4F; }
+}
+@page cover { margin: 0; @bottom-left { content: none } @bottom-right { content: none } @top-right { content: none } }
+
+html { font-family: "Manrope", sans-serif; font-weight: 500; font-size: 9.6pt; line-height: 1.55; color: var(--ink); }
+body { margin: 0; }
+strong, b { font-weight: 700; }
+a { color: var(--accent-ink); text-decoration: none; }
+
+/* ── Portada ── */
+.cover { page: cover; width: 210mm; height: 296.6mm; box-sizing: border-box; position: relative; overflow: hidden;
+  background: var(--cover-bg); color: var(--cover-ink); break-after: page; display: flex; flex-direction: column; }
+.cover .rail { position: absolute; top: 0; bottom: 0; width: 13mm; background: var(--walnut); }
+.cover .rail.l { left: 0; } .cover .rail.r { right: 0; }
+.cover .rail::before, .cover .rail::after { content: ""; position: absolute; left: 50%; width: 4mm; height: 4mm; margin-left: -2mm; border-radius: 50%; background: #B9B1A3; box-shadow: inset 0 0 0 .4mm rgba(0,0,0,.35); }
+.cover .rail::before { top: 9mm; } .cover .rail::after { bottom: 9mm; }
+.cover .frame { position: absolute; inset: 9mm 18mm; border: .4mm solid var(--brass); border-radius: 2mm; pointer-events: none; }
+.cover .inner { position: relative; padding: 24mm 30mm 20mm 30mm; display: flex; flex-direction: column; height: 100%; box-sizing: border-box; }
+.cover .brandline { font: 600 8.5pt "Josefin Sans"; letter-spacing: .42em; text-transform: uppercase; color: var(--brass); }
+.cover .wordmark { margin-top: 20mm; font-size: 86pt; line-height: 1; letter-spacing: -.01em; }
+.cover .tagline { margin-top: 5mm; font: 600 10.5pt "Josefin Sans"; letter-spacing: .3em; text-transform: uppercase; opacity: .85; }
+.cover .shot { margin-top: 16mm; background: #000; border-radius: 2mm; overflow: hidden; box-shadow: 0 2mm 6mm rgba(0,0,0,.35); }
+.cover .shot img { display: block; width: 100%; }
+.cover .docmeta { margin-top: auto; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8mm; border-top: .3mm solid var(--brass); padding-top: 6mm; }
+.cover .docmeta .what { font: 600 9pt "Josefin Sans"; letter-spacing: .28em; text-transform: uppercase; }
+.cover .docmeta .what small { display: block; margin-top: 2mm; font: 500 8.5pt "Manrope"; letter-spacing: 0; text-transform: none; opacity: .8; }
+.cover .docmeta .ver { text-align: right; font: 700 20pt "JetBrains Mono"; }
+.cover .docmeta .ver small { display: block; font: 500 7.5pt "JetBrains Mono"; opacity: .75; letter-spacing: .03em; }
+/* Poty: fondo oscuro con la marca de cinco barras */
+body.poty .cover .rail, body.poty .cover .frame { display: none; }
+body.poty .cover .frame { display: none; }
+body.poty .cover .wordmark { font: 700 78pt "Manrope"; letter-spacing: .16em; }
+body.poty .cover .bars { display: flex; gap: 3.2mm; margin-top: 18mm; }
+body.poty .cover .bars i { display: block; width: 3.4mm; height: 24mm; border-radius: 1.7mm; }
+body.poty .cover .brandline { color: #9AA7B8; }
+body.poty .cover .shot { box-shadow: none; border: .3mm solid #232B36; }
+body.poty .cover .docmeta { border-top-color: #232B36; }
+body.tufi .cover .wordmark { font-family: "DM Serif Display"; }
+body.cremita .cover .wordmark { font-family: "Limelight"; }
+
+/* ── Control del documento y contenido ── */
+.front { break-after: page; }
+.front h2.plain, .toc-title { font: 600 9pt "Josefin Sans"; letter-spacing: .3em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 3mm; padding: 0; border: 0; }
+table.ctl { width: 100%; border-collapse: collapse; margin: 0 0 9mm; }
+table.ctl td { padding: 1.6mm 0; border-bottom: .2mm solid var(--rule); vertical-align: top; }
+table.ctl td:first-child { width: 38mm; font: 600 7.6pt "Josefin Sans"; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); padding-top: 2.1mm; }
+.toc { columns: 2; column-gap: 10mm; margin: 0; padding: 0; list-style: none; font-size: 8.6pt; }
+.toc li { break-inside: avoid; display: flex; align-items: baseline; padding: 1.1mm 0; border-bottom: .2mm dotted var(--rule); }
+.toc li.l1 { font-weight: 700; margin-top: 2mm; } .toc li.l2 { padding-left: 9mm; font-size: 8.2pt; color: var(--ink-soft); }
+.toc .n { width: 9mm; flex: none; font: 700 8.5pt "JetBrains Mono"; color: var(--accent-ink); } .toc li.l2 .n { position: absolute; margin-left: -9mm; font-size: 7.5pt; }
+.toc a { color: inherit; }
+
+/* ── Texto ── */
+h1, h2, h3, h4 { font-family: "Manrope"; color: var(--ink); break-after: avoid; break-inside: avoid; }
+h1 { font: 400 24pt/1.15 "DM Serif Display"; margin: 12mm 0 6mm; padding-bottom: 3mm; border-bottom: .5mm solid var(--accent); }
+h1.pb { break-before: page; margin-top: 0; }
+h1 .num { display: block; font: 600 8.5pt "Josefin Sans"; letter-spacing: .34em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 2mm; }
+h1.first { margin-top: 0; }
+h2 { font: 700 13pt/1.25 "Manrope"; margin: 8mm 0 2.5mm; }
+h2 .num { font: 700 9.5pt "JetBrains Mono"; color: var(--accent-ink); margin-right: 2.5mm; }
+h3 { font: 600 8.8pt "Josefin Sans"; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-ink); margin: 6mm 0 1.5mm; }
+p { margin: 0 0 2.6mm; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 3mm; padding-left: 5mm; } li { margin-bottom: 1mm; }
+hr { border: 0; border-top: .2mm solid var(--rule); margin: 6mm 0; }
+code { font: 500 .88em "JetBrains Mono"; background: var(--cream); padding: .2mm 1.1mm; border-radius: .8mm; }
+pre { font: 500 7.9pt/1.5 "JetBrains Mono"; background: var(--cream); border-left: .9mm solid var(--accent); padding: 3mm 4mm; margin: 0 0 4mm; white-space: pre-wrap; break-inside: avoid; border-radius: 0 1mm 1mm 0; }
+pre code { background: none; padding: 0; font-size: inherit; }
+
+/* Tablas */
+table { width: 100%; border-collapse: collapse; margin: 1mm 0 4.5mm; font-size: 8.6pt; line-height: 1.4; }
+th { text-align: left; font: 600 7.4pt "Josefin Sans"; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft); padding: 1.6mm 2mm; border-bottom: .5mm solid var(--accent); }
+td { padding: 1.6mm 2mm; border-bottom: .2mm solid var(--rule); vertical-align: top; }
+tbody tr:nth-child(even) td { background: #FBF8F0; }
+tr { break-inside: avoid; }
+td code { font-size: .92em; }
+
+/* Notas (cita con «**Nota.**», «**Aviso.**», «**Pendiente.**») */
+blockquote { margin: 1mm 0 4mm; padding: 2.4mm 4mm; background: var(--cream); border-left: .9mm solid var(--accent); border-radius: 0 1mm 1mm 0; break-inside: avoid; }
+blockquote p:last-child { margin-bottom: 0; }
+
+/* Figuras */
+figure { margin: 3mm 0 5mm; text-align: center; break-inside: avoid; }
+figure img, figure svg { max-width: 100%; height: auto; }
+figure.pair { display: flex; gap: 4mm; justify-content: center; align-items: flex-start; }
+figure.pair > div { flex: 1; }
+figure.shot img { border: .2mm solid var(--rule); border-radius: 1.5mm; }
+figcaption { font: 500 8pt "Manrope"; color: var(--ink-soft); margin-top: 1.5mm; text-align: center; }
+.formula { font: 500 9.4pt "JetBrains Mono"; background: var(--cream); padding: 3mm 4mm; margin: 0 0 4mm; text-align: center; border-radius: 1mm; break-inside: avoid; }
+.formula sub, .formula sup { font-size: .72em; }
+.kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 5mm; }
+.kpi div { border: .2mm solid var(--rule); border-top: .8mm solid var(--accent); padding: 2.5mm 3mm; border-radius: 0 0 1mm 1mm; break-inside: avoid; }
+.kpi b { display: block; font: 700 14pt "JetBrains Mono"; color: var(--accent-ink); }
+.kpi span { font: 600 7pt "Josefin Sans"; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft); }
+.tag { display: inline-block; font: 600 7pt "Josefin Sans"; letter-spacing: .14em; text-transform: uppercase; padding: .3mm 1.6mm; border-radius: 3mm; border: .2mm solid var(--accent); color: var(--accent-ink); }

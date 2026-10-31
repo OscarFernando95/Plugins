@@ -3,7 +3,7 @@
 Monorepo de plugins VST3 y AU para macOS (JUCE 8.0.15, CMake + Ninja), de uso personal. Etiqueta del creador en la interfaz: **By FERB**.
 
 - **Tufi** (`Tufi/`): saturador armónico analógico. Especificación: `Tufi/Tufi — ficha técnica.md`.
-- **Cremita**, **Nel**, **Maru** y **ChauS** (carpetas propias, con su ficha): en desarrollo. Cremita completo salvo pruebas en DAW. Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h`.
+- **Cremita**, **Nel**, **Maru** y **ChauS** (carpetas propias, con su ficha): Cremita y Nel completos salvo pruebas en DAW (Nel sin AAX); Maru y ChauS por hacer. Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
 - **Poty** (`Poty/`): enhancer multibanda. Especificación: `Poty/Poty — ficha técnica.md`.
 - `Bosquejo de dos plugins.html`: bosquejo visual aprobado de ambas interfaces.
 
@@ -41,7 +41,7 @@ Cada build copia a `~/Library/Audio/Plug-Ins/{VST3,Components}`; JUCE firma ad-h
 Pruebas (Catch2): `CoreTests`, `UiTests`, `TufiTests`, `PotyTests` (DSP y medidas) y `TufiProcessorTests`, `PotyProcessorTests` (procesador completo con editor: parámetros aleatorios, tasas y bloques extremos, estado, vida del editor, latencia, y **cero reservas de memoria en `processBlock`**).
 Informes de medidas, que no son pruebas: `./build/Poty/PotyTests "[.report]"` y `./build/Tufi/TufiTests "[.report]"` (aliasing, CPU, respuesta lineal).
 Interfaz: `./build/Poty/PotySnapshot salida.png [escala] [preset]` (idem `TufiSnapshot`) y comparar con el bosquejo.
-Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 --validate-in-process <paquete>`. `pluginval` no queda instalado: se baja de https://github.com/Tracktion/pluginval/releases (`pluginval_macOS.zip`) a una carpeta aislada. Nivel 10 pasa en Tufi, Poty y Cremita (VST3 y AU).
+Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 --validate-in-process <paquete>`. `pluginval` no queda instalado: se baja de https://github.com/Tracktion/pluginval/releases (`pluginval_macOS.zip`) a una carpeta aislada. Nivel 10 pasa en Tufi, Poty, Cremita y Nel (VST3 y AU).
 
 ## Reglas
 

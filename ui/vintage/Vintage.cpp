@@ -48,6 +48,22 @@ Palette Palette::chaus()
     return p;
 }
 
+Palette Palette::nel()
+{
+    Palette p;
+    p.panelHi = juce::Colour (0xff2a2433); p.panel = juce::Colour (0xff1c1822); p.panelLo = juce::Colour (0xff111014);
+    p.ink = juce::Colour (0xffefe5cf); p.ink2 = juce::Colour (0xffc9bda8);
+    p.acc = lilac; p.acc2 = juce::Colour (0xff8f72c9);
+    p.glass = juce::Colour (0xff0e0717);
+    p.btnA = juce::Colour (0xff3b3445); p.btnB = juce::Colour (0xff211d27); p.btnInk = juce::Colour (0xffefe5cf); p.edge = juce::Colour (0xff1a0f2c);
+    p.rule = juce::Colour (0xffefe5cf).withAlpha (0.35f); p.lamp = juce::Colour (0xffffb347); p.emboss = juce::Colour (0xff000000).withAlpha (0.45f);
+    p.earA = juce::Colour (0xff08060a); p.earB = juce::Colour (0xff1a1520); p.earC = juce::Colour (0xff1a1520);
+    p.bezel = brass; p.bezelDark = brassDark;
+    p.woodEars = false;
+    p.darkKnobs = false; // perillas crema
+    return p;
+}
+
 namespace
 {
 juce::Typeface::Ptr load (const char* data, int size)

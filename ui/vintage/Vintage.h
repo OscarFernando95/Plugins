@@ -26,6 +26,7 @@ struct Palette
     static Palette cremita();
     static Palette maru();
     static Palette chaus();
+    static Palette nel();
 };
 
 // Tipografías incrustadas: Limelight (logotipo), Josefin Sans (rótulos) y Oxanium (cifras).
@@ -37,6 +38,8 @@ inline const juce::Colour brass { 0xffc9a24d };
 inline const juce::Colour brassDark { 0xff8a6a2a };
 inline const juce::Colour focusRing { 0xffc7a3ff };
 inline const juce::Colour alert { 0xffff5a7a };
+inline const juce::Colour violet { 0xff8a5cf0 };
+inline const juce::Colour lilac { 0xffc7a3ff };
 
 /** Texto con espaciado entre letras (como `letter-spacing` de CSS), centrado o alineado. */
 void drawSpaced (juce::Graphics&, const juce::String&, juce::Rectangle<float>, const juce::Font&, juce::Justification);

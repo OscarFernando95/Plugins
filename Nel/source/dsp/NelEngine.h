@@ -83,6 +83,7 @@ public:
     ferb::LevelMeter& getOutputPeak (int ch) noexcept { return outPeak[static_cast<size_t> (ch)]; }
     ferb::LevelMeter& getTruePeak (int ch) noexcept { return truePeakMeter[static_cast<size_t> (ch)]; }
     float getRms (int ch) const noexcept { return rms[static_cast<size_t> (ch)].load (std::memory_order_relaxed); }
+    float getInputRms (int ch) const noexcept { return inRms[static_cast<size_t> (ch)].load (std::memory_order_relaxed); }
     ferb::LevelMeter& getReductionMeter() noexcept { return reductionMeter; } // dB, máximo desde la última lectura
     float getReductionDb() const noexcept { return reductionNow.load (std::memory_order_relaxed); }
     int getOvers() const noexcept { return overs.load (std::memory_order_relaxed); }
@@ -118,8 +119,8 @@ private:
     ferb::LoudnessMeter loudness;
     std::array<ferb::LevelMeter, maxChannels> inPeak, outPeak, truePeakMeter;
     ferb::LevelMeter reductionMeter;
-    std::array<std::atomic<float>, maxChannels> rms;
-    std::array<float, maxChannels> rmsState {};
+    std::array<std::atomic<float>, maxChannels> rms, inRms;
+    std::array<float, maxChannels> rmsState {}, inRmsState {};
     std::atomic<float> reductionNow { 0.0f }, marginDb { 0.1f };
     std::atomic<int> overs { 0 }, effectiveFactor { 4 }, activeLatency { 0 };
 

@@ -43,6 +43,9 @@ public:
     /** Alto total de la unidad (perilla, rótulo y valor). */
     static int heightFor (const Spec&) noexcept;
 
+    /** Vuelve a formatear el valor (cuando el formato depende de otro control). */
+    void refreshValue() { pill->refresh(); }
+
     void paint (juce::Graphics&) override;
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;

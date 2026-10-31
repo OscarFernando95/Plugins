@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include <StateRestore.h>
 #include "PluginEditor.h"
 #include "Presets.h"
 
@@ -172,6 +173,7 @@ void NelProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (xml->hasTagName (apvts.state.getType()))
         {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            ferb::syncParametersFromState (apvts);
             loudnessFromInput.store (static_cast<int> (apvts.state.getProperty (k::uiLoudnessSource, 0)) != 0);
         }
 }

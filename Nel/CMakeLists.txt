@@ -23,7 +23,8 @@ target_sources(Nel PRIVATE
     source/Parameters.cpp
     source/Presets.cpp
     source/PluginProcessor.cpp
-    source/PluginEditor.cpp)
+    source/PluginEditor.cpp
+    source/ui/NelUi.cpp)
 
 target_compile_definitions(Nel PUBLIC
     JUCE_WEB_BROWSER=0

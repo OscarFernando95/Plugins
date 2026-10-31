@@ -548,3 +548,52 @@ Ejemplos:
 > Haz el hito 7. Antes de escribir código, dime cómo piensas reservar las instancias de `juce::dsp::Oversampling` para los seis factores y cómo harás el fundido al cambiar.
 
 Para la interfaz, guarda en `docs/ui/` capturas del diseño interactivo de Nel y pide los hitos 11 y 12 con ellas como referencia.
+
+## Estado y cambios sobre la ficha
+
+Fecha: 31 oct 2026. Implementados los hitos 1 a 14 salvo la lectura contra las señales oficiales de la EBU (se usan señales sintéticas) y el AAX (hito 15, sin SDK). Pasan `CoreTests`, `NelTests`, `NelProcessorTests`, `auval -v aufx Nel1 Ferb` y `pluginval` nivel 10 (VST3 y AU, con pruebas de interfaz). Pendiente: prueba manual en Ableton, Logic y Pro Tools, y afinar de oído los valores iniciales de los modos. Donde el texto de arriba choca con esta sección, manda esta sección.
+
+**Decisiones que cambiaron**
+
+| Tema | Ficha original | Ahora | Por qué |
+| --- | --- | --- | --- |
+| Recorte previo | `techo · tanh(x/techo)` mezclado según el modo | Recorte con rodilla: idéntico a la entrada hasta el 60 % del techo y, por encima, una curva tipo tanh que se acerca al techo | El `tanh` deformaba también señales bajo el techo (−46 dB de error) y la prueba de transparencia («salida igual a la entrada retrasada») no podía cumplirse |
+| Orden de Carácter y recorte previo | Antes del sobremuestreo | Después de subir, a la frecuencia alta | Saturar a la frecuencia base genera aliasing |
+| Lookahead | Milisegundos continuos | Se redondea a muestras base enteras; la ventana es N+1 y el retardo del audio N | Latencia total entera; la ganancia suavizada nunca supera la requerida (probado contra una referencia por fuerza bruta) |
+| Fase mínima | IIR polifásico | Los mismos FIR de media banda pasados a fase mínima con el cepstro | Un diseño y un camino de código para las dos fases. Su latencia varía unas décimas de muestra con la frecuencia (se declara el redondeo) |
+| Latencia | Informada al soltar el control | El procesador la declara al cambiar sobremuestreo, fase, lookahead o render; el motor adopta la estructura cuando el valor lleva 150 ms estable, con fundido de 50 ms | Evita encadenar fundidos al arrastrar el lookahead |
+| Bypass | Parámetro propio | Bypass del anfitrión | Regla del repositorio |
+| Elegir un modo | «Se cargan los valores del modo en los parámetros avanzados» | Lo hace el clic en la interfaz (`selectMode`); la automatización del parámetro `mode` solo cambia los valores internos | Un preset o una automatización no pueden pisar los valores avanzados guardados |
+| Presets | `.nelpreset` en JSON, con categorías | `.ferbpreset` en XML del `PresetManager` común, sin categorías; cada preset escribe los avanzados de su modo | Una sola ruta para los cuatro plugins |
+| Ganancia unitaria y Audición | Conmutan | Con suavizado (20 ms y 10 ms) | Conmutar de golpe da un clic |
+| Escala de medidores | Estándar de −16, −32 o −48 dB, K-12, K-14, K-20 | ESTÁNDAR (−48 a 0), K-12, K-14 y K-20; la escalera siempre abarca −48 a 0 dB | Es lo que muestra la maqueta |
+| Interfaz | — | Botón GUARDAR añadido a la cabecera; sin botón de tamaño (se usa la esquina de la ventana) | La maqueta lleva GUARDAR |
+
+**No implementado en esta versión**
+- Historial de sonoridad de hasta 10 h y relación de la fuente (entrada o salida) en la interfaz: el motor mide la fuente que se le pide (`setLoudnessFromInput`) pero la maqueta no tiene control.
+- RMS con referencia AES17 (el RMS que se muestra es el plano).
+- AAX.
+- Lectura contra las señales oficiales de la EBU Tech 3341 y 3342: se verifican con senoidales y niveles sintéticos (1 kHz a −18 dBFS marca −17,99 LUFS a 44,1 y 48 kHz; dos niveles separados 10 LU dan un LRA de 10,00 LU).
+- El A/B no se guarda con la sesión.
+
+**Resultados medidos** (48 kHz, estéreo, bloque de 256)
+
+| Prueba | Meta | Resultado |
+| --- | --- | --- |
+| Techo −1 dBTP con +24 dB, ocho modos y cuatro señales (ruido de programa, senoidales de 1 y 15 kHz, impulsos), 4× | Ningún over | Peor true peak −0,998 dBTP medido a 4× (el estándar); −0,92 dBTP con un medidor de 8×, más estricto |
+| Techo con 1× (pico de muestra) y 32× | Ningún over | Cumple |
+| Transparencia, ganancia 0, señal bajo el techo, Carácter 0 | Menos de −120 dBFS | 1×: menos de −130 dBFS. Con sobremuestreo: menos de −90 dBFS (el rizado de los filtros) |
+| Latencia, impulso | Medida igual a la informada | Exacta en fase lineal; ±1 muestra en fase mínima. Con sobremuestreo 1×, 2×, 4×, 8×, 16×, 32×: lineal 0, 39, 45, 47, 47, 48 muestras y mínima 0, 4, 5, 5, 6, 6, más el lookahead |
+| Sobremuestreador, banda de paso | Plana | ±0,05 dB (lineal) y ±0,15 dB (mínima) hasta 17 kHz |
+| Sobremuestreador, imágenes | Menos de −80 dB | Cumple en todos los factores y las dos fases |
+| Aliasing, senoidal empujada 6 dB sobre el techo, Moderno | −80 dB con 4× | 10 kHz: −31 dBc (1×), −56 (2×), **−77 (4×)**, −96 (8×); 14 kHz: −31, −65, **−73**, −89. **No llega a −80 dB con 4×**; sí con 8× |
+| Aliasing, Agresivo | — | 4×: −68 dBc a 10 kHz y −61 dBc a 14 kHz; 8×: −86 y −81 |
+| Sin clics (14 controles y cambios de estructura) | ≤ 1,3 veces la señal estable | Cumple |
+| Robustez | Sin NaN ni picos | Silencio, continua, NaN, infinitos y subnormales; 44,1 a 192 kHz; bloques de 1 a 4096 |
+| `processBlock` | Sin reservas de memoria | 0 reservas (mono y estéreo, parámetros aleatorios) |
+| CPU, 4× lineal | 4 % o menos | 1,1 % (1×: 0,48 %; 2×: 0,83 %; 8×: 1,6 %; 16×: 2,4 %; 32×: 4,1 %; la fase mínima cuesta lo mismo) |
+| Procesador completo | Sin fallos | 18 millones de comprobaciones: tasas, bloques, canales, estado, editor, latencia declarada, presets, A/B y deshacer |
+
+**Cosas que aprendí por el camino**
+- El ruido blanco hasta Nyquist cae en la banda de transición del sobremuestreo (20 a 28 kHz con 48 kHz de base) y los filtros lo alteran: el limitador no puede garantizar el techo sobre lo que el submuestreo cambia después. Las pruebas de techo usan ruido con ancho de banda de programa (paso bajo a 16 kHz).
+- `replaceState` del APVTS no restaura un parámetro Bool o Choice que alguien dejó en un valor normalizado fraccionario, y `pluginval` lo prueba así. Se corrigió en los cinco procesadores con `ferb::syncParametersFromState`.

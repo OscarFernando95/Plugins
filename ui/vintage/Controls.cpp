@@ -198,7 +198,7 @@ void VKnob::paint (juce::Graphics& g)
 
     const float labelY = static_cast<float> (spec.size) + 2.0f;
     drawEmbossed (g, spec.label, { 0.0f, labelY, static_cast<float> (getWidth()), spec.big ? 16.0f : 13.0f },
-                  labelFont (spec.big ? 13.0f : 10.5f, spec.big ? 2.4f : 1.0f), juce::Justification::centred, palette);
+                  labelFont (spec.big ? 13.0f : 10.0f, spec.big ? 2.4f : 0.8f), juce::Justification::centred, palette);
 }
 
 void VKnob::setNormalised (float n)

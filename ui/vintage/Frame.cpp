@@ -21,7 +21,7 @@ const juce::Image& grain()
 
 // ------------------------------------------------------------------ Frame
 
-Frame::Frame (const Palette& p, bool isRack) : palette (p), rack (isRack)
+Frame::Frame (const Palette& p, bool isRack, int ears) : palette (p), rack (isRack), earWidth (ears)
 {
     setInterceptsMouseClicks (false, false);
     setBufferedToImage (true);
@@ -68,6 +68,19 @@ void Frame::paintEar (juce::Graphics& g, juce::Rectangle<float> r, bool left) co
     g.fillRect (left ? r.getRight() - 2.0f : r.getX(), r.getY(), 2.0f, r.getHeight());
 
     const float cx = r.getCentreX() - 0.0f;
+    if (r.getWidth() < 30.0f)
+    {
+        // Oreja estrecha: tornillos pequeños.
+        for (const float y : { r.getY() + 14.0f, r.getBottom() - 14.0f })
+        {
+            const auto box = juce::Rectangle<float> (10.0f, 10.0f).withCentre ({ cx, y });
+            g.setGradientFill (svgRadial (box, 0.36f, 0.30f, 1.0f, { { 0.0f, juce::Colours::white }, { 0.45f, juce::Colour (0xffbfc4c0) }, { 1.0f, juce::Colour (0xff6b716d) } }));
+            g.fillEllipse (box);
+            g.setColour (juce::Colours::black.withAlpha (0.55f));
+            g.drawLine (cx - 3.0f, y + 1.0f, cx + 3.0f, y - 1.0f, 1.2f);
+        }
+        return;
+    }
     paintScrew (g, { cx, r.getY() + 23.0f }, left ? 20.0f : -35.0f);
     paintScrew (g, { cx, r.getBottom() - 23.0f }, left ? -50.0f : 15.0f);
 }
@@ -110,8 +123,8 @@ void Frame::paint (juce::Graphics& g)
             g.setColour (juce::Colours::black.withAlpha (0.4f));
             g.fillRect (r.getX(), r.getBottom() - 2.0f, r.getWidth(), 2.0f);
 
-            paintEar (g, r.withWidth (44.0f), true);
-            paintEar (g, r.withLeft (r.getRight() - 44.0f), false);
+            paintEar (g, r.withWidth (static_cast<float> (earWidth)), true);
+            paintEar (g, r.withLeft (r.getRight() - static_cast<float> (earWidth)), false);
         }
     }
 }
@@ -148,6 +161,16 @@ public:
     }
 
     void mouseDown (const juce::MouseEvent&) override { showMenu(); }
+
+    /** Guarda el estado actual: sobrescribe si el preset actual es del usuario; si no, pide un nombre. */
+    void saveCurrent()
+    {
+        const auto current = manager.getCurrentName();
+        if (current.isNotEmpty() && ! manager.isFactory (current) && manager.getUserNames().contains (current))
+            manager.save (current);
+        else
+            askName (juce::String());
+    }
 
 private:
     Palette palette;
@@ -205,7 +228,7 @@ Header::Header (const Palette& p, Spec s, PresetManager& presets, AbCompare& abC
     : palette (p), spec (std::move (s)), ab (abCompare), undo (undoManager),
       previous (p, "Preset anterior", VButton::Icon::previous), next (p, "Preset siguiente", VButton::Icon::next),
       undoButton (p, "Deshacer", VButton::Icon::undo), redoButton (p, "Rehacer", VButton::Icon::redo),
-      bypassButton (p, "BYPASS", VButton::Icon::none, true),
+      bypassButton (p, "BYPASS", VButton::Icon::none, true), saveButton (p, "GUARDAR"),
       bypassAttachment (bypass, bypassButton, &undoManager)
 {
     display = std::make_unique<PresetDisplay> (presets, palette);
@@ -218,22 +241,31 @@ Header::Header (const Palette& p, Spec s, PresetManager& presets, AbCompare& abC
     redoButton.onClick = [this] { undo.redo(); };
     bypassButton.setClickingTogglesState (true);
 
+    saveButton.onClick = [this] { display->saveCurrent(); };
     for (auto* c : std::initializer_list<juce::Component*> { &previous, display.get(), &next, abSwitch.get(), &undoButton, &redoButton, &bypassButton })
         addAndMakeVisible (*c);
+    if (spec.saveButton)
+        addAndMakeVisible (saveButton);
 }
 
 Header::~Header() = default;
 
 void Header::resized()
 {
+    const int bh = spec.buttonHeight;
     int x = spec.presetBarX;
-    previous.setBounds (x, 10, 34, 36);   x += 34 + 6;
-    display->setBounds (x, 10, 200, 34);  x += 200 + 6;
-    next.setBounds (x, 10, 34, 36);       x += 34 + 6;
-    abSwitch->setTopLeftPosition (x, 12); x += 64 + 8;
-    undoButton.setBounds (x, 10, 34, 36); x += 34 + 4;
-    redoButton.setBounds (x, 10, 34, 36);
-    bypassButton.setBounds (spec.width - (spec.rack ? 60 : 14) - 90, 10, 90, 36);
+    previous.setBounds (x, 10, bh - 2, bh);       x += bh - 2 + 6;
+    display->setBounds (x, 10, spec.displayWidth, bh - 2); x += spec.displayWidth + 6;
+    next.setBounds (x, 10, bh - 2, bh);           x += bh - 2 + 6;
+    if (spec.saveButton)
+    {
+        saveButton.setBounds (x, 10, 96, bh);
+        x += 96 + 6;
+    }
+    abSwitch->setTopLeftPosition (x, 12);         x += 64 + 8;
+    undoButton.setBounds (x, 10, bh - 2, bh);     x += bh - 2 + 4;
+    redoButton.setBounds (x, 10, bh - 2, bh);
+    bypassButton.setBounds (spec.width - (spec.rack ? 60 : 14) - 90, 10, 90, bh);
 }
 
 void Header::paint (juce::Graphics& g)
@@ -241,12 +273,12 @@ void Header::paint (juce::Graphics& g)
     const float left = spec.rack ? 62.0f : 18.0f;
 
     // Logotipo con relieve.
-    const auto logo = logoFont (34.0f);
+    const auto logo = logoFont (spec.nameSize);
     const float nameW = juce::GlyphArrangement::getStringWidth (logo, spec.name) + 2.0f;
-    drawEmbossed (g, spec.name, { left, 6.0f, nameW, 40.0f }, logo, juce::Justification::centredLeft, palette);
+    drawEmbossed (g, spec.name, { left, spec.rack ? 6.0f : 4.0f, nameW, spec.rack ? 40.0f : 42.0f }, logo, juce::Justification::centredLeft, palette);
 
     // Placa «BY FERB».
-    const auto plate = juce::Rectangle<float> (left + nameW + 10.0f, 16.0f, 75.0f, 21.0f);
+    const auto plate = juce::Rectangle<float> (left + nameW + 12.0f, 16.0f, 75.0f, 21.0f);
     g.setGradientFill (juce::ColourGradient (juce::Colour (0xffe9dcc0), 0.0f, plate.getY(), juce::Colour (0xffcbb98f), 0.0f, plate.getBottom(), false));
     g.fillRoundedRectangle (plate, 3.0f);
     g.setColour (brass);
@@ -255,7 +287,7 @@ void Header::paint (juce::Graphics& g)
     drawSpaced (g, "BY FERB", plate, labelFont (10.0f, 2.0f), juce::Justification::centred);
 
     g.setColour (palette.ink2);
-    drawSpaced (g, spec.subtitle, { left + 2.0f, 41.0f, 420.0f, 12.0f }, labelFont (9.0f, 2.2f), juce::Justification::centredLeft);
+    drawSpaced (g, spec.subtitle, { left + 2.0f, spec.rack ? 41.0f : 44.0f, 420.0f, 12.0f }, labelFont (spec.rack ? 9.0f : 10.0f, 2.2f), juce::Justification::centredLeft);
 
     if (spec.rack)
     {
@@ -267,10 +299,12 @@ void Header::paint (juce::Graphics& g)
     }
     else
     {
-        g.setColour (palette.acc.withAlpha (0.25f));
-        g.fillRect (0.0f, 52.0f, static_cast<float> (spec.width), 5.0f);
-        g.setColour (palette.acc);
-        g.fillRect (0.0f, 54.0f, static_cast<float> (spec.width), 2.0f);
+        const auto line = spec.lineColour.value_or (palette.acc);
+        const float y = static_cast<float> (spec.height) - 2.0f;
+        g.setColour (line.withAlpha (0.25f));
+        g.fillRect (0.0f, y - 2.0f, static_cast<float> (spec.width), 5.0f);
+        g.setColour (line);
+        g.fillRect (0.0f, y, static_cast<float> (spec.width), 2.0f);
     }
 }
 } // namespace ferb::vintage

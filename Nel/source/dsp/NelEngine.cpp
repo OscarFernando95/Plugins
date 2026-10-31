@@ -107,7 +107,9 @@ void NelEngine::reset()
         dcBlockers[c].reset();
         dithers[c].reset (static_cast<std::uint32_t> (c + 1));
         rmsState[c] = 0.0f;
+        inRmsState[c] = 0.0f;
         rms[c].store (0.0f);
+        inRms[c].store (0.0f);
         inPeak[c].reset();
         outPeak[c].reset();
         truePeakMeter[c].reset();
@@ -187,14 +189,17 @@ void NelEngine::processChunk (juce::AudioBuffer<float>& chunk, const Settings& s
     {
         auto* in = chunk.getWritePointer (ch);
         float peak = 0.0f;
+        const float inCoef = static_cast<float> (1.0 - std::exp (-1.0 / (0.300 * sampleRate)));
         for (int i = 0; i < n; ++i)
         {
             if (! std::isfinite (in[i]))
                 in[i] = 0.0f;
             peak = std::max (peak, std::abs (in[i]));
+            inRmsState[idx (ch)] += (in[i] * in[i] - inRmsState[idx (ch)]) * inCoef;
             raw[idx (ch)][idx (i)] = rawDelay[idx (ch)].process (in[i]);
         }
         inPeak[idx (ch)].publishMax (peak);
+        inRms[idx (ch)].store (std::sqrt (std::max (inRmsState[idx (ch)], 0.0f)), std::memory_order_relaxed);
     }
 
     if (s.loudnessFromInput)

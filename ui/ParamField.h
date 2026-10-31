@@ -43,6 +43,9 @@ public:
         };
     }
 
+    /** Vuelve a formatear el texto (p. ej. si el formato depende de otro parámetro). */
+    void refresh() { attachment.sendInitialUpdate(); }
+
     void mouseDown (const juce::MouseEvent& e) override
     {
         if (e.mods.isAltDown())

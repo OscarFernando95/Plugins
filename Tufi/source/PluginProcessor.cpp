@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include <StateRestore.h>
 #include "PluginEditor.h"
 #include "Presets.h"
 
@@ -85,7 +86,10 @@ void TufiProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
         if (xml->hasTagName (apvts.state.getType()))
+        {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            ferb::syncParametersFromState (apvts);
+        }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

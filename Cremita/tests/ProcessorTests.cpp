@@ -139,3 +139,34 @@ TEST_CASE ("Cremita: el editor muestra las bandas al encender Band Split y la cu
     setSplit (0.0f);
     REQUIRE (int (p.apvts.state.getProperty ("view")) == 0);
 }
+
+TEST_CASE ("Cremita: restaurar el estado devuelve cada parámetro a su valor guardado (como pluginval)")
+{
+    juce::ScopedJuceInitialiser_GUI gui;
+    CremitaProcessor p;
+    p.setPlayConfigDetails (2, 2, 48000.0, 512);
+    p.prepareToPlay (48000.0, 512);
+    juce::Random rng (5);
+
+    for (int round = 0; round < 6; ++round)
+    {
+        juce::MemoryBlock saved;
+        std::vector<std::pair<juce::RangedAudioParameter*, float>> before;
+        for (auto* param : p.getParameters())
+            if (auto* r = dynamic_cast<juce::RangedAudioParameter*> (param))
+                before.emplace_back (r, r->getValue());
+        p.getStateInformation (saved);
+
+        for (auto& [param, value] : before)
+            param->setValueNotifyingHost (rng.nextFloat());
+        p.setStateInformation (saved.getData(), int (saved.getSize()));
+
+        for (auto& [param, value] : before)
+        {
+            INFO ("ronda " << round << ", parámetro " << param->getName (64));
+            CHECK (std::abs (param->getValue() - value) < 0.1f);
+        }
+        for (auto& [param, value] : before)
+            param->setValueNotifyingHost (rng.nextFloat() > 0.5f ? 1.0f : 0.0f);
+    }
+}

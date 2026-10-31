@@ -1,5 +1,6 @@
 juce_add_plugin(Poty
     COMPANY_NAME "FERB"
+    VERSION ${POTY_VERSION}
     BUNDLE_ID com.ferb.poty
     PLUGIN_MANUFACTURER_CODE Ferb
     PLUGIN_CODE Poty

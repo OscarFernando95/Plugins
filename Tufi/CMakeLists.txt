@@ -1,5 +1,6 @@
 juce_add_plugin(Tufi
     COMPANY_NAME "FERB"
+    VERSION ${TUFI_VERSION}
     BUNDLE_ID com.ferb.tufi
     PLUGIN_MANUFACTURER_CODE Ferb
     PLUGIN_CODE Tufi
