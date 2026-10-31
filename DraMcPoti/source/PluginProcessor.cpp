@@ -15,6 +15,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
     raw.input = ptr (k::input);   raw.output = ptr (k::output); raw.mix = ptr (k::mix);   raw.mode = ptr (k::mode);
     raw.era = ptr (k::era);       raw.voice = ptr (k::voice);   raw.tune = ptr (k::tune); raw.link = ptr (k::link);
     raw.xo1 = ptr (k::xo1);       raw.xo2 = ptr (k::xo2);       raw.xo3 = ptr (k::xo3);   raw.delta = ptr (k::delta);
+    raw.os = ptr (k::os);
     for (int b = 0; b < k::numBands; ++b)
     {
         const auto i = static_cast<size_t> (b);
@@ -35,7 +36,7 @@ DraMcPotiProcessor::DraMcPotiProcessor()
 void DraMcPotiProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     engine.prepare (sampleRate, samplesPerBlock);
-    setLatencySamples (0); // la guarda y el sobremuestreo declararán la suya en las fases 3 y 4
+    setLatencySamples (mcpoti::McPotiEngine::latencySamples()); // constante: la de 8× (la guarda y la fase lineal sumarán la suya después)
 }
 
 mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
@@ -53,6 +54,7 @@ mcpoti::Settings DraMcPotiProcessor::readSettings() const noexcept
     s.xo2 = raw.xo2->load();
     s.xo3 = raw.xo3->load();
     s.delta = raw.delta->load() >= 0.5f;
+    s.osIndex = juce::roundToInt (raw.os->load());
     for (size_t b = 0; b < k::numBands; ++b)
     {
         auto& band = s.bands[b];

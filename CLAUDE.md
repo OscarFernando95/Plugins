@@ -5,7 +5,7 @@ Monorepo de plugins VST3 y AU para macOS (JUCE 8.0.15, CMake + Ninja), de uso pe
 - **Tufi** (`Tufi/`): saturador armónico analógico. Especificación: `Tufi/Tufi — ficha técnica.md`.
 - **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel, ChauS y Maru completos salvo pruebas en DAW (AAX compila pero sin validar ni firmar; el detector de ChauS y el estimador de Maru faltan por afinar con escucha). Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
 - **Poty** (`Poty/`): enhancer multibanda. Especificación: `Poty/Poty — ficha técnica.md`.
-- **Dra. McPoti** (`DraMcPoti/`): excitador armónico multibanda, en desarrollo (versión 0.1.0, fase 1 de 6 hecha y fase 2 empezada: cruce de 4 bandas y caracteres Vintage sin sobremuestreo). Especificación: `DraMcPoti/Dra. McPoti — ficha técnica del excitador armónico.md`; maqueta: `DraMcPoti/Dra. McPoti — maqueta.html`.
+- **Dra. McPoti** (`DraMcPoti/`): excitador armónico multibanda, en desarrollo (versión 0.1.0, fase 1 de 6 hecha y fase 2 avanzada: cruce de 4 bandas, caracteres Vintage con ADAA y sobremuestreo de 1× a 8×). Especificación: `DraMcPoti/Dra. McPoti — ficha técnica del excitador armónico.md`; maqueta: `DraMcPoti/Dra. McPoti — maqueta.html`.
 - `Bosquejo de dos plugins.html`: bosquejo visual aprobado de ambas interfaces.
 
 Las fichas son la fuente de verdad: leerlas antes de tocar un plugin. **Cada ficha termina con «Estado y cambios sobre la ficha»**: varias decisiones cambiaron tras medir y esa sección manda sobre el resto del texto. Los valores marcados como «iniciales» se afinan de oído y se actualizan en la ficha.
@@ -79,8 +79,8 @@ Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el
 ### Maru — hitos M0 a M5 hechos
 Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y validar y firmar el AAX.
 
-### Dra. McPoti — fase 1 de 6 hecha, fase 2 empezada
-Pendiente: sobremuestreo y ADAA, caracteres Modernos, y fases 3 a 6 de su ficha (motor, caracteres, guarda y Master, interfaz completa, validación y documentación).
+### Dra. McPoti — fase 1 de 6 hecha, fase 2 avanzada
+Pendiente: aliasing a 2× por debajo de la meta (−63,3 dB frente a −70), caracteres Modernos, y fases 3 a 6 de su ficha (motor, caracteres, guarda y Master, interfaz completa, validación y documentación).
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.
