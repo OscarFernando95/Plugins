@@ -99,6 +99,11 @@ void McPotiEngine::prepare (double sampleRate, int maxBlock)
             c.nlOut[b].assign (size, 0.0f);
         }
     }
+    constexpr double apFreq[4] = { 600.0, 1800.0, 5000.0, 11000.0 };
+    for (auto& c : channels)
+        for (size_t k = 0; k < 4; ++k)
+            c.phaseAp[k].setFrequency (fs, std::min (apFreq[k], 0.45 * fs));
+    sideSplit.setFrequency (fs, 150.0);
     factor = 0;
     reset();
 }
@@ -117,13 +122,19 @@ void McPotiEngine::reset() noexcept
             c.up[b].reset();
             c.down[b].reset();
             c.adaa[b] = {};
+            c.adaaOdd[b] = {};
             c.bandDelay[b].reset();
             c.addDelay[b].reset();
         }
+        for (auto& ap : c.phaseAp)
+            ap.reset();
+        c.soften.reset();
         c.env.fill (0.0f);
         c.gcTarget.fill (1.0f);
         c.gcSmooth.fill (1.0f);
     }
+    sideSplit.reset();
+    lastSoften = 0.0f;
     tonal.fill (0.0f);
     adaptGain = 1.0f;
     dynFactor.fill (1.0f);
@@ -182,6 +193,7 @@ void McPotiEngine::configureFactor (int newFactor) noexcept
             c.up[b].setConfig (factor, false);
             c.down[b].setConfig (factor, false);
             c.adaa[b] = {};
+            c.adaaOdd[b] = {};
             c.hpOut[b].reset();
         }
     applyAddDelays();
@@ -205,6 +217,7 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
         smoothXo = target;
         smoothTune = s.tuneHz;
         smoothAir = s.airCornerHz;
+        smoothSoften = s.softenHz;
     }
     else
     {
@@ -212,6 +225,7 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
             smoothXo[i] += freqCoeff * (target[i] - smoothXo[i]);
         smoothTune += freqCoeff * (s.tuneHz - smoothTune);
         smoothAir += freqCoeff * (s.airCornerHz - smoothAir);
+        smoothSoften += freqCoeff * (s.softenHz - smoothSoften);
     }
     const float x1 = smoothXo[0], x2 = smoothXo[1], x3 = smoothXo[2];
     bool moved = false;
@@ -227,6 +241,15 @@ void McPotiEngine::updateControl (const Settings& s) noexcept
     }
     else if (activeVoice == aire && std::abs (smoothAir - shelfAir) > 0.002f * smoothAir)
         designShelves();
+
+    // Suavizar: paso bajo de lo añadido; a 20 kHz o más queda apagado.
+    if (std::abs (smoothSoften - lastSoften) > 0.002f * smoothSoften)
+    {
+        lastSoften = smoothSoften;
+        const auto lp = ferb::Biquad::lowPass (fs, std::min (double (smoothSoften), 0.45 * fs));
+        for (auto& c : channels)
+            c.soften.setCoefficients (lp);
+    }
 
     // Pasa-altos del generador de cada banda: max(Sintonización, borde inferior); Cuerpo usa 40 Hz.
     const float edges[numBands] = { 40.0f, x1, x2, x3 };
@@ -335,6 +358,7 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                     for (size_t b = 0; b < nb; ++b)
                     {
                         c.adaa[b] = {};
+                        c.adaaOdd[b] = {};
                         c.hpOut[b].reset();
                         c.shelf[b].reset();
                         c.gcSmooth[b] = 1.0f;
@@ -406,6 +430,10 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
         }
     }
 
+    const float color = juce::jlimit (-1.0f, 1.0f, s.colorPercent * 0.01f);
+    const double bias = color < 0.0f ? -0.35 * double (color) : 0.0; // sesgo que suma pares
+    const float oddMix = color > 0.0f ? color : 0.0f;
+
     // Generador: subir, no linealidad con ADAA, pasa-altos y bajar (por banda y canal). Seda no lo usa.
     for (int ch = 0; ch < (shelfMode ? 0 : numCh); ++ch)
     {
@@ -417,36 +445,82 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             auto& st = c.adaa[b];
             for (int j = 0; j < hiN; ++j)
             {
-                const double y = adaaProcess (voice, double (hiBuffer[static_cast<size_t> (j)]), st.vPrev, st.FPrev, st.primed);
+                // Color: hacia pares (−) se desplaza el punto de trabajo (asimetría); hacia impares (+) se mezcla con la parte impar f(u) − f(−u).
+                const double v = double (hiBuffer[static_cast<size_t> (j)]);
+                double y = adaaProcess (voice, v + bias, st.vPrev, st.FPrev, st.primed);
+                if (oddMix > 0.0f)
+                {
+                    auto& so = c.adaaOdd[b];
+                    const double neg = adaaProcess (voice, -v, so.vPrev, so.FPrev, so.primed);
+                    y += double (oddMix) * (0.5 * (y - neg) - y);
+                }
                 hiBuffer[static_cast<size_t> (j)] = c.hpOut[b].process (static_cast<float> (y));
             }
             c.down[b].process (hiBuffer.data(), c.nlOut[b].data(), n);
         }
     }
 
-    // Pasada 2 (frecuencia base): alinear retardos, aplicar nivel y mezclar.
+    // Pasada 2 (frecuencia base): alinear retardos, nivel de banda, Suavizar, Fase, estéreo (Master) y mezcla.
+    const float phasePos = juce::jlimit (0.0f, 1.0f, s.phasePercent * 0.01f) * 4.0f;
+    const int phaseBase = std::min (int (phasePos), 3);
+    const float phaseFrac = phasePos - float (phaseBase);
+    const bool softenOn = s.softenHz < 19999.0f;
+    const bool stereoOn = s.master && numCh == 2;
+    const float width = s.widthPercent * 0.01f;
+
     for (int i = 0; i < n; ++i)
     {
         const float outGain = outSmooth.step (dbToGain (s.outputDb));
         const float mix = mixSmooth.step (s.mixPercent * 0.01f);
         const float g = gate.step (gateTarget);
+        std::array<float, maxChannels> dry {}, addedSum {}, soloSum {};
         for (int ch = 0; ch < numCh; ++ch)
         {
             auto& c = channels[static_cast<size_t> (ch)];
-            const float dry = c.dryDelay.process (data[static_cast<size_t> (ch)][i]);
-            float addedSum = 0.0f, soloSum = 0.0f;
+            const auto k = static_cast<size_t> (ch);
+            dry[k] = c.dryDelay.process (data[k][i]);
             for (size_t b = 0; b < nb; ++b)
             {
                 const float delayedBand = c.bandDelay[b].process (c.bandSig[b][static_cast<size_t> (i)]);
                 float h = c.addDelay[b].process (c.nlOut[b][static_cast<size_t> (i)]);
                 h = implemented ? h * driveBuf[b][static_cast<size_t> (i)] * (shelfMode ? 1.0f : gamma) * levelBuf[b][static_cast<size_t> (i)] * g : 0.0f;
                 addedPower[b] += (h * h - addedPower[b]) * 0.0005f;
-                addedSum += h;
+                addedSum[k] += h;
                 if (s.bands[b].solo)
-                    soloSum += delayedBand + mix * h;
+                    soloSum[k] += delayedBand + mix * h;
             }
-            const float y = s.delta ? mix * addedSum : (anySolo ? soloSum : dry + mix * addedSum);
-            data[static_cast<size_t> (ch)][i] = y * outGain;
+
+            float x = addedSum[k];
+            if (softenOn)
+                x = c.soften.process (x);
+            // Fase: de cero a cuatro secciones pasa-todo, con transición continua entre la k-ésima y la siguiente.
+            std::array<float, 5> stage { x, 0, 0, 0, 0 };
+            for (size_t j = 0; j < 4; ++j)
+            {
+                float lo, hi;
+                c.phaseAp[j].process (stage[j], lo, hi);
+                stage[j + 1] = lo + hi;
+            }
+            addedSum[k] = stage[static_cast<size_t> (phaseBase)] + phaseFrac * (stage[static_cast<size_t> (phaseBase) + 1] - stage[static_cast<size_t> (phaseBase)]);
+        }
+
+        if (stereoOn)
+        {
+            // Ancho escala el lateral de lo añadido; Mono seguro quita del lateral lo que queda bajo 150 Hz.
+            const float mid = 0.5f * (addedSum[0] + addedSum[1]);
+            float side = 0.5f * (addedSum[0] - addedSum[1]);
+            float sideLow, sideHigh;
+            sideSplit.process (side, sideLow, sideHigh);
+            side = (s.monoSafe ? sideHigh : side) * width;
+            addedSum[0] = mid + side;
+            addedSum[1] = mid - side;
+        }
+
+        for (int ch = 0; ch < numCh; ++ch)
+        {
+            const auto k = static_cast<size_t> (ch);
+            const float y = s.delta ? mix * addedSum[k] : (anySolo ? soloSum[k] : dry[k] + mix * addedSum[k]);
+            data[k][i] = y * outGain;
         }
     }
 

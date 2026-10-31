@@ -22,6 +22,7 @@ Settings settings (float drive, int voice = 0)
         b.drive = drive;
     s.voice = voice;
     s.tuneHz = 1500.0f;
+    s.phasePercent = 0.0f; // la red de fase mezcla etapas con fases distintas y baja el módulo: se prueba aparte
     return s;
 }
 
@@ -453,4 +454,95 @@ TEST_CASE ("McPoti: Adaptativo sube el drive si falta presencia y lo baja si sob
     INFO ("apagado " << dullAdaptive / dullRef << ", brillante " << brightAdaptive / brightRef);
     CHECK (dullAdaptive > dullRef * 1.3);
     CHECK (brightAdaptive < brightRef * 0.8);
+}
+
+TEST_CASE ("McPoti: Suavizar recorta lo añadido por encima de su corte")
+{
+    const int n = int (fs);
+    auto added = [&] (float softenHz)
+    {
+        auto s = settings (80.0f, 3);
+        s.delta = true;
+        s.softenHz = softenHz;
+        const auto in = sine (n, 3000.0, fs, 0.3);
+        const auto out = run (in, s);
+        return measureAmplitude (out.data() + n / 2, n / 2, 9000.0, fs); // 3.er armónico
+    };
+    CHECK (added (4000.0f) < added (20000.0f) * 0.3);
+}
+
+TEST_CASE ("McPoti: Fase es pasa-todo (misma energía, otra forma de onda) y su efecto es continuo")
+{
+    const auto in = noise (int (fs), 0.2f);
+    auto energy = [] (const std::vector<float>& x) { double e = 0.0; for (size_t i = 4800; i < x.size(); ++i) e += double (x[i]) * x[i]; return e; };
+    auto delta = [&] (float phase)
+    {
+        auto s = settings (80.0f, 3);
+        s.delta = true;
+        s.phasePercent = phase;
+        return run (in, s);
+    };
+    const auto zero = delta (0.0f), full = delta (100.0f);
+    CHECK (toDb (std::sqrt (energy (full) / energy (zero))) == Catch::Approx (0.0).margin (0.5));
+    CHECK (residualDb (zero.data() + 4800, full.data() + 4800, int (zero.size()) - 4800) > -20.0); // cambia la forma
+    // Continuidad: 1 % más de Fase no cambia casi nada.
+    const auto a = delta (50.0f), b = delta (51.0f);
+    CHECK (residualDb (a.data() + 4800, b.data() + 4800, int (a.size()) - 4800) < -20.0);
+}
+
+TEST_CASE ("McPoti: Color hacia pares (−) da más 2.º armónico y hacia impares (+) casi ninguno")
+{
+    const int n = int (fs);
+    auto harmonics = [&] (float color)
+    {
+        auto s = settings (100.0f, 3); // Transistor: simétrico, solo impares de partida
+        s.delta = true;
+        s.colorPercent = color;
+        const auto in = sine (n, 3000.0, fs, fromDb (-18.0));
+        const auto out = run (in, s);
+        return std::pair { measureAmplitude (out.data() + n / 2, n / 2, 6000.0, fs), measureAmplitude (out.data() + n / 2, n / 2, 9000.0, fs) };
+    };
+    const auto [even0, odd0] = harmonics (0.0f);
+    const auto [evenNeg, oddNeg] = harmonics (-100.0f);
+    const auto [evenPos, oddPos] = harmonics (100.0f);
+    INFO ("2.º: " << toDb (even0) << " / " << toDb (evenNeg) << " / " << toDb (evenPos) << " dB (0, −100, +100)");
+    CHECK (evenNeg > even0 * 10.0);
+    CHECK (evenPos < even0 + 1.0e-4);
+    CHECK (oddPos > 0.5 * odd0);
+    (void) oddNeg;
+}
+
+TEST_CASE ("McPoti: Ancho escala el lateral de lo añadido y Mono seguro lo deja sin graves")
+{
+    // Entrada con L y R distintos; en Master, Ancho 0 deja lo añadido en mono.
+    auto side = [&] (float widthPercent, bool monoSafe, double freq)
+    {
+        McPotiEngine engine;
+        engine.prepare (fs, 256);
+        auto s = settings (100.0f, 3);
+        s.master = true;
+        s.delta = true;
+        s.widthPercent = widthPercent;
+        s.monoSafe = monoSafe;
+        s.xo1 = 150.0f; s.xo2 = 1800.0f; s.xo3 = 7000.0f;
+        s.bands[0].drive = 100.0f;
+        s.tuneHz = 1500.0f;
+        const int n = int (fs);
+        const auto l = sine (n, freq, fs, 0.3), r = sine (n, freq, fs, 0.1);
+        std::vector<float> sideOut (size_t (n), 0.0f);
+        juce::AudioBuffer<float> buf (2, 256);
+        for (int pos = 0; pos + 256 <= n; pos += 256)
+        {
+            for (int i = 0; i < 256; ++i) { buf.setSample (0, i, l[size_t (pos + i)]); buf.setSample (1, i, r[size_t (pos + i)]); }
+            engine.process (buf, s);
+            for (int i = 0; i < 256; ++i)
+                sideOut[size_t (pos + i)] = 0.5f * (buf.getSample (0, i) - buf.getSample (1, i));
+        }
+        double e = 0.0;
+        for (size_t i = size_t (n / 2); i < sideOut.size(); ++i) e += double (sideOut[i]) * sideOut[i];
+        return std::sqrt (e / double (n / 2));
+    };
+    CHECK (side (0.0f, false, 3000.0) < 1.0e-6);                              // Ancho 0: lateral nulo
+    CHECK (side (200.0f, false, 3000.0) > 1.8 * side (100.0f, false, 3000.0)); // Ancho 200 % ≈ doble
+    CHECK (side (100.0f, true, 60.0) < 0.2 * side (100.0f, false, 60.0));     // Mono seguro: sin lateral grave
 }
