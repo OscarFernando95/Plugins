@@ -19,7 +19,7 @@ struct P
     float drive[4];
     float tune;
     float width = 100.0f;
-    int os = 1;
+    int os = 2; // 4×, el valor por defecto
     float airCorner = 16000.0f;
 };
 

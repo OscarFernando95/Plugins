@@ -34,7 +34,7 @@ struct Settings
     float xo1 = 150.0f, xo2 = 1800.0f, xo3 = 7000.0f;
     std::array<BandSettings, numBands> bands;
     bool delta = false;
-    int osIndex = 1; // 0 a 3 = 1×, 2×, 4×, 8×
+    int osIndex = 2; // 0 a 3 = 1×, 2×, 4×, 8×
 };
 
 /** Fase 2 (parcial): cruce de cuatro bandas y generador de armónicos de los cuatro caracteres Vintage con

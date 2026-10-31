@@ -201,7 +201,7 @@ Son 44 parámetros expuestos al host mediante AudioProcessorValueTreeState; los 
 | mixLo, mixMd, mixHi, mixAr | Nivel de banda | 0 a 100 % | 100 | Mezcla propia de cada banda |
 | onLo, onMd, onHi, onAr | Activar banda | off, on | on | Lámpara ámbar |
 | soloLo, soloMd, soloHi, soloAr | Solo banda | off, on | off | Escucha la banda excitada |
-| os | Oversampling | 1×, 2×, 4×, 8× | 2× | Master puede ir a 4× u 8× |
+| os | Oversampling | 1×, 2×, 4×, 8× | 4× | Decidido tras medir el aliasing (sección 11): 2× no cumple la meta de −70 dBFS. Master puede ir a 8× |
 | linPhase | Fase lineal | off, on | off | Crossover FIR; añade latencia |
 | delta | Delta | off, on | off | Escucha solo lo añadido |
 | match | Igualar | off, on | on | Compensación de sonoridad K-weighted, integrador de 3 s, ±12 dB |
@@ -275,7 +275,7 @@ El preset Init deja Modo Vocal, Era Vintage, Clásico, los Drive por defecto de 
 
 ## 8. Rendimiento, latencia y formatos
 
-Objetivos iniciales, a validar con mediciones en tu Mac: Vocal a 48 kHz con 2× de oversampling por debajo del 6 % de un núcleo, y Master a 4× con fase lineal por debajo del 15 %.
+Objetivos iniciales, a validar con mediciones en tu Mac: Vocal a 48 kHz con 4× de oversampling (el valor por defecto) por debajo del 6 % de un núcleo, y Master a 4× con fase lineal por debajo del 15 %.
 
 | Configuración | Latencia objetivo | Origen |
 | --- | --- | --- |
@@ -405,6 +405,8 @@ Esta sección manda sobre el resto del texto. Estado a 2026-10-31: **fase 1 hech
 - **Sobremuestreo y ADAA (2026-10-31):** el generador (subir → no linealidad con ADAA de primer orden → pasa-altos → bajar) trabaja a 1×, 2×, 4× u 8× con `core/OversamplerN.h` (fase lineal). Las cuatro no linealidades Vintage tienen antiderivada cerrada. Latencia **constante** de 47 muestras (la de 8×): el seco, Solo y los factores menores se retrasan lo que falta. Cambiar el sobremuestreo o el Voicing con audio funde lo añadido a silencio (5 ms), cambia y vuelve: sin clics.
 - **Aliasing medido** (seno de 5, 7,9 y 9,1 kHz a 0,5, Drive 100 en las cuatro bandas, los cuatro caracteres, hasta 20 kHz): 1× **−41,6 dB**; 2× **−63,3 dB**; 4× y 8× **−96,5 dB**. **Meta de la ficha: −70 a 2× y −80 a 4×. A 2× NO se cumple** (faltan unos 7 dB en este peor caso); 4× y 8× cumplen con margen. El 2× es el valor por defecto de la ficha: decidir si pasa a 4× o se sube el orden del ADAA. La prueba exige −60 a 2×, el valor medido con margen, no la meta.
 - **CPU medida** (Release, arm64, 48 kHz, estéreo, bloques de 256, Drive de fábrica, Válvula; `DraMcPotiTests "[.report]"`): 1× 0,7 %, 2× 2,0 %, 4× 3,0 %, 8× 4,8 % de un núcleo, incluyendo el ruido de prueba. Cumple el objetivo Vocal 2× (< 6 %). Sin fase lineal ni Master completo todavía.
+- **Decisión (2026-10-31): Oversampling por defecto = 4×** (antes 2×), en el parámetro y en los 21 presets (el de «Aire 40 kHz» sigue en 8×). Con 4× el aliasing medido es −96,5 dB (meta −80) y la CPU de 3,0 % de un núcleo, dentro del objetivo del 6 %. 2× sigue disponible (−63,3 dB, por debajo de su meta de −70); la interfaz definitiva debería avisarlo.
+- **ADAA de segundo orden: descartado por ahora.** Necesita la segunda antiderivada de cada no linealidad. Solo el Transistor la tiene cerrada (`(u·√(1+u²) + asinh u)/2`); para `tanh` (Clásico, Cinta y Válvula) es la dilogaritmia, sin forma elemental, y exigiría una tabla numérica. Con 4× por defecto no hace falta; reabrir solo si se quiere 2× a −70 dB.
 - **Sin implementar todavía:** caracteres Modernos (la era Moderno hoy no añade nada), Cinta con pre-énfasis, Color, Fase, Suavizar, Esquina de aire, guarda, Ancho y Mono seguro, fase lineal, Igualar, VU y válvulas. La normalización γ = 0,5 y la escala de Drive (`1 + 4a`) son valores iniciales.
 
 ### Cambios sobre la ficha

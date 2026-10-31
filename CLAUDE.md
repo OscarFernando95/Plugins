@@ -80,7 +80,7 @@ Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el
 Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y validar y firmar el AAX.
 
 ### Dra. McPoti — fase 1 de 6 hecha, fase 2 avanzada
-Pendiente: aliasing a 2× por debajo de la meta (−63,3 dB frente a −70), caracteres Modernos, y fases 3 a 6 de su ficha (motor, caracteres, guarda y Master, interfaz completa, validación y documentación).
+Pendiente: caracteres Modernos (el oversampling por defecto es 4×; 2× queda a −63,3 dB, por debajo de su meta de −70), y fases 3 a 6 de su ficha (motor, caracteres, guarda y Master, interfaz completa, validación y documentación).
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.

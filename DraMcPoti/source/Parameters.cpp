@@ -70,7 +70,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
         layout.add (std::make_unique<Bool> (pid (bandId ("solo", b)), "Solo " + name, false));
     }
 
-    layout.add (std::make_unique<Choice> (pid (os), "Oversampling", utf8Array ({ "1×", "2×", "4×", "8×" }), 1));
+    layout.add (std::make_unique<Choice> (pid (os), "Oversampling", utf8Array ({ "1×", "2×", "4×", "8×" }), 2));
     layout.add (std::make_unique<Bool> (pid (linPhase), "Fase lineal", false));
     layout.add (std::make_unique<Bool> (pid (delta), "Delta", false));
     layout.add (std::make_unique<Bool> (pid (match), "Igualar", true));
