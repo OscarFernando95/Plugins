@@ -11,6 +11,19 @@ namespace mcpoti::ui
 {
 using namespace ferb::vintage;
 
+/** Sombra proyectada suave (varias capas translúcidas que se ensanchan), como la que dejan las piezas sobre el panel. */
+inline void softShadow (juce::Graphics& g, juce::Rectangle<float> area, float dx, float dy, float blur, float alpha, bool ellipse)
+{
+    constexpr int layers = 7;
+    for (int i = 0; i < layers; ++i)
+    {
+        const float grow = blur * static_cast<float> (i) / (layers - 1);
+        g.setColour (juce::Colours::black.withAlpha (alpha / static_cast<float> (layers) * 1.6f));
+        const auto r = area.translated (dx, dy).expanded (grow);
+        ellipse ? g.fillEllipse (r) : g.fillRoundedRectangle (r, 3.0f + grow * 0.5f);
+    }
+}
+
 /** Perilla negra con falda estriada, puntero blanco y escala de 0 a 10 grabada alrededor. Hereda de VKnob los gestos
     (arrastre vertical, rueda, doble clic, flechas, Mayús para afinar), el valor y el accesible; solo cambia el dibujo. */
 class ScaleKnob : public VKnob
@@ -26,59 +39,69 @@ public:
     void paint (juce::Graphics& g) override
     {
         const float size = static_cast<float> (spec.size), cx = static_cast<float> (getWidth()) * 0.5f, cy = size * 0.5f;
-        const float bodyR = size * (spec.big ? 0.285f : 0.275f);
+        const float bodyR = size * (spec.big ? 0.255f : 0.245f);
         constexpr float sweep = 270.0f * std::numbers::pi_v<float> / 180.0f, start = -sweep * 0.5f;
-        const auto pos = [&] (float t, float radius) { const float a = start + sweep * t; return juce::Point<float> (cx + radius * std::sin (a), cy - radius * std::cos (a)); };
+        const auto angleAt = [&] (float t) { return start + sweep * t; };
+        const auto pos = [&] (float t, float radius) { const float a = angleAt (t); return juce::Point<float> (cx + radius * std::sin (a), cy - radius * std::cos (a)); };
 
-        // Escala impresa en el panel: marcas finas cada 0,5 y las cifras de 0 a 10 en grande, como en un aparato de rack clásico.
-        g.setColour (palette.ink.withAlpha (0.9f));
-        for (int i = 0; i <= 20; ++i)
+        // Escala impresa: marcas finas y cifras 0 a 100 de diez en diez, GIRADAS siguiendo el círculo como en el original.
+        g.setColour (palette.ink.withAlpha (0.8f));
+        for (int i = 0; i <= 50; ++i)
         {
-            const float t = static_cast<float> (i) / 20.0f;
-            const bool major = (i % 2) == 0;
-            g.drawLine (juce::Line<float> (pos (t, bodyR * 1.40f), pos (t, bodyR * (major ? 1.62f : 1.50f))), major ? 1.3f : 0.8f);
+            const float t = static_cast<float> (i) / 50.0f;
+            const bool major = (i % 5) == 0;
+            g.drawLine (juce::Line<float> (pos (t, bodyR * 1.42f), pos (t, bodyR * (major ? 1.62f : 1.52f))), major ? 1.1f : 0.6f);
         }
-        const float fontPx = spec.big ? 12.5f : 9.8f;
+        const float fontPx = spec.big ? 11.5f : 8.8f;
+        g.setColour (palette.ink);
         g.setFont (labelFont (fontPx, 0.0f).boldened());
         for (int n = 0; n <= 10; ++n)
         {
-            const auto p = pos (static_cast<float> (n) / 10.0f, bodyR * 2.05f);
-            g.drawText (juce::String (n), juce::Rectangle<float> (fontPx * 2.0f, fontPx * 1.3f).withCentre (p), juce::Justification::centred, false);
+            const float t = static_cast<float> (n) / 10.0f;
+            const auto p = pos (t, bodyR * 2.0f);
+            juce::Graphics::ScopedSaveState state (g);
+            g.addTransform (juce::AffineTransform::rotation (angleAt (t), p.x, p.y));
+            g.drawText (juce::String (n * 10), juce::Rectangle<float> (fontPx * 3.0f, fontPx * 1.3f).withCentre (p), juce::Justification::centred, false);
         }
 
-        // Sombra proyectada.
-        g.setColour (juce::Colours::black.withAlpha (0.5f));
-        g.fillEllipse (cx - bodyR * 1.28f, cy - bodyR * 1.28f + 2.5f, bodyR * 2.56f, bodyR * 2.56f);
+        // Cuerpo: faldón negro brillante con su sombra, y casquete algo más alto.
+        softShadow (g, { cx - bodyR * 1.15f, cy - bodyR * 1.15f, bodyR * 2.3f, bodyR * 2.3f }, 2.5f, 4.5f, bodyR * 0.55f, 0.65f, true);
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff35353a), cx - bodyR, cy - bodyR, juce::Colour (0xff050506), cx + bodyR * 0.9f, cy + bodyR * 1.1f, false));
+        g.fillEllipse (cx - bodyR * 1.15f, cy - bodyR * 1.15f, bodyR * 2.3f, bodyR * 2.3f);
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff202023), cx - bodyR * 0.5f, cy - bodyR * 0.6f, juce::Colour (0xff040405), cx + bodyR * 0.7f, cy + bodyR * 0.8f, true));
+        g.fillEllipse (cx - bodyR * 0.95f, cy - bodyR * 0.95f, bodyR * 1.9f, bodyR * 1.9f);
 
-        // Falda cónica con estrías verticales (knurling): aro oscuro con 60 muescas claras que se ven de canto.
-        const float skirt = bodyR * 1.28f;
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff3a3a3d), cx - skirt, cy - skirt, juce::Colour (0xff0a0a0b), cx + skirt, cy + skirt, false));
-        g.fillEllipse (cx - skirt, cy - skirt, skirt * 2.0f, skirt * 2.0f);
-        constexpr int flutes = 60;
-        for (int i = 0; i < flutes; ++i)
-        {
-            const float a = juce::MathConstants<float>::twoPi * static_cast<float> (i) / flutes;
-            const juce::Point<float> p0 (cx + std::sin (a) * skirt * 0.80f, cy - std::cos (a) * skirt * 0.80f), p1 (cx + std::sin (a) * skirt * 0.995f, cy - std::cos (a) * skirt * 0.995f);
-            const float lit = 0.5f + 0.5f * std::cos (a + 0.8f); // más claras hacia la luz (arriba a la izquierda)
-            g.setColour (juce::Colour (0xff8a8a90).withAlpha (0.10f + 0.40f * lit));
-            g.drawLine (juce::Line<float> (p0, p1), 0.9f);
-        }
-        g.setColour (juce::Colours::black.withAlpha (0.7f));
-        g.drawEllipse (cx - skirt, cy - skirt, skirt * 2.0f, skirt * 2.0f, 1.0f);
-
-        // Cúpula lisa de baquelita negra con brillo.
-        const float dome = bodyR * 0.98f;
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff4a4a50), cx - dome * 0.55f, cy - dome * 0.65f, juce::Colour (0xff050506), cx + dome * 0.7f, cy + dome * 0.8f, true));
-        g.fillEllipse (cx - dome, cy - dome, dome * 2.0f, dome * 2.0f);
-        g.setColour (juce::Colours::white.withAlpha (0.16f));
-        g.fillEllipse (cx - dome * 0.62f, cy - dome * 0.82f, dome * 0.9f, dome * 0.42f); // reflejo
-        g.setColour (juce::Colours::black.withAlpha (0.8f));
-        g.drawEllipse (cx - dome, cy - dome, dome * 2.0f, dome * 2.0f, 0.9f);
-
-        // Puntero: línea blanca fina del centro al borde de la cúpula.
+        // Cuña del puntero: se estrecha hacia la punta y sobresale del faldón; recibe luz por un lado.
         const float value = juce::jlimit (0.0f, 1.0f, param.getValue());
-        g.setColour (juce::Colours::white.withAlpha (0.97f));
-        g.drawLine (juce::Line<float> (pos (value, dome * 0.12f), pos (value, dome * 0.98f)), spec.big ? 2.4f : 1.9f);
+        const float a = angleAt (value);
+        const juce::Point<float> dir (std::sin (a), -std::cos (a)), perp (-dir.y, dir.x), c (cx, cy);
+        const float rootW = bodyR * 0.62f, tipW = bodyR * 0.36f, tipR = bodyR * 1.38f;
+        juce::Path wedge;
+        wedge.startNewSubPath (c - perp * rootW);
+        wedge.lineTo (c + dir * tipR - perp * tipW);
+        wedge.quadraticTo (c + dir * (tipR + bodyR * 0.10f), c + dir * tipR + perp * tipW);
+        wedge.lineTo (c + perp * rootW);
+        wedge.closeSubPath();
+        for (int i = 0; i < 4; ++i) // sombra de la cuña, más difusa cuanto más lejos
+        {
+            g.setColour (juce::Colours::black.withAlpha (0.16f));
+            g.fillPath (wedge, juce::AffineTransform::translation (1.2f + 0.9f * static_cast<float> (i), 2.0f + 1.2f * static_cast<float> (i)));
+        }
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff4d4d54), (c - perp * rootW).x, (c - perp * rootW).y, juce::Colour (0xff0a0a0b), (c + perp * rootW).x, (c + perp * rootW).y, false));
+        g.fillPath (wedge);
+        g.setColour (juce::Colours::white.withAlpha (0.14f)); // filo iluminado
+        g.strokePath (wedge, juce::PathStrokeType (0.8f));
+
+        // Línea blanca del puntero: del centro a la punta de la cuña, más fina hacia fuera.
+        juce::Path line;
+        const float w0 = spec.big ? 1.5f : 1.2f, w1 = w0 * 0.6f;
+        line.startNewSubPath (c + dir * (bodyR * 0.10f) - perp * w0);
+        line.lineTo (c + dir * (tipR + bodyR * 0.04f) - perp * w1);
+        line.lineTo (c + dir * (tipR + bodyR * 0.04f) + perp * w1);
+        line.lineTo (c + dir * (bodyR * 0.10f) + perp * w0);
+        line.closeSubPath();
+        g.setColour (juce::Colour (0xfff4f1e8));
+        g.fillPath (line);
 
         // Rótulo (el valor lo dibuja la pastilla de VKnob).
         drawSpaced (g, spec.label, juce::Rectangle<float> (0.0f, size + 2.0f, static_cast<float> (getWidth()), spec.big ? 16.0f : 13.0f),
@@ -171,18 +194,17 @@ private:
             p.closeSubPath();
             return p.createPathWithRoundedCorners (radius * 0.12f);
         };
-        g.setColour (juce::Colours::black.withAlpha (0.5f)); // sombra
-        g.fillPath (hex (R), juce::AffineTransform::translation (1.5f, 2.5f));
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xfff2f4f6), cx - R, cy - R, juce::Colour (0xff6a6e73), cx + R, cy + R, false));
+        softShadow (g, { cx - R, cy - R, R * 2.0f, R * 2.0f }, 2.0f, 3.5f, R * 0.45f, 0.6f, true);
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffc9ccce), cx - R, cy - R, juce::Colour (0xff4f5256), cx + R, cy + R, false));
         g.fillPath (hex (R));
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff8d9297), cx - R * 0.8f, cy - R * 0.8f, juce::Colour (0xffd9dcdf), cx + R * 0.8f, cy + R * 0.8f, false));
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff6e7276), cx - R * 0.8f, cy - R * 0.8f, juce::Colour (0xffaeb2b5), cx + R * 0.8f, cy + R * 0.8f, false));
         g.fillPath (hex (R * 0.84f));
         g.setColour (juce::Colours::black.withAlpha (0.55f));
         g.strokePath (hex (R), juce::PathStrokeType (1.0f));
 
         // Agujero negro con aro.
         const float hole = R * 0.62f;
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffe9ebed), cx - hole, cy - hole, juce::Colour (0xff55595e), cx + hole, cy + hole, false));
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffb7babd), cx - hole, cy - hole, juce::Colour (0xff3d4044), cx + hole, cy + hole, false));
         g.fillEllipse (cx - hole - 1.5f, cy - hole - 1.5f, (hole + 1.5f) * 2.0f, (hole + 1.5f) * 2.0f);
         g.setColour (juce::Colour (0xff050505));
         g.fillEllipse (cx - hole, cy - hole, hole * 2.0f, hole * 2.0f);
@@ -196,15 +218,18 @@ private:
         bat.lineTo (tip + perp * w1);
         bat.lineTo (base + perp * w0);
         bat.closeSubPath();
-        g.setColour (juce::Colours::black.withAlpha (0.45f));
-        g.fillPath (bat, juce::AffineTransform::translation (2.5f, 2.5f)); // sombra sobre el panel
+        for (int i = 0; i < 4; ++i) // sombra del vástago sobre la tuerca y el panel
+        {
+            g.setColour (juce::Colours::black.withAlpha (0.14f));
+            g.fillPath (bat, juce::AffineTransform::translation (1.5f + 1.0f * static_cast<float> (i), 2.0f + 1.3f * static_cast<float> (i)));
+        }
         juce::ColourGradient chrome (juce::Colour (0xff2c2f33), (base - perp * w0).x, (base - perp * w0).y, juce::Colour (0xff2c2f33), (base + perp * w0).x, (base + perp * w0).y, false);
-        chrome.addColour (0.12, juce::Colour (0xffa9aeb3));
-        chrome.addColour (0.26, juce::Colour (0xffffffff));
-        chrome.addColour (0.42, juce::Colour (0xffc4c8cc));
-        chrome.addColour (0.62, juce::Colour (0xff6c7176));
-        chrome.addColour (0.80, juce::Colour (0xffb0b5ba));
-        chrome.addColour (0.92, juce::Colour (0xff4a4e52));
+        chrome.addColour (0.12, juce::Colour (0xff868b90));
+        chrome.addColour (0.28, juce::Colour (0xffe3e5e7)); // brillo: níquel, no espejo
+        chrome.addColour (0.44, juce::Colour (0xffa4a8ac));
+        chrome.addColour (0.64, juce::Colour (0xff5d6165));
+        chrome.addColour (0.82, juce::Colour (0xff8d9296));
+        chrome.addColour (0.93, juce::Colour (0xff3a3d40));
         g.setGradientFill (chrome);
         g.fillPath (bat);
         g.setColour (juce::Colours::black.withAlpha (0.5f));
@@ -212,7 +237,7 @@ private:
 
         // Collar cromado donde el vástago sale de la tuerca.
         const float collar = R * 0.50f;
-        g.setGradientFill (juce::ColourGradient (juce::Colours::white, cx - collar, cy - collar, juce::Colour (0xff5b5f64), cx + collar, cy + collar, false));
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffd6d8da), cx - collar, cy - collar, juce::Colour (0xff4e5256), cx + collar, cy + collar, false));
         g.fillEllipse (cx - collar, cy - collar, collar * 2.0f, collar * 2.0f);
         g.setColour (juce::Colours::black.withAlpha (0.55f));
         g.drawEllipse (cx - collar, cy - collar, collar * 2.0f, collar * 2.0f, 0.9f);
@@ -220,9 +245,9 @@ private:
         const float ball = R * 0.40f;
         g.setColour (juce::Colours::black.withAlpha (0.4f));
         g.fillEllipse (tip.x - ball + 2.0f, tip.y - ball + 2.5f, ball * 2.0f, ball * 2.0f);
-        g.setGradientFill (juce::ColourGradient (juce::Colours::white, tip.x - ball * 0.45f, tip.y - ball * 0.55f, juce::Colour (0xff50555a), tip.x + ball * 0.7f, tip.y + ball * 0.8f, true));
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffeceeef), tip.x - ball * 0.45f, tip.y - ball * 0.55f, juce::Colour (0xff3f4347), tip.x + ball * 0.7f, tip.y + ball * 0.8f, true));
         g.fillEllipse (tip.x - ball, tip.y - ball, ball * 2.0f, ball * 2.0f);
-        g.setColour (juce::Colours::white.withAlpha (0.9f));
+        g.setColour (juce::Colours::white.withAlpha (0.75f));
         g.fillEllipse (tip.x - ball * 0.55f, tip.y - ball * 0.65f, ball * 0.5f, ball * 0.32f); // punto de luz
         g.setColour (juce::Colours::black.withAlpha (0.5f));
         g.drawEllipse (tip.x - ball, tip.y - ball, ball * 2.0f, ball * 2.0f, 0.8f);
@@ -262,6 +287,7 @@ public:
             g.fillEllipse (-w * 0.4f, h * 0.4f - w * 0.9f, w * 1.8f, w * 1.8f);
         }
         const auto bulb = juce::Rectangle<float> (3.0f, 1.0f, w - 6.0f, h - 12.0f);
+        softShadow (g, bulb.withTrimmedTop (h * 0.3f), 2.0f, 3.0f, 5.0f, 0.55f, false);
         juce::Path glass;
         glass.addRoundedRectangle (bulb.getX(), bulb.getY(), bulb.getWidth(), bulb.getHeight(), bulb.getWidth() * 0.5f, bulb.getWidth() * 0.5f, true, true, false, false);
         g.setGradientFill (juce::ColourGradient (juce::Colour (0xff3a2d2e), bulb.getX(), 0.0f, juce::Colour (0xff120c0d), bulb.getRight(), 0.0f, false));
@@ -444,4 +470,128 @@ private:
     bool lit = true;
 };
 
+
+/** Vúmetro rectangular: marco gris biselado, esfera ámbar retroiluminada con viñeta, escala en arco de −20 a +3 con el tramo
+    rojo de 0 a +3, textos «VU», marca en cursiva y una aguja fina con sombra. `setValue` recibe VU (0 VU = la referencia). */
+class AmberVu : public juce::Component
+{
+public:
+    static constexpr int frame = 9;
+
+    AmberVu (juce::String caption) : label (std::move (caption)) { setInterceptsMouseClicks (false, false); }
+
+    void setValue (float vu)
+    {
+        vu = juce::jlimit (-21.0f, 3.5f, vu);
+        if (std::abs (vu - value) > 0.02f)
+        {
+            value = vu;
+            repaint();
+        }
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        const auto outer = juce::Rectangle<float> (0.0f, 0.0f, static_cast<float> (getWidth()), static_cast<float> (getHeight()) - 16.0f);
+        const auto face = outer.reduced (static_cast<float> (frame));
+
+        // Marco: cuatro trapecios con luz desde arriba a la izquierda.
+        const auto trap = [&] (juce::Point<float> a, juce::Point<float> b, juce::Point<float> c, juce::Point<float> d, juce::Colour col)
+        {
+            juce::Path p;
+            p.addQuadrilateral (a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y);
+            g.setColour (col);
+            g.fillPath (p);
+        };
+        softShadow (g, outer, 2.0f, 4.0f, 7.0f, 0.7f, false);
+        trap (outer.getTopLeft(), outer.getTopRight(), face.getTopRight(), face.getTopLeft(), juce::Colour (0xff9a9ea0));
+        trap (outer.getTopLeft(), face.getTopLeft(), face.getBottomLeft(), outer.getBottomLeft(), juce::Colour (0xff868a8c));
+        trap (outer.getTopRight(), outer.getBottomRight(), face.getBottomRight(), face.getTopRight(), juce::Colour (0xff4f5355));
+        trap (outer.getBottomLeft(), face.getBottomLeft(), face.getBottomRight(), outer.getBottomRight(), juce::Colour (0xff414547));
+        g.setColour (juce::Colours::black.withAlpha (0.6f));
+        g.drawRect (outer, 1.0f);
+        g.drawRect (face.expanded (0.5f), 1.0f);
+
+        // Esfera ámbar retroiluminada.
+        juce::Graphics::ScopedSaveState state (g);
+        g.reduceClipRegion (face.toNearestInt());
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xfffff3c4), face.getCentreX(), face.getCentreY() - face.getHeight() * 0.15f, juce::Colour (0xffd29a45), face.getX(), face.getY(), true));
+        g.fillRect (face);
+        g.setGradientFill (juce::ColourGradient (juce::Colours::black.withAlpha (0.38f), 0.0f, face.getY(), juce::Colours::transparentBlack, 0.0f, face.getY() + face.getHeight() * 0.32f, false));
+        g.fillRect (face); // sombra del marco sobre el borde superior
+
+        const float H = face.getHeight(), cx = face.getCentreX();
+        const juce::Point<float> pivot (cx, face.getY() + H * 1.50f);
+        const float R0 = H * 1.02f;
+        const auto angleFor = [] (float v)
+        {
+            static const std::pair<float, float> map[] = { { -20, 0.00f }, { -10, 0.22f }, { -7, 0.34f }, { -5, 0.44f }, { -3, 0.56f }, { -2, 0.63f },
+                                                           { -1, 0.71f }, { 0, 0.79f }, { 1, 0.87f }, { 2, 0.94f }, { 3, 1.00f } };
+            float t = 1.0f;
+            if (v <= -20.0f)
+                t = 0.0f;
+            else
+                for (size_t i = 1; i < std::size (map); ++i)
+                    if (v <= map[i].first)
+                    {
+                        t = map[i - 1].second + (map[i].second - map[i - 1].second) * (v - map[i - 1].first) / (map[i].first - map[i - 1].first);
+                        break;
+                    }
+            return juce::degreesToRadians (-37.0f + 71.0f * t);
+        };
+        const auto at = [&] (float v, float radius) { const float a = angleFor (v); return juce::Point<float> (pivot.x + radius * std::sin (a), pivot.y - radius * std::cos (a)); };
+
+        const auto ink = juce::Colour (0xff2a1c12), red = juce::Colour (0xffc8281e);
+        // Arco: negro de −20 a 0 y rojo grueso de 0 a +3.
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            juce::Path arc;
+            const float v0 = pass == 0 ? -20.0f : 0.0f, v1 = pass == 0 ? 0.0f : 3.0f;
+            for (int i = 0; i <= 40; ++i)
+            {
+                const auto p = at (v0 + (v1 - v0) * static_cast<float> (i) / 40.0f, R0);
+                i == 0 ? arc.startNewSubPath (p) : arc.lineTo (p);
+            }
+            g.setColour (pass == 0 ? ink : red);
+            g.strokePath (arc, juce::PathStrokeType (pass == 0 ? 1.0f : 2.4f));
+        }
+        static const int marks[] = { -20, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3 };
+        g.setFont (labelFont (6.8f, 0.0f).boldened());
+        for (int m : marks)
+        {
+            const bool positive = m > 0;
+            g.setColour (positive ? red : ink);
+            g.drawLine (juce::Line<float> (at (static_cast<float> (m), R0), at (static_cast<float> (m), R0 + 3.5f)), 1.0f);
+            const auto p = at (static_cast<float> (m), R0 + 8.5f);
+            g.drawText (juce::String (m), juce::Rectangle<float> (16.0f, 9.0f).withCentre (p), juce::Justification::centred, false);
+        }
+        g.setColour (red.withAlpha (0.85f));
+        g.setFont (labelFont (9.5f, 1.0f).boldened());
+        g.drawText ("VU", juce::Rectangle<float> (face.getX() + 3.0f, face.getY() + H * 0.30f, 24.0f, 11.0f), juce::Justification::centredLeft, false);
+        g.drawText ("VU", juce::Rectangle<float> (face.getRight() - 27.0f, face.getY() + H * 0.30f, 24.0f, 11.0f), juce::Justification::centredRight, false);
+        g.setColour (ink.withAlpha (0.75f));
+        g.setFont (labelFont (5.4f, 1.0f));
+        g.drawText ("NIVEL VU", juce::Rectangle<float> (face.getX(), face.getY() + 2.0f, face.getWidth(), 7.0f), juce::Justification::centred, false);
+        g.setColour (ink);
+        g.setFont (juce::Font (juce::FontOptions (11.5f, juce::Font::bold | juce::Font::italic)));
+        g.drawText ("DRA. McPOTI", juce::Rectangle<float> (face.getX(), face.getY() + H * 0.70f, face.getWidth(), 14.0f), juce::Justification::centred, false);
+
+        // Aguja fina con sombra y el brillo del cristal por encima.
+        const auto tip = at (value, R0 * 1.12f), root = at (value, R0 * 0.0f + H * 0.30f);
+        g.setColour (juce::Colours::black.withAlpha (0.22f));
+        g.drawLine (juce::Line<float> (root.translated (1.8f, 1.8f), tip.translated (1.8f, 1.8f)), 1.3f);
+        g.setColour (juce::Colour (0xff15110d));
+        g.drawLine (juce::Line<float> (root, tip), 1.1f);
+        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.22f), face.getX(), face.getY(), juce::Colours::white.withAlpha (0.0f), face.getX() + face.getWidth() * 0.55f, face.getY() + H * 0.7f, false));
+        g.fillRect (face);
+
+        g.setColour (juce::Colour (0xffece9e2));
+        g.setFont (labelFont (9.0f, 1.8f));
+        g.drawText (label, juce::Rectangle<float> (0.0f, outer.getBottom() + 2.0f, static_cast<float> (getWidth()), 12.0f), juce::Justification::centred, false);
+    }
+
+private:
+    juce::String label;
+    float value = -21.0f;
+};
 } // namespace mcpoti::ui

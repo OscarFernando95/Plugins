@@ -188,11 +188,11 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
         addKnob (std::array { k::xo1, k::xo2, k::xo3 }[static_cast<size_t> (c)], (U ("CRUCE ") + juce::String (c + 1)).toRawUTF8(), 40, false, 268 + c * 196 + 148, 236, 70, hz());
 
     // Derecha: vúmetros y los controles de lo añadido.
-    vuIn = std::make_unique<VuNeedle> (palette, "ENTRADA");
-    vuIn->setFaceBounds ({ 1076, 74, 96, 62 });
+    vuIn = std::make_unique<mcpoti::ui::AmberVu> ("ENTRADA");
+    vuIn->setBounds (1076, 66, 124, 98);
     content.addAndMakeVisible (*vuIn);
-    vuOut = std::make_unique<VuNeedle> (palette, "SALIDA");
-    vuOut->setFaceBounds ({ 1196, 74, 96, 62 });
+    vuOut = std::make_unique<mcpoti::ui::AmberVu> ("SALIDA");
+    vuOut->setBounds (1210, 66, 124, 98);
     content.addAndMakeVisible (*vuOut);
 
     const int rx = 1074;

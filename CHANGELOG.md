@@ -9,7 +9,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ## Sin publicar
 
 ### Dra. McPoti 0.9.0 (preliminar)
-- Interfaz: perillas con falda estriada (60 muescas), cúpula con brillo, puntero blanco fino y cifras de 0 a 10 grandes; palanca con vástago cromado grueso muy brillante, collar y bola pulida, según la referencia de rack clásico aportada.
+- Interfaz, según la foto de referencia aportada: perilla de puntero (cuña cónica con línea blanca, cifras 0 a 100 giradas), palanca de níquel con collar, vúmetro rectangular de marco gris biselado con esfera ámbar, y sombras suaves proyectadas en todas las piezas.
+- Interfaz (versión anterior): perillas con falda estriada (60 muescas), cúpula con brillo, puntero blanco fino y cifras de 0 a 10 grandes; palanca con vástago cromado grueso muy brillante, collar y bola pulida, según la referencia de rack clásico aportada.
 - Interfaz (disposición de la maqueta): palancas de tuerca hexagonal, selector rotativo de Voicing, válvulas de vidrio con placa y rango, cruces entre módulos, vúmetros con marco negro, Guardar y joya de encendido. Corrige dos fallos de la plantilla de modo: pisaba el 8× de un preset (tolerancia de un paso entero) y marcaba el preset como modificado al mover los cruces.
 - Interfaz: perillas con escala numérica (`ScaleKnob`) y palancas cromadas (`ChromeToggle`) en `DraMcPoti/source/ui/Widgets.h`; PDF con la captura real junto a la maqueta.
 - Interfaz, paso 1 de la fidelidad a `Dra. McPoti — maqueta.html`: `Palette::mcpoti()` en el kit (frente pizarra, orejas y bisel de acero, ámbar). **La interfaz sigue sin parecerse a la maqueta** (faltan palancas cromadas, selector rotativo, válvulas de vidrio, escala 0 a 10, vúmetros de marco negro, pantalla de presets y la disposición): se construyó solo desde la ficha, sin abrir la maqueta.

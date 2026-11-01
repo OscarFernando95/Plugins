@@ -3,3 +3,6 @@ build/
 .DS_Store
 compile_commands.json
 __pycache__/
+
+# Imágenes de referencia de terceros (solo para comparar la interfaz; no se versionan)
+DraMcPoti/referencia-*

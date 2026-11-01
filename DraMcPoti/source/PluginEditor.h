@@ -43,7 +43,7 @@ private:
     std::unique_ptr<mcpoti::ui::VoicingKnob> voicing;
     std::unique_ptr<mcpoti::ui::Jewel> jewel;
     std::unique_ptr<Harmonics> harmonics;
-    std::unique_ptr<ferb::vintage::VuNeedle> vuIn, vuOut;
+    std::unique_ptr<mcpoti::ui::AmberVu> vuIn, vuOut;
     juce::Component *guardKnob = nullptr, *widthKnob = nullptr, *airKnob = nullptr, *monoButton = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DraMcPotiEditor)
