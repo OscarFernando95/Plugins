@@ -48,6 +48,9 @@ PLUGINS = {
                  formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (enlace estéreo), sidechain externo opcional", cat="Fx|Restoration", bundle="com.ferb.maru", snapshot="Maru/MaruSnapshot"),
     "ChauS": dict(var="CHAUS", code="ChaS", theme="chaus", tagline="De-esser · EQ dinámico", kind="De-esser con EQ dinámico que sigue la sibilante",
                   formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opciones Mid y Side), sidechain externo opcional", cat="Fx|Dynamics", bundle="com.ferb.chaus", snapshot="ChauS/ChausSnapshot"),
+    "DraMcPoti": dict(var="DRAMCPOTI", code="McPo", theme="dramcpoti", display="Dra. McPoti", tagline="Excitador armónico multibanda", kind="Excitador armónico multibanda y dinámico (Vocal y Master, Vintage y Moderno)",
+                      formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (Ancho y Mono seguro solo en estéreo)", cat="Fx|Distortion", bundle="com.ferb.dramcpoti", snapshot="DraMcPoti/DraMcPotiSnapshot",
+                      estado="Edición preliminar · verificado con pruebas automáticas y validadores · sin escucha ni prueba manual en anfitriones · interfaz sin cerrar"),
     "Cremita": dict(var="CREMITA", code="Crem", theme="cremita", tagline="Inflator · sonoridad y calidez", kind="Inflator (sonoridad y calidez sin comprimir)",
                     formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opción Mid/Side)", cat="Fx|Distortion", bundle="com.ferb.cremita", snapshot="Cremita/CremitaSnapshot"),
 }
@@ -69,7 +72,8 @@ def check_readme() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     text = (ROOT / "cmake" / "Versions.cmake").read_text()
     for var, ver in re.findall(r'set\((\w+)_VERSION\s+"([^"]+)"\)', text):
-        m = re.search(rf"\*\*{var}\*\*\s*\|\s*([\d.]+)", readme, re.I)
+        shown = next((m.get("display", n) for n, m in PLUGINS.items() if m["var"] == var), var)  # el README usa el nombre que se muestra
+        m = re.search(rf"\*\*{re.escape(shown)}\*\*\s*\|\s*([\d.]+)", readme, re.I)
         if not m:
             print(f"AVISO: {var.title()} no está en la tabla del README")
         elif m.group(1) != ver:
@@ -91,6 +95,9 @@ def render_screenshots(names: list[str]) -> None:
         if not exe.exists():
             raise SystemExit(f"Falta {exe}: compila antes (cmake --build build --target {name}Snapshot)")
         out = str(DOCS / "imagenes" / f"{name.lower()}.png")
+        if name == "DraMcPoti":  # preset de voz, con unos segundos de audio de prueba para los vúmetros y la ventana de armónicos
+            subprocess.check_call([str(exe), out, "2", "Radio setentas"], env={**os.environ, "FERB_SNAPSHOT_BLOCKS": "400"})
+            continue
         if name == "Maru":  # voz sintética con pausas y ruido de fondo
             subprocess.check_call([str(exe), out, "2", "Voz de podcast"], env={**os.environ, "FERB_SNAPSHOT_BLOCKS": "500"})
         elif name == "ChauS":  # voz sintética con eses: la captura cae en medio de una «s», con un preset de voz
@@ -197,6 +204,7 @@ def number_headings(html: str) -> tuple[str, list[tuple[int, str, str, str]]]:
 
 def build(name: str, curves: dict, fecha: str) -> Path:
     meta = PLUGINS[name]
+    shown = meta.get("display", name)  # nombre que se muestra (el de la clave no lleva punto ni espacio)
     version = version_of(meta["var"])
     src = (DOCS / "fuentes" / f"{name}.md").read_text(encoding="utf-8")
 
@@ -221,7 +229,7 @@ def build(name: str, curves: dict, fecha: str) -> Path:
 <section class="cover"><div class="rail l"></div><div class="rail r"></div><div class="frame"></div>
  <div class="inner">
   <div class="brandline">By FERB · Plugins de audio</div>
-  <div class="wordmark">{name}</div>{bars}
+  <div class="wordmark">{shown}</div>{bars}
   <div class="tagline">{meta['tagline']}</div>
   <div class="shot"><img src="{shot}"></div>
   <div class="docmeta">
@@ -235,10 +243,10 @@ def build(name: str, curves: dict, fecha: str) -> Path:
   <h2 class="plain">Control del documento</h2>
   <table class="ctl">
    <tr><td>Documento</td><td>{doc_id} · Documentación del producto</td></tr>
-   <tr><td>Producto</td><td>{name} — {meta['kind']}</td></tr>
+   <tr><td>Producto</td><td>{shown} — {meta['kind']}</td></tr>
    <tr><td>Versión</td><td><b>{version}</b> (SemVer; fuente: <code>cmake/Versions.cmake</code>)</td></tr>
    <tr><td>Fecha</td><td>{fecha}</td></tr>
-   <tr><td>Estado</td><td>{ESTADO}</td></tr>
+   <tr><td>Estado</td><td>{meta.get('estado', ESTADO)}</td></tr>
    <tr><td>Formatos</td><td>{meta['formats']} · macOS 11 o superior, binario universal (arm64 y x86_64)</td></tr>
    <tr><td>Canales</td><td>{meta['channels']}</td></tr>
    <tr><td>Identificadores</td><td>Código de plugin <code>{meta['code']}</code> · fabricante <code>Ferb</code> · paquete <code>{meta['bundle']}</code> · AU <code>aufx {meta['code']} Ferb</code></td></tr>
@@ -250,13 +258,13 @@ def build(name: str, curves: dict, fecha: str) -> Path:
 </section>"""
 
     css = (DOCS / "estilo" / "ferb-doc.css").read_text(encoding="utf-8").replace("@@ROOT@@", str(ROOT))
-    css = css.replace("@@RUNNING@@", f"{name} · Documentación {version}")
-    html = f'<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>{name} — Documentación {version}</title><style>{css}</style></head><body class="{meta["theme"]}">{cover}{front}{body}</body></html>'
+    css = css.replace("@@RUNNING@@", f"{shown} · Documentación {version}")
+    html = f'<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>{shown} — Documentación {version}</title><style>{css}</style></head><body class="{meta["theme"]}">{cover}{front}{body}</body></html>'
 
     CACHE.mkdir(parents=True, exist_ok=True)
     page = CACHE / f"{name}.html"
     page.write_text(html, encoding="utf-8")
-    out = DOCS / f"{name} — Documentación.pdf"
+    out = DOCS / f"{shown} — Documentación.pdf"
     subprocess.check_call([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--generate-pdf-document-outline",
                            "--virtual-time-budget=8000", f"--print-to-pdf={out}", f"file://{page}"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

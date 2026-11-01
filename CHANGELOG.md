@@ -8,7 +8,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 
 ## Sin publicar
 
-### Dra. McPoti 0.1.0 (en desarrollo)
+### Dra. McPoti 0.9.0 (preliminar)
+- Documentación en PDF (`docs/fuentes/DraMcPoti.md`) y registro en `docs/construir.py`. `pluginval` nivel 10 y `auval` pasan (VST3 y AU). Versión 0.9.0: 1.0.0 al cerrar la interfaz y escuchar.
 - Fase 2 (parcial): `ferb::FourBandSplit` en `core/Crossover.h` (4 bandas LR4, suma plana ±0,1 dB) y `McPotiEngine` con los cuatro caracteres Vintage, dinámica por banda, Solo, Delta y Mezcla; `DraMcPotiTests`. Sobremuestreo de 1× a 8× con ADAA y latencia constante (aliasing medido: 2× −63,3 dB, no cumple la meta de −70; 4× y 8× −96,5 dB). Fundido sin clics al cambiar de factor o de Voicing. Oversampling por defecto 4× (−96,5 dB, 3,0 % de CPU). Los cuatro caracteres Modernos: Seda (shelf paralelo de +15 dB por banda), Dinámico (compander), Aire (shelf que se aplana al comprimir) y Adaptativo (Válvula guiada por el balance tonal). Color, Fase, Suavizar, Ancho y Mono seguro, guarda de sibilancia e Igualar y fase lineal (FIR de 2049 coeficientes, +1024 muestras de latencia solo con ella, 11,6 % de CPU a 4×). Plantilla por modo. Cinta con pre-énfasis (aliasing a 2×: −61,1 dB). Interfaz: válvulas que brillan, nombre del carácter, atenuación por modo y era, dos vúmetros y ventana de armónicos.
 - Fase 1: carpeta `DraMcPoti/`, 44 parámetros, 20 presets de fábrica más Init, A/B, panel provisional con el kit `ui/vintage/`, `DraMcPotiProcessorTests` y `DraMcPotiSnapshot`. El audio pasa sin procesar; el DSP llega en las fases 2 a 6. Ficha con su sección «Estado y cambios sobre la ficha».
 

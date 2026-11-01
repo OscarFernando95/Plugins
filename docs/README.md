@@ -10,6 +10,7 @@ Un PDF por plugin, con la identidad de [Identidad de documentación.md](Identida
 | Nel | 1.0.0 | [Nel — Documentación.pdf](Nel%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
 | ChauS | 1.0.0 | [ChauS — Documentación.pdf](ChauS%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
 | Maru | 1.0.0 | [Maru — Documentación.pdf](Maru%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
+| Dra. McPoti | 0.9.0 (preliminar) | [Dra. McPoti — Documentación.pdf](Dra.%20McPoti%20%E2%80%94%20Documentaci%C3%B3n.pdf) |
 
 Cada PDF reúne guía de uso, referencia de parámetros, documentación técnica (DSP, latencia, tiempo real), resultados medidos, validación, limitaciones e historial de versiones.
 

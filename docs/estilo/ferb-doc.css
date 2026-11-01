@@ -23,6 +23,7 @@
 }
 body.tufi    { --accent: #B08D4F; --accent-ink: #7E5F22; --cover-bg: #E4D6B4; --cover-ink: #2B2118; }
 body.cremita { --accent: #E08A2E; --accent-ink: #A8570E; --cover-bg: #E6DABD; --cover-ink: #2A1D14; }
+body.dramcpoti { --accent: #C9873A; --accent-ink: #8A5A1E; --cover-bg: #1F2327; --cover-ink: #EFE5CF; }
 body.maru    { --accent: #62786B; --accent-ink: #37463D; --cover-bg: #1E2822; --cover-ink: #F3ECD9; }
 body.chaus   { --accent: #FF6B5E; --accent-ink: #B8453B; --cover-bg: #17141A; --cover-ink: #EFE5CF; }
 body.nel     { --accent: #8A5CF0; --accent-ink: #6A3FD0; --cover-bg: #1C1822; --cover-ink: #EFE5CF; }
@@ -70,11 +71,15 @@ body.poty .cover .brandline { color: #9AA7B8; }
 body.poty .cover .shot { box-shadow: none; border: .3mm solid #232B36; }
 body.poty .cover .docmeta { border-top-color: #232B36; }
 body.tufi .cover .wordmark { font-family: "DM Serif Display"; }
-body.cremita .cover .wordmark, body.nel .cover .wordmark, body.chaus .cover .wordmark, body.maru .cover .wordmark { font-family: "Limelight"; }
+body.cremita .cover .wordmark, body.nel .cover .wordmark, body.chaus .cover .wordmark, body.maru .cover .wordmark, body.dramcpoti .cover .wordmark { font-family: "Limelight"; }
 body.nel .cover .rail { background: #0B0A0C; }
 body.nel .cover .rail::before, body.nel .cover .rail::after { background: #8C8478; }
 body.nel .cover .frame { border-color: #8A5CF0; }
 body.nel .cover .shot { box-shadow: 0 2mm 6mm rgba(0,0,0,.6); border: .3mm solid #3A3345; }
+body.dramcpoti .cover .rail { background: #12151A; }
+body.dramcpoti .cover .rail::before, body.dramcpoti .cover .rail::after { background: #8C8478; }
+body.dramcpoti .cover .frame { border-color: #C9873A; }
+body.dramcpoti .cover .shot { box-shadow: 0 2mm 6mm rgba(0,0,0,.6); border: .3mm solid #3A3A3F; }
 body.maru .cover .rail { background: #0E1310; }
 body.maru .cover .rail::before, body.maru .cover .rail::after { background: #8C9A8F; }
 body.maru .cover .frame { border-color: #62786B; }
