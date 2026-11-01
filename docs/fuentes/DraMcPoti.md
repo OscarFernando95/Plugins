@@ -71,7 +71,7 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 | Izquierda | Palancas de Modo (Vocal / Master) y de Era (Vintage / Moderno), selector rotativo de Voicing, Entrada, Mezcla y Salida |
 | Centro | Cuatro módulos de banda: válvula de vidrio, placa con el nombre y el rango, perilla grande de Drive, Dinámica, Nivel, ON y Solo; los tres cruces entre los módulos; la ventana de armónicos debajo |
 | Derecha | Vúmetros de entrada y salida; Sintonización, Fase, Color, Suavizar, Guarda, Ancho, Esquina de aire, Enlace y Referencia VU |
-| Pie | Oversampling (1× a 8×), palancas de Fase lineal, Delta, Igualar y Mono seguro, y los chips de tamaño (75, 100, 150 y 200 %) |
+| Pie | Oversampling (1× a 8×), palancas de Fase lineal, Delta, Igualar y Mono seguro, y los chips de tamaño (75, 100, 150 y 200 %). Todo queda dentro de las orejas de acero |
 
 Lo que no actúa en el modo o carácter actual se ve atenuado: la **Guarda** en Master; **Ancho** y **Mono seguro** en Vocal; **Esquina de aire** salvo con el carácter Aire.
 

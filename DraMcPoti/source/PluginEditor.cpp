@@ -155,14 +155,14 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     };
 
     // Izquierda: palancas de Modo y Era, selector rotativo de Voicing y los tres mandos de nivel.
-    addLever (k::mode, { "MODO", "VOCAL", "MASTER", {}, true }, 20, 66, 110, 142);
-    addLever (k::era, { "ERA", "VINTAGE", "MODERNO", {}, true }, 136, 66, 110, 142);
+    addLever (k::mode, { "MODO", "VOCAL", "MASTER", {}, true }, 56, 66, 100, 142);
+    addLever (k::era, { "ERA", "VINTAGE", "MODERNO", {}, true }, 156, 66, 100, 142);
     voicing = std::make_unique<mcpoti::ui::VoicingKnob> (param (k::voice), palette, [&p] { return juce::roundToInt (p.apvts.getRawParameterValue (k::era)->load()); }, &p.undoManager);
-    voicing->setBounds (12, 212, 236, 166);
+    voicing->setBounds (52, 212, 208, 166);
     content.addAndMakeVisible (*voicing);
-    addKnob (k::input, "ENTRADA", 56, false, 24, 390, 78, db());
-    addKnob (k::mix, "MEZCLA", 56, false, 90, 390, 78, percent());
-    addKnob (k::output, "SALIDA", 56, false, 156, 390, 78, db());
+    addKnob (k::input, "ENTRADA", 56, false, 52, 390, 78, db());
+    addKnob (k::mix, "MEZCLA", 56, false, 126, 390, 78, percent());
+    addKnob (k::output, "SALIDA", 56, false, 200, 390, 78, db());
 
     // Cuatro módulos de banda: válvula, placa con el rango, Drive, y Dinámica y Nivel.
     const char* names[] = { "CUERPO", "MEDIOS", "PRESENCIA", "AIRE" };
@@ -211,15 +211,15 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     content.addAndMakeVisible (*harmonics);
 
     // Pie.
-    seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 30, 548);
-    addLever (k::linPhase, { {}, {}, {}, "FASE LINEAL", false }, 215, 538, 150, 44);
-    addLever (k::delta, { {}, {}, {}, "DELTA", false }, 375, 538, 120, 44);
-    addLever (k::match, { {}, {}, {}, "IGUALAR", false }, 505, 538, 130, 44);
-    addLever (k::monoSafe, { {}, {}, {}, "MONO SEGURO", false }, 645, 538, 170, 44);
+    seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 58, 548);
+    addLever (k::linPhase, { {}, {}, {}, "FASE LINEAL", false }, 240, 528, 150, 70);
+    addLever (k::delta, { {}, {}, {}, "DELTA", false }, 400, 528, 120, 70);
+    addLever (k::match, { {}, {}, {}, "IGUALAR", false }, 530, 528, 130, 70);
+    addLever (k::monoSafe, { {}, {}, {}, "MONO SEGURO", false }, 670, 528, 170, 70);
     monoButton = levers.back().get();
 
     // Chips de tamaño: el redimensionado de 75 % a 200 % también se hace arrastrando la esquina de la ventana.
-    int chipX = 1130;
+    int chipX = 1098;
     for (const auto& [text, scale] : { std::pair { "75 %", 0.75 }, std::pair { "100 %", 1.0 }, std::pair { "150 %", 1.5 }, std::pair { "200 %", 2.0 } })
     {
         auto chip = std::make_unique<VButton> (palette, U (text));
