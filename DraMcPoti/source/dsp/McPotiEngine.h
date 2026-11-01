@@ -94,7 +94,7 @@ private:
     {
         ferb::FourBandSplit split;
         LinearSplit linear;
-        std::array<ferb::Biquad, nb> hpIn, hpOut, shelf;
+        std::array<ferb::Biquad, nb> hpIn, hpOut, shelf, preEmph, deEmph; // pre y de-énfasis de Cinta, a la frecuencia sobremuestreada
         std::array<float, nb> env {}, gcTarget, gcSmooth;
         std::array<ferb::UpN, nb> up;
         std::array<ferb::DownN, nb> down;

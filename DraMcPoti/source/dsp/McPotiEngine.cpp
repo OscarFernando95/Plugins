@@ -254,6 +254,9 @@ void McPotiEngine::configureFactor (int newFactor) noexcept
             c.adaa[b] = {};
             c.adaaOdd[b] = {};
             c.hpOut[b].reset();
+            // Cinta: pre-énfasis de +6 dB desde 5 kHz antes de la no linealidad y el shelf inverso después.
+            c.preEmph[b] = ferb::Biquad::highShelf (fs * factor, 5000.0, 6.0);
+            c.deEmph[b] = ferb::Biquad::highShelf (fs * factor, 5000.0, -6.0);
         }
     applyAddDelays();
     lastHp.fill (0.0f); // fuerza a rediseñar los pasa-altos de salida a la nueva frecuencia de muestreo
@@ -446,6 +449,8 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
                         c.adaa[b] = {};
                         c.adaaOdd[b] = {};
                         c.hpOut[b].reset();
+                        c.preEmph[b].reset();
+                        c.deEmph[b].reset();
                         c.shelf[b].reset();
                         c.gcSmooth[b] = 1.0f;
                     }
@@ -554,13 +559,17 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
             {
                 // Color: hacia pares (−) se desplaza el punto de trabajo (asimetría); hacia impares (+) se mezcla con la parte impar f(u) − f(−u).
                 const double v = double (hiBuffer[static_cast<size_t> (j)]);
-                double y = adaaProcess (voice, v + bias, st.vPrev, st.FPrev, st.primed);
+                const bool tape = activeVoice == 1;
+                const double drive = tape ? double (c.preEmph[b].process (static_cast<float> (v))) : v;
+                double y = adaaProcess (voice, drive + bias, st.vPrev, st.FPrev, st.primed);
                 if (oddMix > 0.0f)
                 {
                     auto& so = c.adaaOdd[b];
-                    const double neg = adaaProcess (voice, -v, so.vPrev, so.FPrev, so.primed);
+                    const double neg = adaaProcess (voice, -drive, so.vPrev, so.FPrev, so.primed);
                     y += double (oddMix) * (0.5 * (y - neg) - y);
                 }
+                if (tape)
+                    y = double (c.deEmph[b].process (static_cast<float> (y)));
                 hiBuffer[static_cast<size_t> (j)] = c.hpOut[b].process (static_cast<float> (y));
             }
             c.down[b].process (hiBuffer.data(), c.nlOut[b].data(), n);

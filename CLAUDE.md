@@ -68,7 +68,7 @@ Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 -
 Versiones: Tufi, Poty, Cremita, Nel, ChauS y Maru en 1.0.0. PDF de documentación hechos: los seis.
 
 ### Tufi — hitos 1 a 9 hechos
-Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).
+Pendiente (motor): solo el 5 % de pares y las esquinas de Aire sobre Nyquist, descartados por ahora. comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).
 
 ### Poty — hitos 1 a 11 hechos
 Pendiente: comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (estante de la cinta, `b` del tubo, `k` del germanio, escalas de intensidad).
