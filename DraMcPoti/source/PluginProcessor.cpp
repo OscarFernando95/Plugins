@@ -31,6 +31,8 @@ DraMcPotiProcessor::DraMcPotiProcessor()
         raw.solo[i] = ptr (k::bandId ("solo", b));
     }
 
+    inputRing.prepare (32768); // un editor puede abrirse antes de prepareToPlay
+    outputRing.prepare (32768);
     apvts.addParameterListener (k::linPhase, this); // la fase lineal cambia la latencia
     apvts.addParameterListener (k::mode, this);     // el modo aplica su plantilla
 
@@ -157,12 +159,33 @@ bool DraMcPotiProcessor::isBusesLayoutSupported (const BusesLayout& layouts) con
     return out == layouts.getMainInputChannelSet();
 }
 
+void DraMcPotiProcessor::pushMono (const juce::AudioBuffer<float>& buffer, ferb::SampleRing& ring) noexcept
+{
+    const int channels = buffer.getNumChannels(), total = buffer.getNumSamples();
+    if (channels == 0)
+        return;
+    for (int start = 0; start < total; start += static_cast<int> (monoScratch.size()))
+    {
+        const int n = std::min (static_cast<int> (monoScratch.size()), total - start);
+        for (int i = 0; i < n; ++i)
+        {
+            float sum = 0.0f;
+            for (int ch = 0; ch < channels; ++ch)
+                sum += buffer.getReadPointer (ch)[start + i];
+            monoScratch[static_cast<size_t> (i)] = sum / static_cast<float> (channels);
+        }
+        ring.push (monoScratch.data(), n);
+    }
+}
+
 void DraMcPotiProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
     for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
         buffer.clear (ch, 0, buffer.getNumSamples());
+    pushMono (buffer, inputRing);
     engine.process (buffer, readSettings());
+    pushMono (buffer, outputRing);
 }
 
 int DraMcPotiProcessor::getNumPrograms() { return presets->getFactoryNames().size(); }

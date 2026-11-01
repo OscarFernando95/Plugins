@@ -4,6 +4,7 @@
 
 #include <AbCompare.h>
 #include <PresetManager.h>
+#include <SampleRing.h>
 
 #include "Parameters.h"
 #include "dsp/McPotiEngine.h"
@@ -51,6 +52,10 @@ public:
         (sección 5 de la ficha); los que el usuario movió se respetan. Lo llama el hilo de mensajes tras un cambio de modo. */
     void syncModeTemplate();
 
+    /** Entrada y salida en mono (suma de canales) para la ventana de armónicos; se reservan en el constructor. */
+    const ferb::SampleRing& getInputRing() const noexcept { return inputRing; }
+    const ferb::SampleRing& getOutputRing() const noexcept { return outputRing; }
+
     mcpoti::McPotiEngine& getEngine() noexcept { return engine; }
     mcpoti::Settings readSettings() const noexcept;
 
@@ -63,6 +68,10 @@ private:
     void updateLatency();
     int lastLatency = -1;
     int lastMode = 0;
+
+    void pushMono (const juce::AudioBuffer<float>& buffer, ferb::SampleRing& ring) noexcept;
+    ferb::SampleRing inputRing, outputRing;
+    std::array<float, 512> monoScratch {};
 
     /** Punteros a los valores de los parámetros, resueltos una vez: buscar por texto en el hilo de audio reservaría memoria. */
     struct Raw

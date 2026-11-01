@@ -16,10 +16,11 @@ public:
     ~DraMcPotiEditor() override;
 
     static constexpr int baseWidth = 1400;
-    static constexpr int baseHeight = 540;
+    static constexpr int baseHeight = 600;
 
 private:
     class Tube;
+    class Harmonics;
 
     void timerCallback() override;
     ferb::vintage::VKnob& addKnob (const juce::String& id, const char* label, int size, bool big, int x, int y, int w,
@@ -36,6 +37,7 @@ private:
     std::vector<std::unique_ptr<ferb::vintage::VButton>> buttons;
     std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttonAttachments;
     std::vector<std::unique_ptr<Tube>> tubes;
+    std::unique_ptr<Harmonics> harmonics;
     std::unique_ptr<ferb::vintage::VuNeedle> vuIn, vuOut;
     juce::Label voiceName;
     juce::Component *guardKnob = nullptr, *widthKnob = nullptr, *airKnob = nullptr, *monoButton = nullptr;

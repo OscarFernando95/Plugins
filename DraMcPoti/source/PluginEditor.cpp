@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 
 #include <Format.h>
+#include <juce_dsp/juce_dsp.h>
 
 using namespace ferb::vintage;
 namespace k = mcpoti::params;
@@ -63,6 +64,93 @@ public:
 
 private:
     float glow = 0.0f;
+};
+
+/** Ventana de armónicos: espectro de la entrada (tenue) y de la salida (ámbar) con una FFT de 2048 puntos en el hilo de
+    interfaz, los cruces como cortes verticales y la Sintonización como línea punteada. */
+class DraMcPotiEditor::Harmonics : public GlassView, private juce::Timer
+{
+public:
+    Harmonics (const Palette& palette, DraMcPotiProcessor& p) : GlassView (palette), owner (p)
+    {
+        inDb.fill (floorDb);
+        outDb.fill (floorDb);
+        startTimerHz (30);
+    }
+    ~Harmonics() override { stopTimer(); }
+
+private:
+    static constexpr int order = 11, size = 1 << order;
+    static constexpr float floorDb = -90.0f;
+    static constexpr double minFreq = 40.0, maxFreq = 20000.0;
+
+    void timerCallback() override
+    {
+        const double sr = owner.getSampleRate() > 0.0 ? owner.getSampleRate() : 48000.0;
+        analyze (owner.getInputRing(), inDb, sr);
+        analyze (owner.getOutputRing(), outDb, sr);
+        repaint();
+    }
+
+    void analyze (const ferb::SampleRing& ring, std::array<float, 400>& db, double sr)
+    {
+        ring.copyLatest (samples.data(), size);
+        window.multiplyWithWindowingTable (samples.data(), size);
+        std::fill (data.begin(), data.end(), 0.0f);
+        std::copy (samples.begin(), samples.end(), data.begin());
+        fft.performFrequencyOnlyForwardTransform (data.data());
+        for (size_t x = 0; x < db.size(); ++x)
+        {
+            const double f0 = minFreq * std::pow (maxFreq / minFreq, double (x) / double (db.size())),
+                         f1 = minFreq * std::pow (maxFreq / minFreq, double (x + 1) / double (db.size()));
+            const int b0 = juce::jlimit (1, size / 2 - 1, int (f0 / sr * size)), b1 = juce::jlimit (b0, size / 2 - 1, int (f1 / sr * size));
+            float peak = 0.0f;
+            for (int b = b0; b <= b1; ++b)
+                peak = std::max (peak, data[static_cast<size_t> (b)]);
+            const float level = 20.0f * std::log10 (peak / (0.5f * size * 0.5f) + 1.0e-7f); // ventana de Hann: ganancia coherente 0,5
+            db[x] = db[x] * 0.6f + std::max (level, floorDb) * 0.4f;
+        }
+    }
+
+    float freqToX (double f, float w) const { return float (std::log (f / minFreq) / std::log (maxFreq / minFreq)) * w; }
+
+    juce::Path makePath (const std::array<float, 400>& db, float w, float h) const
+    {
+        juce::Path path;
+        for (size_t x = 0; x < db.size(); ++x)
+        {
+            const float px = w * float (x) / float (db.size() - 1), py = h * (1.0f - (db[x] - floorDb) / -floorDb);
+            x == 0 ? path.startNewSubPath (px, py) : path.lineTo (px, py);
+        }
+        return path;
+    }
+
+    void paintContent (juce::Graphics& g, float w, float h) override
+    {
+        g.fillAll (juce::Colour (0xff120d09));
+        const auto raw = [this] (const char* id) { return owner.apvts.getRawParameterValue (id)->load(); };
+        g.setColour (juce::Colours::white.withAlpha (0.08f));
+        for (double f : { 100.0, 1000.0, 10000.0 })
+            g.fillRect (freqToX (f, w), 0.0f, 1.0f, h);
+        g.setColour (juce::Colour (0xffffa030).withAlpha (0.35f)); // cortes de las bandas
+        for (const char* id : { k::xo1, k::xo2, k::xo3 })
+            g.fillRect (freqToX (raw (id), w), 0.0f, 1.0f, h);
+        const float tuneX = freqToX (raw (k::tune), w); // Sintonización, punteada
+        for (float y = 0.0f; y < h; y += 6.0f)
+            g.fillRect (tuneX, y, 1.0f, 3.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.3f));
+        g.strokePath (makePath (inDb, w, h), juce::PathStrokeType (1.0f));
+        g.setColour (juce::Colour (0xffffa030));
+        g.strokePath (makePath (outDb, w, h), juce::PathStrokeType (1.4f));
+    }
+
+    DraMcPotiProcessor& owner;
+    juce::dsp::FFT fft { order };
+    juce::dsp::WindowingFunction<float> window { static_cast<size_t> (size), juce::dsp::WindowingFunction<float>::hann };
+    std::array<float, size> samples {};
+    std::array<float, 2 * size> data {};
+    std::array<float, 400> inDb, outDb;
 };
 
 DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
@@ -143,12 +231,16 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     addKnob (k::link, "ENLACE", 50, false, rx + 90, 316, 80, percent());
 
     // Pie.
-    seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 30, 488);
-    addToggle (k::linPhase, "FASE LINEAL", 220, 488, 110);
-    addToggle (k::delta, "DELTA", 340, 488, 80);
-    addToggle (k::match, "IGUALAR", 430, 488, 90);
-    addToggle (k::monoSafe, "MONO SEGURO", 530, 488, 136);
+    seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 30, 548);
+    addToggle (k::linPhase, "FASE LINEAL", 220, 548, 110);
+    addToggle (k::delta, "DELTA", 340, 548, 80);
+    addToggle (k::match, "IGUALAR", 430, 548, 90);
+    addToggle (k::monoSafe, "MONO SEGURO", 530, 548, 136);
     monoButton = buttons.back().get();
+
+    harmonics = std::make_unique<Harmonics> (palette, p);
+    harmonics->setGlassBounds ({ 268, 492, 780, 44 });
+    content.addAndMakeVisible (*harmonics);
 
     timerCallback();
     startTimerHz (20);
