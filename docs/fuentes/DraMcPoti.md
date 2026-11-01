@@ -1,6 +1,6 @@
 # Visión general {.pb}
 
-**Dra. McPoti** es un excitador armónico multibanda y dinámico. Reúne en un solo aparato el sonido de los excitadores clásicos (un generador de armónicos que se mezcla en paralelo con la señal intacta) y lo que exige hoy el mastering: sobremuestreo, dinámica por banda, estéreo mono-compatible y compensación de sonoridad. Se ve como una unidad de rack de válvulas: placa gris pizarra con orejas de acero, perillas de puntero de baquelita negra con la escala de 0 a 100 impresa y girada alrededor, palancas de níquel con tuerca hexagonal, cuatro indicadores de válvula que brillan con lo que se añade (a media luz con Bypass) y dos vúmetros de aguja.
+**Dra. McPoti** es un excitador armónico multibanda y dinámico. Reúne en un solo aparato el sonido de los excitadores clásicos (un generador de armónicos que se mezcla en paralelo con la señal intacta) y lo que exige hoy el mastering: sobremuestreo, dinámica por banda, estéreo mono-compatible y compensación de sonoridad. Se ve como una unidad de rack de válvulas: placa gris pizarra con orejas de acero, perillas de puntero de baquelita negra con la escala de 0 a 100 impresa y girada alrededor, palancas de níquel con tuerca hexagonal, cuatro válvulas de vidrio que brillan con lo que se añade respecto de la entrada de su banda, de −30 a 0 dB (a media luz con Bypass) y dos vúmetros de aguja.
 
 Un interruptor elige el **mundo** (Vocal o Master), otro la **era** (Vintage o Moderno) y un selector de cuatro posiciones el **carácter** dentro de la era: ocho caracteres en total, disponibles en los dos modos.
 
@@ -71,7 +71,7 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 | Izquierda | Palancas de Modo (Vocal / Master) y de Era (Vintage / Moderno), selector rotativo de Voicing, Entrada, Mezcla y Salida |
 | Centro | Cuatro módulos de banda: válvula de vidrio, placa con el nombre y el rango, perilla grande de Drive, Dinámica, Nivel, ON y Solo; los tres cruces entre los módulos; la ventana de armónicos debajo |
 | Derecha | Vúmetros de entrada y salida; Sintonización, Fase, Color, Suavizar, Guarda, Ancho, Esquina de aire, Enlace y Referencia VU |
-| Pie | Oversampling (1× a 8×), palancas de Fase lineal, Delta, Igualar y Mono seguro, y los chips de tamaño (75, 100, 150 y 200 %). Todo queda dentro de las orejas de acero |
+| Pie | Lectura de latencia, oversampling (1× a 8×), palancas de Fase lineal, Delta, Igualar y Mono seguro, y los chips de tamaño (75, 100, 150 y 200 %). Todo queda dentro de las orejas de acero |
 
 Lo que no actúa en el modo o carácter actual se ve atenuado: la **Guarda** en Master; **Ancho** y **Mono seguro** en Vocal; **Esquina de aire** salvo con el carácter Aire.
 
@@ -254,14 +254,14 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 
 # Limitaciones y pendientes
 
-- **Sin escucha ni pruebas manuales.** Falta oír los caracteres, la guarda y los presets, y probarlo en Ableton, Logic y Pro Tools. Todos los coeficientes (escalas de Drive, γ = 0,5 de lo añadido, esquinas de Seda y Aire, umbrales de la guarda, plantillas de modo, objetivo tonal de Adaptativo) son valores iniciales.
+- **Escucha y anfitriones.** La revisión inicial del autor es correcta, pero falta el uso prolongado en mezclas reales y la comprobación sistemática en Ableton, Logic y Pro Tools. Todos los coeficientes (escalas de Drive, γ = 0,5 de lo añadido, esquinas de Seda y Aire, umbrales de la guarda, plantillas de modo, objetivo tonal de Adaptativo) son valores iniciales.
 - **Aliasing a 2×:** −61,1 dB en el peor caso, por debajo de la meta de −70 dB. Por eso el sobremuestreo por defecto es 4×. Un ADAA de segundo orden queda descartado (la segunda antiderivada de tanh no tiene forma cerrada).
 - **Aire:** trabaja a la frecuencia base y la esquina se acota a 0,45 × fs, así que las esquinas de 22 a 40 kHz no hacen lo que dice su rango. El 5 % de armónicos pares de la ficha original no está (a la frecuencia base crearía aliasing).
 - **Dinámico:** el umbral del compander es fijo (−20 dB); la ficha original pedía que lo fijara Drive.
 - **Guarda:** detector simplificado y sin planitud espectral; lookahead de ≈ 1 ms, no 2 ms. Sin afinar con voz real.
 - **Fase lineal:** la FIR es fija (2049 coeficientes) a cualquier frecuencia de muestreo; su transición es de ≈ 516 Hz a 192 kHz. Cambia la latencia (+1024 muestras).
-- **Interfaz: sigue la maqueta, con diferencias menores.** Coinciden la paleta pizarra con orejas de acero, la cabecera con presets, Guardar, A/B, deshacer y la joya roja de «Encendido»; las palancas cromadas de tuerca hexagonal (Modo, Era, Fase lineal, Delta, Igualar y Mono seguro); el selector rotativo de Voicing; los cuatro módulos con válvula de vidrio, placa con el nombre y el rango de frecuencias, Drive, Dinámica y Nivel, y las perillas de cruce entre ellos; las perillas de puntero con la escala de 0 a 100; los dos vúmetros rectangulares de marco gris biselado y esfera ámbar, y la ventana de armónicos. **Todavía distinto:** el logotipo usa la tipografía del kit y no la cursiva de la maqueta; la pantalla de presets no lleva el número en ámbar («01 · …») ni el botón «A→B»; la ventana de armónicos está en el centro inferior y no arriba a la derecha, y no lleva el título «ARMÓNICOS · modo · era»; los tubos de vidrio son más sencillos (sin la rejilla de la base); falta la lectura de latencia al pie; el rotulado de Drive no cambia a «Ganancia del shelf» con Seda y Aire; las válvulas miden en dB absolutos, no relativos a la entrada de la banda; y el vúmetro de salida no indica si Igualar está activo.
-- **Igualar:** integrador exponencial de 3 s; no se probó contra el criterio de 0,5 LU.
+- **Interfaz.** Sigue la maqueta aprobada (paleta pizarra con orejas de acero, cabecera con logotipo en cursiva, pantalla de presets numerada con Guardar y A→B, joya de «Encendido», palancas, selector rotativo de Voicing, válvulas de vidrio con placa y rango, cruces entre los módulos, vúmetros y ventana de armónicos arriba a la derecha, lectura de latencia al pie). **Diferencias de detalle:** el logotipo usa la serifa cursiva del sistema (Georgia) y no la tipografía exacta de la maqueta; la textura del panel y la forma de los tubos son aproximadas; y las perillas, las palancas y los vúmetros siguen la foto de referencia de un rack clásico aportada por el usuario (escala de 0 a 100, palanca de níquel, vúmetro rectangular de esfera ámbar), no los de la maqueta, que usa escala de 0 a 10.
+- **Igualar:** integrador exponencial de 3 s; no se probó contra el criterio de 0,5 LU. El vúmetro de salida enciende «IGUALADA» con la ganancia aplicada cuando Igualar compensa.
 - **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, arm64) y se instala sin firmar; **sin validar**, **sin firma PACE** y **sin probar en Pro Tools**.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.
 
@@ -269,9 +269,9 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 
 | Versión | Fecha | Cambios |
 | --- | --- | --- |
-| **0.9.0** | {{fecha}} | Edición preliminar. Motor completo: cruce LR4 y de fase lineal, ocho caracteres con ADAA y sobremuestreo de 1× a 8×, dinámica por banda, Color, Fase, Suavizar, guarda de sibilancia, Ancho y Mono seguro, Igualar, plantilla por modo; 44 parámetros, 21 presets, A/B, deshacer, vúmetros y ventana de armónicos. Interfaz aún provisional. |
+| **1.0.0** | {{fecha}} | Primera edición numerada. Cruce LR4 y de fase lineal; ocho caracteres con ADAA y sobremuestreo de 1× a 8×; dinámica por banda; Color, Fase, Suavizar; guarda de sibilancia; Ancho y Mono seguro; Igualar; plantilla por modo; 44 parámetros, 21 presets, A/B, deshacer; interfaz de rack con válvulas de vidrio, vúmetros y ventana de armónicos. |
 
-El número de versión sigue SemVer y está en `cmake/Versions.cmake`: **mayor** si algo rompe presets o sesiones (IDs de parámetros, formato de estado), **menor** para funciones nuevas compatibles y **parche** para correcciones. La versión 1.0.0 llegará al cerrar la interfaz y escuchar el plugin.
+El número de versión sigue SemVer y está en `cmake/Versions.cmake`: **mayor** si algo rompe presets o sesiones (IDs de parámetros, formato de estado), **menor** para funciones nuevas compatibles y **parche** para correcciones. 
 
 # Avisos {.ap}
 

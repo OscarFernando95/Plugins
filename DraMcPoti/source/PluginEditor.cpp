@@ -109,6 +109,11 @@ private:
         for (float y = 0.0f; y < h; y += 6.0f)
             g.fillRect (tuneX, y, 1.0f, 3.0f);
 
+        g.setColour (juce::Colour (0xffffa030).withAlpha (0.8f));
+        g.setFont (digitFont (8.5f));
+        const bool master = juce::roundToInt (raw (k::mode)) == k::Master;
+        g.drawText (juce::String::fromUTF8 ("ARMÓNICOS"), juce::Rectangle<float> (5.0f, 2.0f, 100.0f, 11.0f), juce::Justification::centredLeft, false);
+        g.drawText (juce::String (master ? "MASTER" : "VOCAL") + " · " + (juce::roundToInt (raw (k::era)) == k::Moderno ? "MODERNO" : "VINTAGE"), juce::Rectangle<float> (w - 125.0f, 2.0f, 120.0f, 11.0f), juce::Justification::centredRight, false);
         g.setColour (juce::Colours::white.withAlpha (0.3f));
         g.strokePath (makePath (inDb, w, h), juce::PathStrokeType (1.0f));
         g.setColour (juce::Colour (0xffffa030));
@@ -138,6 +143,10 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     headerSpec.width = baseWidth;
     headerSpec.height = 64;
     headerSpec.saveButton = true;
+    headerSpec.italicLogo = true;
+    headerSpec.numberedPresets = true;
+    headerSpec.copyAbButton = true;
+    headerSpec.displayWidth = 230;
     header = std::make_unique<Header> (palette, headerSpec, p.getPresets(), p.getAb(), p.undoManager, param (k::bypass));
     header->setBounds (0, 0, baseWidth, 64);
     content.addAndMakeVisible (*header);
@@ -177,7 +186,7 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
         plate->setBounds (x + 15, 160, 140, 38);
         content.addAndMakeVisible (*plate);
         plates.push_back (std::move (plate));
-        addKnob (k::bandId ("drive", b), "DRIVE", 84, true, x + 30, 204, 110, plain());
+        driveKnobs.push_back (static_cast<mcpoti::ui::ScaleKnob*> (&addKnob (k::bandId ("drive", b), "DRIVE", 84, true, x + 30, 204, 110, plain())));
         addKnob (k::bandId ("dyn", b), "DINÁMICA", 50, false, x + 4, 340, 80, signedInt());
         addKnob (k::bandId ("mix", b), "NIVEL", 50, false, x + 100, 340, 80, percent());
         addToggle (k::bandId ("on", b), "ON", x + 18, 428, 70);
@@ -196,19 +205,25 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     content.addAndMakeVisible (*vuOut);
 
     const int rx = 1074;
-    addKnob (k::tune, "SINTONIZ.", 50, false, rx, 166, 80, hz());
-    addKnob (k::phase, "FASE", 50, false, rx + 90, 166, 80, percent());
-    addKnob (k::color, "COLOR", 50, false, rx + 180, 166, 80, signedInt());
-    addKnob (k::soften, "SUAVIZAR", 50, false, rx, 264, 80, hz());
-    guardKnob = &addKnob (k::guard, "GUARDA", 50, false, rx + 90, 264, 80, percent());
-    widthKnob = &addKnob (k::width, "ANCHO", 50, false, rx + 180, 264, 80, percent());
-    airKnob = &addKnob (k::airCorner, "ESQUINA", 50, false, rx, 362, 80, hz());
-    addKnob (k::link, "ENLACE", 50, false, rx + 90, 362, 80, percent());
-    addKnob (k::vuRef, "REF. VU", 50, false, rx + 180, 362, 80, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
+    addKnob (k::tune, "SINTONIZ.", 50, false, rx, 276, 80, hz());
+    addKnob (k::phase, "FASE", 50, false, rx + 90, 276, 80, percent());
+    addKnob (k::color, "COLOR", 50, false, rx + 180, 276, 80, signedInt());
+    addKnob (k::soften, "SUAVIZAR", 50, false, rx, 366, 80, hz());
+    guardKnob = &addKnob (k::guard, "GUARDA", 50, false, rx + 90, 366, 80, percent());
+    widthKnob = &addKnob (k::width, "ANCHO", 50, false, rx + 180, 366, 80, percent());
+    airKnob = &addKnob (k::airCorner, "ESQUINA", 50, false, rx, 456, 80, hz());
+    addKnob (k::link, "ENLACE", 50, false, rx + 90, 456, 80, percent());
+    addKnob (k::vuRef, "REF. VU", 50, false, rx + 180, 456, 80, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
 
     harmonics = std::make_unique<Harmonics> (palette, p);
-    harmonics->setGlassBounds ({ 268, 486, 780, 38 });
+    harmonics->setGlassBounds ({ 1084, 184, 236, 76 }); // arriba a la derecha, bajo los vúmetros, como la maqueta
     content.addAndMakeVisible (*harmonics);
+
+    latencyLabel.setBounds (840, 560, 250, 16);
+    latencyLabel.setJustificationType (juce::Justification::centredRight);
+    latencyLabel.setFont (juce::FontOptions (11.0f));
+    latencyLabel.setColour (juce::Label::textColourId, juce::Colour (0xffb9b6ae));
+    content.addAndMakeVisible (latencyLabel);
 
     // Pie.
     seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 58, 548);
@@ -259,14 +274,28 @@ void DraMcPotiEditor::timerCallback()
     vuIn->setValue (toVu (owner.getEngine().inputVuLevel()));
     vuOut->setValue (toVu (owner.getEngine().outputVuLevel()));
 
+    // Rotulado de Drive según el carácter: en Seda y Aire es la ganancia del shelf; en Dinámico, la cantidad del compander.
+    const juce::String driveName = era == k::Moderno ? (voice == 2 || voice == 3 ? "GANANCIA" : (voice == 0 ? "CANTIDAD" : "DRIVE")) : "DRIVE";
+    for (auto* knob : driveKnobs)
+        knob->setLabel (driveName);
+
+    const int latency = owner.getLatencySamples();
+    const double rate = owner.getSampleRate() > 0.0 ? owner.getSampleRate() : 48000.0;
+    latencyLabel.setText (U ("LATENCIA ") + juce::String (latency) + U (" muestras · ") + ferb::fmt::comma (1000.0 * latency / rate, 1) + U (" ms a ") + ferb::fmt::comma (rate / 1000.0, 1) + U (" kHz"), juce::dontSendNotification);
+
+    // El vúmetro de salida indica si Igualar está compensando la sonoridad.
+    const bool matching = raw (k::match) >= 0.5f && std::abs (owner.getEngine().matchGainDb()) > 0.05f;
+    vuOut->setCaption (matching ? U ("SALIDA · IGUALADA ") + (owner.getEngine().matchGainDb() >= 0.0f ? "+" : U ("−")) + ferb::fmt::comma (std::abs (owner.getEngine().matchGainDb()), 1) + " dB" : U ("SALIDA"), matching);
+
     const bool bypassed = raw (k::bypass) >= 0.5f;
     jewel->setLit (! bypassed);
     for (size_t b = 0; b < tubes.size(); ++b)
     {
-        const float level = owner.getEngine().addedLevel (static_cast<int> (b));
-        const float db = 20.0f * std::log10 (level + 1.0e-6f);
+        // Lo añadido relativo a la entrada de esa banda, de −30 a 0 dB (como pide la ficha); sin señal, apagada.
+        const float added = owner.getEngine().addedLevel (static_cast<int> (b)), input = owner.getEngine().bandInputLevel (static_cast<int> (b));
+        const float db = input > 1.0e-5f ? 20.0f * std::log10 (added / input + 1.0e-6f) : -60.0f;
         // Con Bypass las válvulas quedan a media luz (el filamento sigue caliente, sin añadir nada).
-        tubes[b]->setGlow (bypassed ? 0.5f : juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 40.0f));
+        tubes[b]->setGlow (bypassed ? 0.5f : juce::jlimit (0.0f, 1.0f, (db + 30.0f) / 30.0f));
     }
 }
 

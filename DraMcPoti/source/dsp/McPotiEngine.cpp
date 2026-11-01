@@ -170,6 +170,7 @@ void McPotiEngine::reset() noexcept
     lastXo.fill (0.0f);
     addedPower.fill (0.0f);
     for (auto& a : added) a.store (0.0f);
+    for (auto& a : bandIn) a.store (0.0f);
     for (auto& d : driveSmooth) d.snap (0.0f);
     for (auto& l : levelSmooth) l.snap (0.0f);
     inSmooth.snap (1.0f);
@@ -669,5 +670,12 @@ void McPotiEngine::processChunk (juce::AudioBuffer<float>& buffer, int start, in
 
     for (size_t b = 0; b < nb; ++b)
         added[b].store (std::sqrt (addedPower[b]), std::memory_order_relaxed);
+    for (size_t b = 0; b < nb; ++b)
+    {
+        float power = 0.0f;
+        for (int ch = 0; ch < numCh; ++ch)
+            power += channels[static_cast<size_t> (ch)].env[b];
+        bandIn[b].store (std::sqrt (power / static_cast<float> (numCh)), std::memory_order_relaxed);
+    }
 }
 } // namespace mcpoti

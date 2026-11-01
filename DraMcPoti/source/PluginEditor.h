@@ -42,6 +42,8 @@ private:
     std::vector<std::unique_ptr<mcpoti::ui::BandPlate>> plates;
     std::unique_ptr<mcpoti::ui::VoicingKnob> voicing;
     std::unique_ptr<mcpoti::ui::Jewel> jewel;
+    std::vector<mcpoti::ui::ScaleKnob*> driveKnobs;
+    juce::Label latencyLabel;
     std::unique_ptr<Harmonics> harmonics;
     std::unique_ptr<mcpoti::ui::AmberVu> vuIn, vuOut;
     juce::Component *guardKnob = nullptr, *widthKnob = nullptr, *airKnob = nullptr, *monoButton = nullptr;

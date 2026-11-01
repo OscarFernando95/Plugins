@@ -50,7 +50,7 @@ PLUGINS = {
                   formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opciones Mid y Side), sidechain externo opcional", cat="Fx|Dynamics", bundle="com.ferb.chaus", snapshot="ChauS/ChausSnapshot"),
     "DraMcPoti": dict(var="DRAMCPOTI", code="McPo", theme="dramcpoti", display="Dra. McPoti", tagline="Excitador armónico multibanda", kind="Excitador armónico multibanda y dinámico (Vocal y Master, Vintage y Moderno)",
                       formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (Ancho y Mono seguro solo en estéreo)", cat="Fx|Distortion", bundle="com.ferb.dramcpoti", snapshot="DraMcPoti/DraMcPotiSnapshot",
-                      estado="Edición preliminar · verificado con pruebas automáticas y validadores · sin escucha ni prueba manual en anfitriones · interfaz sin cerrar"),
+                      estado="Edición 1.0.0 · verificado con pruebas automáticas y validadores · revisión inicial del autor correcta · sin pruebas sistemáticas en anfitriones ni validación del AAX"),
     "Cremita": dict(var="CREMITA", code="Crem", theme="cremita", tagline="Inflator · sonoridad y calidez", kind="Inflator (sonoridad y calidez sin comprimir)",
                     formats="VST3 · AU (AUv2, efecto)", channels="Mono y estéreo (opción Mid/Side)", cat="Fx|Distortion", bundle="com.ferb.cremita", snapshot="Cremita/CremitaSnapshot"),
 }

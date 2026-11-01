@@ -40,6 +40,9 @@ public:
         int displayWidth = 200;
         int buttonHeight = 36;
         bool saveButton = false;
+        bool italicLogo = false;      // logotipo en cursiva con serifa (Dra. McPoti)
+        bool numberedPresets = false; // «01 · NOMBRE» en mayúsculas
+        bool copyAbButton = false;    // botón «A→B»
         std::optional<juce::Colour> lineColour; // línea inferior de la cabecera (sin rack)
     };
 
@@ -59,7 +62,7 @@ private:
     AbCompare& ab;
     juce::UndoManager& undo;
 
-    VButton previous, next, undoButton, redoButton, bypassButton, saveButton;
+    VButton previous, next, undoButton, redoButton, bypassButton, saveButton, copyAbButton;
     std::unique_ptr<PresetDisplay> display;
     std::unique_ptr<AbSwitch> abSwitch;
     juce::ButtonParameterAttachment bypassAttachment;

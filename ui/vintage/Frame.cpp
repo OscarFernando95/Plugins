@@ -135,8 +135,8 @@ void Frame::paint (juce::Graphics& g)
 class Header::PresetDisplay : public PresetBar
 {
 public:
-    PresetDisplay (PresetManager& m, const Palette& p)
-        : PresetBar (m, Style {}), palette (p)
+    PresetDisplay (PresetManager& m, const Palette& p, bool numbered)
+        : PresetBar (m, Style {}), palette (p), numberedNames (numbered)
     {
     }
 
@@ -153,6 +153,14 @@ public:
         auto name = manager.getCurrentName();
         if (name.isEmpty())
             name = "Sin preset";
+        else if (numberedNames)
+        {
+            // «01 · RADIO SETENTAS»: el número es la posición entre los de fábrica; «U» para uno del usuario.
+            const int index = manager.getFactoryNames().indexOf (name);
+            name = (index >= 0 ? juce::String (index + 1).paddedLeft ('0', 2) : juce::String ("U")) + juce::String::fromUTF8 (" · ") + name.toUpperCase();
+            if (manager.isModified())
+                name += " *";
+        }
         else if (manager.isModified())
             name += " *";
         g.setColour (palette.acc);
@@ -174,6 +182,7 @@ public:
 
 private:
     Palette palette;
+    bool numberedNames = false;
 };
 
 /** Selector A/B: la ranura activa va en crema. */
@@ -228,10 +237,10 @@ Header::Header (const Palette& p, Spec s, PresetManager& presets, AbCompare& abC
     : palette (p), spec (std::move (s)), ab (abCompare), undo (undoManager),
       previous (p, "Preset anterior", VButton::Icon::previous), next (p, "Preset siguiente", VButton::Icon::next),
       undoButton (p, "Deshacer", VButton::Icon::undo), redoButton (p, "Rehacer", VButton::Icon::redo),
-      bypassButton (p, "BYPASS", VButton::Icon::none, true), saveButton (p, "GUARDAR"),
+      bypassButton (p, "BYPASS", VButton::Icon::none, true), saveButton (p, "GUARDAR"), copyAbButton (p, juce::String::fromUTF8 ("A→B")),
       bypassAttachment (bypass, bypassButton, &undoManager)
 {
-    display = std::make_unique<PresetDisplay> (presets, palette);
+    display = std::make_unique<PresetDisplay> (presets, palette, spec.numberedPresets);
     display->setTitle ("Elegir preset");
     abSwitch = std::make_unique<AbSwitch> (palette, ab);
 
@@ -246,6 +255,11 @@ Header::Header (const Palette& p, Spec s, PresetManager& presets, AbCompare& abC
         addAndMakeVisible (*c);
     if (spec.saveButton)
         addAndMakeVisible (saveButton);
+    if (spec.copyAbButton)
+    {
+        copyAbButton.onClick = [this] { ab.copyActiveToOther(); };
+        addAndMakeVisible (copyAbButton);
+    }
 }
 
 Header::~Header() = default;
@@ -262,7 +276,13 @@ void Header::resized()
         saveButton.setBounds (x, 10, 96, bh);
         x += 96 + 6;
     }
-    abSwitch->setTopLeftPosition (x, 12);         x += 64 + 8;
+    abSwitch->setTopLeftPosition (x, 12);         x += 64 + 4;
+    if (spec.copyAbButton)
+    {
+        copyAbButton.setBounds (x, 10, 58, bh);
+        x += 58 + 4;
+    }
+    x += 4;
     undoButton.setBounds (x, 10, bh - 2, bh);     x += bh - 2 + 4;
     redoButton.setBounds (x, 10, bh - 2, bh);
     bypassButton.setBounds (spec.width - (spec.rack ? 60 : 14) - 90, 10, 90, bh);
@@ -273,7 +293,7 @@ void Header::paint (juce::Graphics& g)
     const float left = spec.rack ? 62.0f : 18.0f;
 
     // Logotipo con relieve.
-    const auto logo = logoFont (spec.nameSize);
+    const auto logo = spec.italicLogo ? juce::Font (juce::FontOptions ("Georgia", spec.nameSize * 0.95f, juce::Font::bold | juce::Font::italic)) : logoFont (spec.nameSize);
     const float nameW = juce::GlyphArrangement::getStringWidth (logo, spec.name) + 2.0f;
     drawEmbossed (g, spec.name, { left, spec.rack ? 6.0f : 4.0f, nameW, spec.rack ? 40.0f : 42.0f }, logo, juce::Justification::centredLeft, palette);
 

@@ -5,7 +5,7 @@ Monorepo de plugins VST3 y AU para macOS (JUCE 8.0.15, CMake + Ninja), de uso pe
 - **Tufi** (`Tufi/`): saturador armónico analógico. Especificación: `Tufi/Tufi — ficha técnica.md`.
 - **Cremita**, **Nel**, **ChauS** y **Maru** (carpetas propias, con su ficha): Cremita, Nel, ChauS y Maru completos salvo pruebas en DAW (AAX compila pero sin validar ni firmar; el detector de ChauS y el estimador de Maru faltan por afinar con escucha). Kit de interfaz «aparato analógico» compartido en `ui/vintage/`; medidor de sonoridad BS.1770 en `core/Loudness.h` y sobremuestreador de 1× a 32× en `core/OversamplerN.h`.
 - **Poty** (`Poty/`): enhancer multibanda. Especificación: `Poty/Poty — ficha técnica.md`.
-- **Dra. McPoti** (`DraMcPoti/`): excitador armónico multibanda, preliminar (versión 0.9.0; PDF hecho; `auval` y pluginval nivel 10 pasan; motor completo: cruce LR4 y de fase lineal, ocho caracteres con ADAA y sobremuestreo de 1× a 8×, guarda, Igualar y plantilla por modo; interfaz provisional). Especificación: `DraMcPoti/Dra. McPoti — ficha técnica del excitador armónico.md`; maqueta: `DraMcPoti/Dra. McPoti — maqueta.html`.
+- **Dra. McPoti** (`DraMcPoti/`): excitador armónico multibanda y dinámico (Vocal y Master, Vintage y Moderno), versión 1.0.0. Especificación: `DraMcPoti/Dra. McPoti — ficha técnica del excitador armónico.md`; maqueta: `DraMcPoti/Dra. McPoti — maqueta.html` (la referencia visual: **abrirla y renderizarla antes de tocar la interfaz**). Motor completo, interfaz según la maqueta, `auval` y pluginval nivel 10 pasan, PDF hecho.
 - `Bosquejo de dos plugins.html`: bosquejo visual aprobado de ambas interfaces.
 
 Las fichas son la fuente de verdad: leerlas antes de tocar un plugin. **Cada ficha termina con «Estado y cambios sobre la ficha»**: varias decisiones cambiaron tras medir y esa sección manda sobre el resto del texto. Los valores marcados como «iniciales» se afinan de oído y se actualizan en la ficha.
@@ -65,7 +65,7 @@ Validación: `auval -v aufx <código> Ferb` y `pluginval --strictness-level 10 -
 
 ## Estado
 
-Versiones: Tufi, Poty, Cremita, Nel, ChauS y Maru en 1.0.0. PDF de documentación hechos: los seis.
+Versiones: Tufi, Poty, Cremita, Nel, ChauS, Maru y Dra. McPoti en 1.0.0. PDF de documentación hechos: los siete.
 
 ### Tufi — hitos 1 a 9 hechos
 Pendiente (motor): solo el 5 % de pares y las esquinas de Aire sobre Nyquist, descartados por ahora. comprobar a mano en Logic y Ableton; afinar de oído los valores iniciales (escalas de las etapas, coeficientes 0,02 y 0,4 de la forma).
@@ -79,8 +79,8 @@ Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el
 ### Maru — hitos M0 a M5 hechos
 Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y validar y firmar el AAX.
 
-### Dra. McPoti — motor completo, interfaz sin cerrar (0.9.0)
-Pendiente: detalles de la interfaz frente a la maqueta (logotipo en cursiva, número ámbar y A→B en la pantalla de presets, ventana de armónicos arriba a la derecha con título, rejilla de los tubos, lectura de latencia, rotulado de Drive con Seda y Aire), escucharlo y afinar de oído (coeficientes, umbrales de la guarda, plantillas, presets), probar en Ableton, Logic y Pro Tools, y validar y firmar el AAX. Descartado con razón: el 5 % de pares de Aire y las esquinas de Aire sobre Nyquist (ver su ficha). El oversampling por defecto es 4× (2× queda a −61,1 dB, por debajo de su meta de −70).
+### Dra. McPoti — 1.0.0
+Pendiente: uso prolongado en mezclas reales y afinar de oído (coeficientes, umbrales de la guarda, plantillas, presets), probarlo sistemáticamente en Ableton, Logic y Pro Tools, y validar y firmar el AAX (no se hará en esta etapa). Descartado con razón: el 5 % de pares de Aire y las esquinas de Aire sobre Nyquist. El oversampling por defecto es 4× (2× queda a −61,1 dB, por debajo de su meta de −70). La fase lineal es la única opción que cambia la latencia.
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.

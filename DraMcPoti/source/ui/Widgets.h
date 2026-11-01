@@ -36,6 +36,15 @@ public:
         attachment.sendInitialUpdate();
     }
 
+    void setLabel (const juce::String& text)
+    {
+        if (text != spec.label)
+        {
+            spec.label = text;
+            repaint();
+        }
+    }
+
     void paint (juce::Graphics& g) override
     {
         const float size = static_cast<float> (spec.size), cx = static_cast<float> (getWidth()) * 0.5f, cy = size * 0.5f;
@@ -304,6 +313,12 @@ public:
         g.fillRoundedRectangle (bulb.getX() + 3.0f, bulb.getY() + 6.0f, 3.0f, bulb.getHeight() * 0.62f, 1.5f);
         g.setColour (juce::Colours::black.withAlpha (0.6f));
         g.strokePath (glass, juce::PathStrokeType (1.0f));
+        // Casquete de la base con rejilla (costillas verticales).
+        g.setColour (juce::Colour (0xff17181a));
+        g.fillRoundedRectangle (3.0f, h - 17.0f, w - 6.0f, 6.0f, 1.5f);
+        g.setColour (juce::Colour (0xff6d7176));
+        for (float x = 6.0f; x < w - 5.0f; x += 3.0f)
+            g.fillRect (x, h - 16.0f, 1.0f, 4.0f);
         // Zócalo plateado y patillas.
         g.setGradientFill (juce::ColourGradient (juce::Colour (0xfff0f1f2), 0.0f, h - 12.0f, juce::Colour (0xff6a6e73), 0.0f, h - 5.0f, false));
         g.fillRoundedRectangle (2.0f, h - 12.0f, w - 4.0f, 7.0f, 1.5f);
@@ -480,6 +495,17 @@ public:
 
     AmberVu (juce::String caption) : label (std::move (caption)) { setInterceptsMouseClicks (false, false); }
 
+    /** El rótulo se enciende en ámbar cuando `active` (p. ej. el vúmetro de salida con Igualar activo). */
+    void setCaption (const juce::String& text, bool active)
+    {
+        if (text != label || active != lit)
+        {
+            label = text;
+            lit = active;
+            repaint();
+        }
+    }
+
     void setValue (float vu)
     {
         vu = juce::jlimit (-21.0f, 3.5f, vu);
@@ -585,7 +611,7 @@ public:
         g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.22f), face.getX(), face.getY(), juce::Colours::white.withAlpha (0.0f), face.getX() + face.getWidth() * 0.55f, face.getY() + H * 0.7f, false));
         g.fillRect (face);
 
-        g.setColour (juce::Colour (0xffece9e2));
+        g.setColour (lit ? juce::Colour (0xffffb13b) : juce::Colour (0xffece9e2));
         g.setFont (labelFont (9.0f, 1.8f));
         g.drawText (label, juce::Rectangle<float> (0.0f, outer.getBottom() + 2.0f, static_cast<float> (getWidth()), 12.0f), juce::Justification::centred, false);
     }
@@ -593,5 +619,6 @@ public:
 private:
     juce::String label;
     float value = -21.0f;
+    bool lit = false;
 };
 } // namespace mcpoti::ui

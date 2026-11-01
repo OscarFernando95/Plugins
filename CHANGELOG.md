@@ -8,23 +8,32 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 
 ## Sin publicar
 
-### Dra. McPoti 0.9.0 (preliminar)
-- Interfaz: ningún control invade las orejas de acero (chips de tamaño y controles de la izquierda reubicados) y las palancas del pie ya no recortan el vástago cuando suben.
-- Interfaz, según la foto de referencia aportada: perilla de puntero (cuña cónica con línea blanca, cifras 0 a 100 giradas), palanca de níquel con collar, vúmetro rectangular de marco gris biselado con esfera ámbar, y sombras suaves proyectadas en todas las piezas.
-- Interfaz (versión anterior): perillas con falda estriada (60 muescas), cúpula con brillo, puntero blanco fino y cifras de 0 a 10 grandes; palanca con vástago cromado grueso muy brillante, collar y bola pulida, según la referencia de rack clásico aportada.
-- Interfaz (disposición de la maqueta): palancas de tuerca hexagonal, selector rotativo de Voicing, válvulas de vidrio con placa y rango, cruces entre módulos, vúmetros con marco negro, Guardar y joya de encendido. Corrige dos fallos de la plantilla de modo: pisaba el 8× de un preset (tolerancia de un paso entero) y marcaba el preset como modificado al mover los cruces.
-- Interfaz: perillas con escala numérica (`ScaleKnob`) y palancas cromadas (`ChromeToggle`) en `DraMcPoti/source/ui/Widgets.h`; PDF con la captura real junto a la maqueta.
-- Interfaz, paso 1 de la fidelidad a `Dra. McPoti — maqueta.html`: `Palette::mcpoti()` en el kit (frente pizarra, orejas y bisel de acero, ámbar). **La interfaz sigue sin parecerse a la maqueta** (faltan palancas cromadas, selector rotativo, válvulas de vidrio, escala 0 a 10, vúmetros de marco negro, pantalla de presets y la disposición): se construyó solo desde la ficha, sin abrir la maqueta.
-- Documentación en PDF (`docs/fuentes/DraMcPoti.md`) y registro en `docs/construir.py`. `pluginval` nivel 10 y `auval` pasan (VST3 y AU). Versión 0.9.0: 1.0.0 al cerrar la interfaz y escuchar.
-- Fase 2 (parcial): `ferb::FourBandSplit` en `core/Crossover.h` (4 bandas LR4, suma plana ±0,1 dB) y `McPotiEngine` con los cuatro caracteres Vintage, dinámica por banda, Solo, Delta y Mezcla; `DraMcPotiTests`. Sobremuestreo de 1× a 8× con ADAA y latencia constante (aliasing medido: 2× −63,3 dB, no cumple la meta de −70; 4× y 8× −96,5 dB). Fundido sin clics al cambiar de factor o de Voicing. Oversampling por defecto 4× (−96,5 dB, 3,0 % de CPU). Los cuatro caracteres Modernos: Seda (shelf paralelo de +15 dB por banda), Dinámico (compander), Aire (shelf que se aplana al comprimir) y Adaptativo (Válvula guiada por el balance tonal). Color, Fase, Suavizar, Ancho y Mono seguro, guarda de sibilancia e Igualar y fase lineal (FIR de 2049 coeficientes, +1024 muestras de latencia solo con ella, 11,6 % de CPU a 4×). Plantilla por modo. Cinta con pre-énfasis (aliasing a 2×: −61,1 dB). Interfaz: válvulas que brillan, nombre del carácter, atenuación por modo y era, dos vúmetros y ventana de armónicos.
-- Fase 1: carpeta `DraMcPoti/`, 44 parámetros, 20 presets de fábrica más Init, A/B, panel provisional con el kit `ui/vintage/`, `DraMcPotiProcessorTests` y `DraMcPotiSnapshot`. El audio pasa sin procesar; el DSP llega en las fases 2 a 6. Ficha con su sección «Estado y cambios sobre la ficha».
 
-### Repositorio
-- AAX: los seis plugins compilan con el SDK de AAX 2.8.0 (arm64). Sin firma PACE, sin AAX Validator y sin probar en Pro Tools.
-- Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.
-- README del repositorio y este historial.
-- Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
-- Documentación en PDF de Tufi, Poty, Cremita, Nel, ChauS y Maru (`docs/`), con identidad propia y generador (`docs/construir.py`).
+## Dra. McPoti 1.0.0 — 2026-10-31
+
+Excitador armónico multibanda y dinámico (VST3 y AU). Primera edición numerada.
+
+- Motor completo: cruce LR4 y de fase lineal (FIR de 2049 coeficientes, +1024 muestras de latencia solo con ella), ocho caracteres con ADAA y sobremuestreo de 1× a 8× (4× por defecto), dinámica por banda, Color, Fase, Suavizar, guarda de sibilancia, Ancho y Mono seguro, Igualar y plantilla por modo.
+- Interfaz según la maqueta y la foto de referencia: palancas de níquel, perillas de puntero con cifras de 0 a 100, selector rotativo, válvulas de vidrio relativas a la entrada de su banda, vúmetros ámbar (el de salida indica Igualar), ventana de armónicos arriba a la derecha, logotipo en cursiva, presets numerados con Guardar y A→B, y lectura de latencia. El kit gana tres opciones desactivadas por defecto en `Header::Spec` (`italicLogo`, `numberedPresets`, `copyAbButton`) y `Palette::mcpoti()`.
+- Validación: `auval` y pluginval nivel 10 (VST3 y AU), 16 de 16 pruebas del repositorio.
+- Descartado con razón: 5 % de pares de Aire y esquinas de Aire sobre Nyquist. Aliasing a 2×: −61,1 dB (meta −70); por eso 4× por defecto.
+- Detalle del desarrollo:
+  - Interfaz: ningún control invade las orejas de acero (chips de tamaño y controles de la izquierda reubicados) y las palancas del pie ya no recortan el vástago cuando suben.
+  - Interfaz, según la foto de referencia aportada: perilla de puntero (cuña cónica con línea blanca, cifras 0 a 100 giradas), palanca de níquel con collar, vúmetro rectangular de marco gris biselado con esfera ámbar, y sombras suaves proyectadas en todas las piezas.
+  - Interfaz (versión anterior): perillas con falda estriada (60 muescas), cúpula con brillo, puntero blanco fino y cifras de 0 a 10 grandes; palanca con vástago cromado grueso muy brillante, collar y bola pulida, según la referencia de rack clásico aportada.
+  - Interfaz (disposición de la maqueta): palancas de tuerca hexagonal, selector rotativo de Voicing, válvulas de vidrio con placa y rango, cruces entre módulos, vúmetros con marco negro, Guardar y joya de encendido. Corrige dos fallos de la plantilla de modo: pisaba el 8× de un preset (tolerancia de un paso entero) y marcaba el preset como modificado al mover los cruces.
+  - Interfaz: perillas con escala numérica (`ScaleKnob`) y palancas cromadas (`ChromeToggle`) en `DraMcPoti/source/ui/Widgets.h`; PDF con la captura real junto a la maqueta.
+  - Interfaz, paso 1 de la fidelidad a `Dra. McPoti — maqueta.html`: `Palette::mcpoti()` en el kit (frente pizarra, orejas y bisel de acero, ámbar). **La interfaz sigue sin parecerse a la maqueta** (faltan palancas cromadas, selector rotativo, válvulas de vidrio, escala 0 a 10, vúmetros de marco negro, pantalla de presets y la disposición): se construyó solo desde la ficha, sin abrir la maqueta.
+  - Documentación en PDF (`docs/fuentes/DraMcPoti.md`) y registro en `docs/construir.py`. `pluginval` nivel 10 y `auval` pasan (VST3 y AU). Versión 0.9.0: 1.0.0 al cerrar la interfaz y escuchar.
+  - Fase 2 (parcial): `ferb::FourBandSplit` en `core/Crossover.h` (4 bandas LR4, suma plana ±0,1 dB) y `McPotiEngine` con los cuatro caracteres Vintage, dinámica por banda, Solo, Delta y Mezcla; `DraMcPotiTests`. Sobremuestreo de 1× a 8× con ADAA y latencia constante (aliasing medido: 2× −63,3 dB, no cumple la meta de −70; 4× y 8× −96,5 dB). Fundido sin clics al cambiar de factor o de Voicing. Oversampling por defecto 4× (−96,5 dB, 3,0 % de CPU). Los cuatro caracteres Modernos: Seda (shelf paralelo de +15 dB por banda), Dinámico (compander), Aire (shelf que se aplana al comprimir) y Adaptativo (Válvula guiada por el balance tonal). Color, Fase, Suavizar, Ancho y Mono seguro, guarda de sibilancia e Igualar y fase lineal (FIR de 2049 coeficientes, +1024 muestras de latencia solo con ella, 11,6 % de CPU a 4×). Plantilla por modo. Cinta con pre-énfasis (aliasing a 2×: −61,1 dB). Interfaz: válvulas que brillan, nombre del carácter, atenuación por modo y era, dos vúmetros y ventana de armónicos.
+  - Fase 1: carpeta `DraMcPoti/`, 44 parámetros, 20 presets de fábrica más Init, A/B, panel provisional con el kit `ui/vintage/`, `DraMcPotiProcessorTests` y `DraMcPotiSnapshot`. El audio pasa sin procesar; el DSP llega en las fases 2 a 6. Ficha con su sección «Estado y cambios sobre la ficha».
+
+  ### Repositorio
+  - AAX: los seis plugins compilan con el SDK de AAX 2.8.0 (arm64). Sin firma PACE, sin AAX Validator y sin probar en Pro Tools.
+  - Kit de interfaz: `VButton` con lámpara dibuja el texto en el color de la tinta (antes salía negro al 50 %, también en «BYPASS»); `GlassView` admite un bisel fino opcional.
+  - README del repositorio y este historial.
+  - Versión de cada plugin en `cmake/Versions.cmake` (todos en 1.0.0), propagada al paquete.
+  - Documentación en PDF de Tufi, Poty, Cremita, Nel, ChauS y Maru (`docs/`), con identidad propia y generador (`docs/construir.py`).
 
 ## Maru 1.0.0 — 2026-10-31
 

@@ -64,6 +64,8 @@ public:
     void reset() noexcept;
     void process (juce::AudioBuffer<float>& buffer, const Settings& s) noexcept;
 
+    /** Nivel de la señal de entrada de cada banda (RMS suavizado, lineal): las válvulas miden lo añadido relativo a él. */
+    float bandInputLevel (int band) const noexcept { return bandIn[static_cast<size_t> (band)].load (std::memory_order_relaxed); }
     /** Nivel añadido por banda (RMS suavizado, lineal), para las válvulas de la interfaz. */
     /** Ganancia que aplica Igualar, en dB (para la interfaz). */
     /** Nivel lineal de entrada y de salida con balística de VU (65 ms), para los vúmetros. */
@@ -124,7 +126,7 @@ private:
     std::array<Smoother, nb> driveSmooth, levelSmooth;
     Smoother inSmooth, outSmooth, mixSmooth, gate;
     std::array<float, nb> addedPower {};
-    std::array<std::atomic<float>, nb> added {};
+    std::array<std::atomic<float>, nb> added {}, bandIn {};
     float envAttack = 0.0f, envRelease = 0.0f;
     bool primed = false, snapControl = true;
     bool linearActive = false, firPending = false;
