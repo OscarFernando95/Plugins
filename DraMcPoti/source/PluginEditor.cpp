@@ -238,6 +238,18 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     addToggle (k::monoSafe, "MONO SEGURO", 530, 548, 136);
     monoButton = buttons.back().get();
 
+    // Chips de tamaño: el redimensionado de 75 % a 200 % también se hace arrastrando la esquina de la ventana.
+    int chipX = 1130;
+    for (const auto& [text, scale] : { std::pair { "75 %", 0.75 }, std::pair { "100 %", 1.0 }, std::pair { "150 %", 1.5 }, std::pair { "200 %", 2.0 } })
+    {
+        auto chip = std::make_unique<VButton> (palette, U (text));
+        chip->setBounds (chipX, 548, 56, 30);
+        chip->onClick = [this, scale = scale] { setSize (juce::roundToInt (baseWidth * scale), juce::roundToInt (baseHeight * scale)); };
+        content.addAndMakeVisible (*chip);
+        buttons.push_back (std::move (chip));
+        chipX += 62;
+    }
+
     harmonics = std::make_unique<Harmonics> (palette, p);
     harmonics->setGlassBounds ({ 268, 492, 780, 44 });
     content.addAndMakeVisible (*harmonics);
@@ -268,11 +280,13 @@ void DraMcPotiEditor::timerCallback()
     vuIn->setValue (toVu (owner.getEngine().inputVuLevel()));
     vuOut->setValue (toVu (owner.getEngine().outputVuLevel()));
 
+    const bool bypassed = raw (k::bypass) >= 0.5f;
     for (size_t b = 0; b < tubes.size(); ++b)
     {
         const float level = owner.getEngine().addedLevel (static_cast<int> (b));
         const float db = 20.0f * std::log10 (level + 1.0e-6f);
-        tubes[b]->setGlow (juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 40.0f));
+        // Con Bypass las válvulas quedan a media luz (el filamento sigue caliente, sin añadir nada).
+        tubes[b]->setGlow (bypassed ? 0.5f : juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 40.0f));
     }
 }
 

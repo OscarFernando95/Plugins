@@ -1,6 +1,6 @@
 # Visión general {.pb}
 
-**Dra. McPoti** es un excitador armónico multibanda y dinámico. Reúne en un solo aparato el sonido de los excitadores clásicos (un generador de armónicos que se mezcla en paralelo con la señal intacta) y lo que exige hoy el mastering: sobremuestreo, dinámica por banda, estéreo mono-compatible y compensación de sonoridad. Se ve como una unidad de rack de válvulas: placa crema, perillas de baquelita, cuatro válvulas que brillan con lo que se añade y dos vúmetros de aguja.
+**Dra. McPoti** es un excitador armónico multibanda y dinámico. Reúne en un solo aparato el sonido de los excitadores clásicos (un generador de armónicos que se mezcla en paralelo con la señal intacta) y lo que exige hoy el mastering: sobremuestreo, dinámica por banda, estéreo mono-compatible y compensación de sonoridad. Se ve como una unidad de rack de válvulas: placa crema, perillas de baquelita, cuatro válvulas que brillan con lo que se añade (a media luz con Bypass) y dos vúmetros de aguja.
 
 Un interruptor elige el **mundo** (Vocal o Master), otro la **era** (Vintage o Moderno) y un selector de cuatro posiciones el **carácter** dentro de la era: ocho caracteres en total, disponibles en los dos modos.
 
@@ -69,7 +69,7 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 | Izquierda | Modo, Era, selector de carácter, Entrada, Mezcla y Salida; vúmetros de entrada y salida con su Referencia VU |
 | Centro | Cuatro módulos de banda: válvula, perilla grande de Drive, Dinámica, Nivel, ON y Solo; los tres cruces y la ventana de armónicos |
 | Derecha | Sintonización, Fase, Color, Suavizar, Guarda, Ancho, Esquina de aire y Enlace |
-| Pie | Oversampling (1× a 8×), Fase lineal, Delta, Igualar y Mono seguro |
+| Pie | Oversampling (1× a 8×), Fase lineal, Delta, Igualar, Mono seguro y los chips de tamaño (75, 100, 150 y 200 %) |
 
 Lo que no actúa en el modo o carácter actual se ve atenuado: la **Guarda** en Master; **Ancho** y **Mono seguro** en Vocal; **Esquina de aire** salvo con el carácter Aire.
 
@@ -258,7 +258,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 - **Dinámico:** el umbral del compander es fijo (−20 dB); la ficha original pedía que lo fijara Drive.
 - **Guarda:** detector simplificado y sin planitud espectral; lookahead de ≈ 1 ms, no 2 ms. Sin afinar con voz real.
 - **Fase lineal:** la FIR es fija (2049 coeficientes) a cualquier frecuencia de muestreo; su transición es de ≈ 516 Hz a 192 kHz. Cambia la latencia (+1024 muestras).
-- **Interfaz sin cerrar:** usa la paleta de Cremita; faltan el selector de pala, el marco y el rotulado de la maqueta, las perillas de cruce entre los módulos, los chips de tamaño y las válvulas a media luz con Bypass. La etiqueta de Drive no cambia a «Ganancia del shelf» con Seda y Aire. Las válvulas miden en dB absolutos, no relativos a la entrada de la banda. El vúmetro de salida no indica si Igualar está activo.
+- **Interfaz sin cerrar:** usa la paleta de Cremita; faltan el selector de pala, el marco y el rotulado de la maqueta y las perillas de cruce entre los módulos (hoy están bajo ellos). La etiqueta de Drive no cambia a «Ganancia del shelf» con Seda y Aire. Las válvulas miden en dB absolutos, no relativos a la entrada de la banda. El vúmetro de salida no indica si Igualar está activo.
 - **Igualar:** integrador exponencial de 3 s; no se probó contra el criterio de 0,5 LU.
 - **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, arm64) y se instala sin firmar; **sin validar**, **sin firma PACE** y **sin probar en Pro Tools**.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.
