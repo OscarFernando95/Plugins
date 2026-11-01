@@ -28,7 +28,7 @@ private:
     void addToggle (const juce::String& id, const char* text, int x, int y, int w);
 
     DraMcPotiProcessor& owner;
-    ferb::vintage::Palette palette = ferb::vintage::Palette::cremita();
+    ferb::vintage::Palette palette = ferb::vintage::Palette::mcpoti();
 
     std::unique_ptr<ferb::vintage::Frame> frame;
     std::unique_ptr<ferb::vintage::Header> header;

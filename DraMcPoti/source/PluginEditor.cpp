@@ -158,7 +158,7 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
 {
     auto param = [&p] (const juce::String& id) -> juce::RangedAudioParameter& { return *dynamic_cast<juce::RangedAudioParameter*> (p.apvts.getParameter (id)); };
 
-    frame = std::make_unique<Frame> (palette, true, 18);
+    frame = std::make_unique<Frame> (palette, true, 44); // orejas de acero con ranuras, como la maqueta
     frame->setBounds (0, 0, baseWidth, baseHeight);
     content.addAndMakeVisible (*frame);
 

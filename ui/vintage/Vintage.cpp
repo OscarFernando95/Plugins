@@ -64,6 +64,23 @@ Palette Palette::nel()
     return p;
 }
 
+Palette Palette::mcpoti()
+{
+    // Colores de la maqueta «Dra. McPoti.html»: --wine #2b2d30 / #1f2023 / #111214, --cream #ece9e2, --brass #b9bdc2 (acero), --amber #ffb13b.
+    Palette p;
+    p.panelHi = juce::Colour (0xff4a4d52); p.panel = juce::Colour (0xff2b2d30); p.panelLo = juce::Colour (0xff1f2023);
+    p.ink = juce::Colour (0xffece9e2); p.ink2 = juce::Colour (0xffb9b6ae);
+    p.acc = juce::Colour (0xffffb13b); p.acc2 = juce::Colour (0xffff7a1a);
+    p.glass = juce::Colour (0xff120d09);
+    p.btnA = juce::Colour (0xff1b1c1e); p.btnB = juce::Colour (0xff0b0b0c); p.btnInk = juce::Colour (0xffece9e2); p.edge = juce::Colour (0xff000000);
+    p.rule = juce::Colour (0xffd8372d); p.lamp = juce::Colour (0xffffb13b); p.emboss = juce::Colour (0xff000000).withAlpha (0.55f);
+    p.earA = juce::Colour (0xffe4e6e8); p.earB = juce::Colour (0xff9aa0a6); p.earC = juce::Colour (0xff6d7176);
+    p.bezel = juce::Colour (0xffb9bdc2); p.bezelDark = juce::Colour (0xff6d7176);
+    p.woodEars = false;
+    p.darkKnobs = true; // perillas de baquelita negra
+    return p;
+}
+
 namespace
 {
 juce::Typeface::Ptr load (const char* data, int size)

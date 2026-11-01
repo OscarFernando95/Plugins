@@ -27,6 +27,7 @@ struct Palette
     static Palette maru();
     static Palette chaus();
     static Palette nel();
+    static Palette mcpoti(); // Dra. McPoti: frente gris pizarra, orejas y bisel de acero, ámbar de válvulas
 };
 
 // Tipografías incrustadas: Limelight (logotipo), Josefin Sans (rótulos) y Oxanium (cifras).
