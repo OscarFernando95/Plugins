@@ -324,7 +324,7 @@ var KN={
  ceiling:{label:'TECHO',min:-30,max:0,def:-1,size:96,big:true,ends:['−30','0'],fmt:function(v){return fmtN(v,1)+' dBTP'},dec:1,x:132,y:8,w:112},
  character:{label:'CARÁCTER',min:0,max:100,def:0,size:76,ends:['0','100'],fmt:function(v){return Math.round(v)+' %'},dec:0,x:738,y:28,w:96},
  lookahead:{label:'LOOKAHEAD',min:0,max:5,def:function(){return MODES[S.mode].la},size:48,fmt:function(v){return fmtN(v,1)+' ms'},dec:1,x:262,y:84,w:76,adv:true},
- attack:{label:'ATAQUE',min:0.1,max:50,log:true,def:function(){return MODES[S.mode].at},size:48,fmt:function(v){return fmtN(v,v<10?1:0)+' ms'},dec:1,x:338,y:84,w:76,adv:true},
+ attack:{label:'ATAQUE',min:0.1,max:500,log:true,def:function(){return MODES[S.mode].at},size:48,fmt:function(v){return fmtN(v,v<10?1:0)+' ms'},dec:1,x:338,y:84,w:76,adv:true},
  release:{label:'RELEASE',min:10,max:2000,log:true,def:function(){return MODES[S.mode].re},size:48,fmt:function(v){return Math.round(v)+' ms'},dec:0,x:414,y:84,w:76,adv:true},
  knee:{label:'KNEE',min:0,max:12,def:function(){return MODES[S.mode].kn},size:48,fmt:function(v){return fmtN(v,1)+' dB'},dec:1,x:490,y:84,w:76,adv:true},
  linkT:{label:'ENL. TRANS.',min:0,max:100,def:75,size:48,fmt:function(v){return Math.round(v)+' %'},dec:0,x:566,y:84,w:76},

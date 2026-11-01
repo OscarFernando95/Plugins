@@ -7,7 +7,7 @@
 set(TUFI_VERSION   "1.0.0")
 set(POTY_VERSION   "1.0.0")
 set(CREMITA_VERSION "1.0.0")
-set(NEL_VERSION    "1.0.0")
+set(NEL_VERSION    "1.1.0")
 set(MARU_VERSION   "1.0.0")
 set(CHAUS_VERSION  "1.0.0")
 set(DRAMCPOTI_VERSION "0.9.0") # preliminar: motor y validadores completos; falta cerrar la interfaz y escuchar. 1.0.0 al cerrarlos

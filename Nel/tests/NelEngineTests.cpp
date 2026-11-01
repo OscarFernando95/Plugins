@@ -435,7 +435,7 @@ TEST_CASE ("Robustez: silencio, continua, NaN, infinitos y subnormales; tasas y 
                 s.mode = rng.nextInt (8);
                 s.characterPercent = rng.nextFloat() * 100.0f;
                 s.lookaheadMs = rng.nextFloat() * 5.0f;
-                s.attackMs = 0.1f + rng.nextFloat() * 50.0f;
+                s.attackMs = 0.1f + rng.nextFloat() * 499.9f;
                 s.releaseMs = 10.0f + rng.nextFloat() * 1990.0f;
                 s.releaseAuto = rng.nextBool();
                 s.kneeDb = rng.nextFloat() * 12.0f;

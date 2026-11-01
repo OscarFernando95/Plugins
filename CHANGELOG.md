@@ -71,6 +71,10 @@ Saturador armónico analógico (VST3 y AU). Reúne los hitos 1 a 9 (28 oct 2026)
 - Sin clics y sin reservas de memoria en `processBlock`.
 - Validación: `auval` y `pluginval` nivel 10 (VST3 y AU).
 
+## Nel 1.1.0
+
+- El Ataque amplía su rango de 0,1–50 ms a 0,1–500 ms (escala logarítmica). Los valores guardados en sesiones y presets no cambian; la automatización grabada en el anfitrión sí se reescala, porque guarda el valor normalizado. Ficha, PDF y maqueta actualizados.
+
 ## Nel 1.0.0
 
 Limitador (VST3 y AU), con motor, sobremuestreador de 1× a 32×, parámetros, presets, A/B, interfaz vintage y validación (`pluginval` nivel 10). Versión 1.0.0 asignada; documentado en PDF; falta la prueba en los anfitriones.

@@ -81,7 +81,7 @@ Todos pasan por `AudioProcessorValueTreeState` con `ParameterID{id, 1}`. Son 21 
 | ID | Nombre en la interfaz | Tipo | Rango | Defecto | Notas |
 | --- | --- | --- | --- | --- | --- |
 | `lookahead` | Lookahead | Float | 0 a 5 ms | Según el modo | Por debajo de 0,1 ms se comporta casi como un recorte duro |
-| `attack` | Ataque | Float | 0,1 a 50 ms | Según el modo | Ataque de la etapa de cuerpo |
+| `attack` | Ataque | Float | 0,1 a 500 ms | Según el modo | Ataque de la etapa de cuerpo |
 | `release` | Release | Float | 10 a 2000 ms | Según el modo | Constante lenta; la rápida es la lenta dividida entre 12 |
 | `releaseAuto` | Release automático | Bool | apagado o encendido | Encendido | Release que depende del programa |
 | `knee` | Knee | Float | 0 a 12 dB | Según el modo | Codo de la etapa de cuerpo |

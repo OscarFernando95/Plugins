@@ -49,7 +49,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     layout.add (std::make_unique<Float> (pid (character), juce::String::fromUTF8 ("Carácter"), Range (0.0f, 100.0f, 1.0f), 0.0f, attrs ("%", 0)));
 
     layout.add (std::make_unique<Float> (pid (lookahead), "Lookahead", Range (0.0f, 5.0f, 0.1f), moderno.lookaheadMs, attrs ("ms", 1)));
-    layout.add (std::make_unique<Float> (pid (attack), "Ataque", logRange (0.1f, 50.0f, 0.1f), moderno.attackMs, attrs ("ms", 1)));
+    layout.add (std::make_unique<Float> (pid (attack), "Ataque", logRange (0.1f, 500.0f, 0.1f), moderno.attackMs, attrs ("ms", 1)));
     layout.add (std::make_unique<Float> (pid (release), "Release", logRange (10.0f, 2000.0f, 1.0f), moderno.releaseMs, attrs ("ms", 0)));
     layout.add (std::make_unique<Bool> (pid (releaseAuto), "Release automático", true));
     layout.add (std::make_unique<Float> (pid (knee), "Knee", Range (0.0f, 12.0f, 0.1f), moderno.kneeDb, attrs ("dB", 1)));

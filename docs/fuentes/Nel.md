@@ -108,7 +108,7 @@ Cada modo fija cuatro valores visibles (que el usuario puede cambiar después) y
 | Control | Qué hace | Rango (defecto) |
 | --- | --- | --- |
 | **Lookahead** | Anticipación de la etapa de picos. Por debajo de 0,1 ms se comporta casi como un recorte duro | 0 a 5 ms (1,0) |
-| **Ataque** | Ataque de la etapa de cuerpo | 0,1 a 50 ms (3,0) |
+| **Ataque** | Ataque de la etapa de cuerpo | 0,1 a 500 ms (3,0) |
 | **Release** | Release lento (el rápido es el lento dividido entre 12) | 10 a 2000 ms (500) |
 | **Release auto** | El release real varía entre el rápido y el lento según lo sostenida que sea la reducción. En pantalla, una «A» tras el valor | Encendido |
 | **Knee** | Codo de la etapa de cuerpo | 0 a 12 dB (3,0) |
@@ -216,7 +216,7 @@ Son **21 parámetros** automatizables. Todos pasan por `AudioProcessorValueTreeS
 | ID | Nombre en la interfaz | Tipo | Rango | Defecto | Notas |
 | --- | --- | --- | --- | --- | --- |
 | `lookahead` | Lookahead | Decimal | 0 a 5 ms | 1,0 (Moderno) | Se redondea a muestras enteras |
-| `attack` | Ataque | Decimal | 0,1 a 50 ms | 3,0 (Moderno) | Escala logarítmica |
+| `attack` | Ataque | Decimal | 0,1 a 500 ms | 3,0 (Moderno) | Escala logarítmica |
 | `release` | Release | Decimal | 10 a 2000 ms | 500 (Moderno) | Escala logarítmica; el rápido es el lento / 12 |
 | `releaseAuto` | Release automático | Sí/No | apagado o encendido | Encendido | |
 | `knee` | Knee | Decimal | 0 a 12 dB | 3,0 (Moderno) | |
@@ -417,6 +417,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 
 | Versión | Fecha | Cambios |
 | --- | --- | --- |
+| **1.1.0** | {{fecha}} | El Ataque amplía su rango de 0,1–50 ms a 0,1–500 ms (escala logarítmica; el centro del recorrido pasa de 2,2 a 7,1 ms). Los valores guardados en sesiones y presets se leen igual; la automatización grabada en el anfitrión se reescala. |
 | **1.0.0** | {{fecha}} | Primera edición numerada. Reúne los hitos 1 a 14: limitador de dos etapas con ocho modos, sobremuestreo de 1× a 32× con fase lineal o mínima, seguro de pico, Carácter y recorte previo con ADAA, dither, medición de sonoridad con historial de 10 h, 21 parámetros, 16 presets, A/B, deshacer e interfaz vintage; sin clics y sin reservas en `processBlock`. |
 
 El número de versión sigue SemVer y está en `cmake/Versions.cmake`: **mayor** si algo rompe presets o sesiones (IDs de parámetros, formato de estado), **menor** para funciones nuevas compatibles y **parche** para correcciones.
