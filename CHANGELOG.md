@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); c
 ## Sin publicar
 
 ### Dra. McPoti 0.9.0 (preliminar)
+- Interfaz (disposición de la maqueta): palancas de tuerca hexagonal, selector rotativo de Voicing, válvulas de vidrio con placa y rango, cruces entre módulos, vúmetros con marco negro, Guardar y joya de encendido. Corrige dos fallos de la plantilla de modo: pisaba el 8× de un preset (tolerancia de un paso entero) y marcaba el preset como modificado al mover los cruces.
 - Interfaz: perillas con escala numérica (`ScaleKnob`) y palancas cromadas (`ChromeToggle`) en `DraMcPoti/source/ui/Widgets.h`; PDF con la captura real junto a la maqueta.
 - Interfaz, paso 1 de la fidelidad a `Dra. McPoti — maqueta.html`: `Palette::mcpoti()` en el kit (frente pizarra, orejas y bisel de acero, ámbar). **La interfaz sigue sin parecerse a la maqueta** (faltan palancas cromadas, selector rotativo, válvulas de vidrio, escala 0 a 10, vúmetros de marco negro, pantalla de presets y la disposición): se construyó solo desde la ficha, sin abrir la maqueta.
 - Documentación en PDF (`docs/fuentes/DraMcPoti.md`) y registro en `docs/construir.py`. `pluginval` nivel 10 y `auval` pasan (VST3 y AU). Versión 0.9.0: 1.0.0 al cerrar la interfaz y escuchar.

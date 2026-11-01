@@ -32,6 +32,11 @@ ferb::PresetManager::Factory make (const P& p)
     f.values = { { k::mode, float (p.mode) }, { k::era, float (p.era) }, { k::voice, float (p.voice) },
                  { k::tune, p.tune }, { k::width, p.width }, { k::os, float (p.os) }, { k::airCorner, p.airCorner },
                  { k::guard, p.mode == k::Vocal ? 60.0f : 0.0f }, { k::monoSafe, p.mode == k::Master ? 1.0f : 0.0f } };
+    // Los cruces son los de la plantilla del modo del preset: así la plantilla del modo no los mueve al cargarlo (ni lo marca como modificado).
+    const bool master = p.mode == k::Master;
+    f.values.emplace_back (k::xo1, master ? 120.0f : 150.0f);
+    f.values.emplace_back (k::xo2, master ? 1600.0f : 1800.0f);
+    f.values.emplace_back (k::xo3, master ? 6500.0f : 7000.0f);
     for (int b = 0; b < k::numBands; ++b)
         f.values.emplace_back (k::bandId ("drive", b), p.drive[b]);
     return f;

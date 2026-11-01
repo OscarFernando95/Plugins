@@ -13,7 +13,7 @@ Un interruptor elige el **mundo** (Vocal o Master), otro la **era** (Vintage o M
 
 <figure class="shot"><img src="{{img}}/dramcpoti.png" style="width:100%"><figcaption>Interfaz implementada de Dra. McPoti (1400 × 600 px base; la ventana se redimensiona del 75 % al 200 %). Captura real con el preset «Radio setentas» y unos segundos de audio de prueba.</figcaption></figure>
 
-<figure class="shot"><img src="{{img}}/dramcpoti-maqueta.png" style="width:100%"><figcaption>Maqueta aprobada de la interfaz (<code>Dra. McPoti — maqueta.html</code>, 1400 × 540 px), que es la referencia visual. <b>La implementación todavía no la iguala:</b> comparten la paleta pizarra con orejas de acero, la cabecera con presets y A/B, las perillas negras con escala de 0 a 10, las palancas cromadas, los dos vúmetros y la ventana de armónicos; faltan las diferencias que se detallan en las limitaciones.</figcaption></figure>
+<figure class="shot"><img src="{{img}}/dramcpoti-maqueta.png" style="width:100%"><figcaption>Maqueta aprobada de la interfaz (<code>Dra. McPoti — maqueta.html</code>, 1400 × 540 px), que es la referencia visual. <b>La implementación sigue su disposición y sus piezas (palancas de tuerca hexagonal, selector rotativo de Voicing, válvulas de vidrio con su placa, perillas con escala 0 a 10, vúmetros de marco negro), con las diferencias menores que se detallan en las limitaciones.</figcaption></figure>
 
 ## Características
 
@@ -59,7 +59,7 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 ## Primeros pasos
 
 1. Cargue un preset (Vocal o Master) o parta de **Init**.
-2. Elija el **Modo** (Vocal o Master), la **Era** y el **carácter** (1 a 4; su nombre aparece bajo el selector).
+2. Elija el **Modo** (Vocal o Master) y la **Era** con las palancas, y el **carácter** (1 a 4) con el selector rotativo; los nombres cambian con la era.
 3. Suba el **Drive** de las bandas que quiera excitar. Con **Delta** escucha solo lo añadido; con **Solo** oye una banda.
 4. Active **Igualar** (por defecto está activo) para comparar con y sin el plugin al mismo volumen.
 
@@ -67,10 +67,10 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 
 | Zona | Contenido |
 | --- | --- |
-| Cabecera | Logo, presets (anterior, nombre, siguiente), A/B, deshacer, rehacer y Bypass del anfitrión |
-| Izquierda | Palancas de Modo (Vocal / Master) y de Era (Vintage / Moderno), selector de carácter, Entrada, Mezcla y Salida; vúmetros de entrada y salida con su Referencia VU |
-| Centro | Cuatro módulos de banda: válvula, perilla grande de Drive, Dinámica, Nivel, ON y Solo; los tres cruces y la ventana de armónicos |
-| Derecha | Sintonización, Fase, Color, Suavizar, Guarda, Ancho, Esquina de aire y Enlace |
+| Cabecera | Logo, presets (anterior, nombre, siguiente, Guardar), A/B, deshacer, rehacer, joya de «Encendido» y Bypass del anfitrión |
+| Izquierda | Palancas de Modo (Vocal / Master) y de Era (Vintage / Moderno), selector rotativo de Voicing, Entrada, Mezcla y Salida |
+| Centro | Cuatro módulos de banda: válvula de vidrio, placa con el nombre y el rango, perilla grande de Drive, Dinámica, Nivel, ON y Solo; los tres cruces entre los módulos; la ventana de armónicos debajo |
+| Derecha | Vúmetros de entrada y salida; Sintonización, Fase, Color, Suavizar, Guarda, Ancho, Esquina de aire, Enlace y Referencia VU |
 | Pie | Oversampling (1× a 8×), palancas de Fase lineal, Delta, Igualar y Mono seguro, y los chips de tamaño (75, 100, 150 y 200 %) |
 
 Lo que no actúa en el modo o carácter actual se ve atenuado: la **Guarda** en Master; **Ancho** y **Mono seguro** en Vocal; **Esquina de aire** salvo con el carácter Aire.
@@ -260,7 +260,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 - **Dinámico:** el umbral del compander es fijo (−20 dB); la ficha original pedía que lo fijara Drive.
 - **Guarda:** detector simplificado y sin planitud espectral; lookahead de ≈ 1 ms, no 2 ms. Sin afinar con voz real.
 - **Fase lineal:** la FIR es fija (2049 coeficientes) a cualquier frecuencia de muestreo; su transición es de ≈ 516 Hz a 192 kHz. Cambia la latencia (+1024 muestras).
-- **Interfaz sin cerrar: no es todavía la de la maqueta.** La implementación se construyó al principio solo desde la ficha, sin abrir la maqueta, y luego se acercó (paleta pizarra, perillas con escala numerada y palancas cromadas hechas con la referencia de rack clásico que se indicó). **Lo que sigue distinto de la maqueta:** las válvulas son cápsulas ámbar y no tubos de vidrio con base; el selector de carácter es una fila de cuatro botones y no un selector rotativo con los nombres alrededor; los vúmetros tienen esfera crema con marco claro y no el marco negro de la maqueta; la pantalla de presets es una ventana oscura sencilla, sin el rótulo numerado en ámbar ni el botón Guardar visible; falta la joya roja de «Encendido»; las perillas de cruce están bajo los módulos y no entre ellos; faltan el rango de frecuencias bajo el nombre de cada banda y la lectura de latencia al pie; el logotipo usa la tipografía del kit y no la cursiva de la maqueta; y A/B no tiene el botón «A→B». La etiqueta de Drive no cambia a «Ganancia del shelf» con Seda y Aire. Las válvulas miden en dB absolutos, no relativos a la entrada de la banda. El vúmetro de salida no indica si Igualar está activo.
+- **Interfaz: sigue la maqueta, con diferencias menores.** Coinciden la paleta pizarra con orejas de acero, la cabecera con presets, Guardar, A/B, deshacer y la joya roja de «Encendido»; las palancas cromadas de tuerca hexagonal (Modo, Era, Fase lineal, Delta, Igualar y Mono seguro); el selector rotativo de Voicing; los cuatro módulos con válvula de vidrio, placa con el nombre y el rango de frecuencias, Drive, Dinámica y Nivel, y las perillas de cruce entre ellos; las perillas negras con la escala de 0 a 10; los dos vúmetros con marco negro y la ventana de armónicos. **Todavía distinto:** el logotipo usa la tipografía del kit y no la cursiva de la maqueta; la pantalla de presets no lleva el número en ámbar («01 · …») ni el botón «A→B»; la ventana de armónicos está en el centro inferior y no arriba a la derecha, y no lleva el título «ARMÓNICOS · modo · era»; los tubos de vidrio son más sencillos (sin la rejilla de la base); falta la lectura de latencia al pie; el rotulado de Drive no cambia a «Ganancia del shelf» con Seda y Aire; las válvulas miden en dB absolutos, no relativos a la entrada de la banda; y el vúmetro de salida no indica si Igualar está activo.
 - **Igualar:** integrador exponencial de 3 s; no se probó contra el criterio de 0,5 LU.
 - **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, arm64) y se instala sin firmar; **sin validar**, **sin firma PACE** y **sin probar en Pro Tools**.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.

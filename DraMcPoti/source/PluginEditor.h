@@ -20,7 +20,6 @@ public:
     static constexpr int baseHeight = 600;
 
 private:
-    class Tube;
     class Harmonics;
 
     void timerCallback() override;
@@ -39,10 +38,12 @@ private:
     std::vector<std::unique_ptr<ferb::vintage::VButton>> buttons;
     std::vector<std::unique_ptr<mcpoti::ui::ChromeToggle>> levers;
     std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttonAttachments;
-    std::vector<std::unique_ptr<Tube>> tubes;
+    std::vector<std::unique_ptr<mcpoti::ui::GlassTube>> tubes;
+    std::vector<std::unique_ptr<mcpoti::ui::BandPlate>> plates;
+    std::unique_ptr<mcpoti::ui::VoicingKnob> voicing;
+    std::unique_ptr<mcpoti::ui::Jewel> jewel;
     std::unique_ptr<Harmonics> harmonics;
     std::unique_ptr<ferb::vintage::VuNeedle> vuIn, vuOut;
-    juce::Label voiceName;
     juce::Component *guardKnob = nullptr, *widthKnob = nullptr, *airKnob = nullptr, *monoButton = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DraMcPotiEditor)

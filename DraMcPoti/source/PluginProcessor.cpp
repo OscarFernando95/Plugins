@@ -93,7 +93,7 @@ void DraMcPotiProcessor::syncModeTemplate()
         auto* param = apvts.getParameter (id);
         const float current = param->convertFrom0to1 (param->getValue());
         const auto range = apvts.getParameterRange (id);
-        const float tolerance = std::max (range.interval, 1.0e-3f * std::abs (oldDefault)); // sin tocar = sigue en la plantilla anterior
+        const float tolerance = std::max (0.5f * range.interval, 1.0e-3f * std::abs (oldDefault)); // sin tocar = sigue en la plantilla anterior (medio paso: un paso entero ya es un valor distinto)
         if (std::abs (current - oldDefault) <= tolerance)
             param->setValueNotifyingHost (param->convertTo0to1 (newValue));
     };

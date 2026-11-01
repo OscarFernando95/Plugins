@@ -75,7 +75,7 @@ Palette Palette::mcpoti()
     p.btnA = juce::Colour (0xff1b1c1e); p.btnB = juce::Colour (0xff0b0b0c); p.btnInk = juce::Colour (0xffece9e2); p.edge = juce::Colour (0xff000000);
     p.rule = juce::Colour (0xffd8372d); p.lamp = juce::Colour (0xffffb13b); p.emboss = juce::Colour (0xff000000).withAlpha (0.55f);
     p.earA = juce::Colour (0xffe4e6e8); p.earB = juce::Colour (0xff9aa0a6); p.earC = juce::Colour (0xff6d7176);
-    p.bezel = juce::Colour (0xffb9bdc2); p.bezelDark = juce::Colour (0xff6d7176);
+    p.bezel = juce::Colour (0xff0e0e10); p.bezelDark = juce::Colour (0xff000000); // marcos negros de vúmetros y ventanas, como la maqueta
     p.woodEars = false;
     p.darkKnobs = true; // perillas de baquelita negra
     return p;

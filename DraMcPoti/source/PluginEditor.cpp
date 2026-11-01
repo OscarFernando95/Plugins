@@ -36,36 +36,6 @@ std::function<juce::String (float)> hz()
 }
 } // namespace
 
-/** Válvula de vidrio: el filamento brilla con lo que añade su banda (−60 a −20 dB de RMS absoluto; escala inicial). */
-class DraMcPotiEditor::Tube : public juce::Component
-{
-public:
-    void setGlow (float g)
-    {
-        if (std::abs (g - glow) > 0.01f)
-        {
-            glow = g;
-            repaint();
-        }
-    }
-
-    void paint (juce::Graphics& g) override
-    {
-        const auto r = getLocalBounds().toFloat().reduced (2.0f);
-        g.setColour (juce::Colour (0xff1b1410));
-        g.fillRoundedRectangle (r, r.getWidth() * 0.5f);
-        const auto amber = juce::Colour (0xffffa030);
-        g.setGradientFill (juce::ColourGradient (amber.withAlpha (0.15f + 0.8f * glow), r.getCentreX(), r.getBottom() - 4.0f,
-                                                 amber.withAlpha (0.0f), r.getCentreX(), r.getY(), false));
-        g.fillRoundedRectangle (r.reduced (2.0f), r.getWidth() * 0.5f);
-        g.setColour (juce::Colours::white.withAlpha (0.15f));
-        g.drawRoundedRectangle (r, r.getWidth() * 0.5f, 1.2f);
-    }
-
-private:
-    float glow = 0.0f;
-};
-
 /** Ventana de armónicos: espectro de la entrada (tenue) y de la salida (ámbar) con una FFT de 2048 puntos en el hilo de
     interfaz, los cruces como cortes verticales y la Sintonización como línea punteada. */
 class DraMcPotiEditor::Harmonics : public GlassView, private juce::Timer
@@ -167,9 +137,14 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
     headerSpec.subtitle = U ("EXCITADOR ARMÓNICO");
     headerSpec.width = baseWidth;
     headerSpec.height = 64;
+    headerSpec.saveButton = true;
     header = std::make_unique<Header> (palette, headerSpec, p.getPresets(), p.getAb(), p.undoManager, param (k::bypass));
     header->setBounds (0, 0, baseWidth, 64);
     content.addAndMakeVisible (*header);
+
+    jewel = std::make_unique<mcpoti::ui::Jewel>();
+    jewel->setBounds (1178, 6, 72, 54);
+    content.addAndMakeVisible (*jewel);
 
     auto seg = [&] (const char* id, juce::StringArray labels, int buttonWidth, int x, int y)
     {
@@ -178,57 +153,62 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
         content.addAndMakeVisible (*s);
         segments.push_back (std::move (s));
     };
-    addLever (k::mode, { "MODO", "VOCAL", "MASTER", {}, true }, 20, 70, 110, 120);
-    addLever (k::era, { "ERA", "VINTAGE", "MODERNO", {}, true }, 136, 70, 110, 120);
-    seg (k::voice, { "1", "2", "3", "4" }, 39, 30, 198);
 
-    voiceName.setBounds (30, 226, 160, 16);
-    voiceName.setJustificationType (juce::Justification::centredLeft);
-    voiceName.setFont (juce::FontOptions (12.0f));
-    voiceName.setColour (juce::Label::textColourId, juce::Colour (0xff2b2118));
-    content.addAndMakeVisible (voiceName);
+    // Izquierda: palancas de Modo y Era, selector rotativo de Voicing y los tres mandos de nivel.
+    addLever (k::mode, { "MODO", "VOCAL", "MASTER", {}, true }, 20, 66, 110, 142);
+    addLever (k::era, { "ERA", "VINTAGE", "MODERNO", {}, true }, 136, 66, 110, 142);
+    voicing = std::make_unique<mcpoti::ui::VoicingKnob> (param (k::voice), palette, [&p] { return juce::roundToInt (p.apvts.getRawParameterValue (k::era)->load()); }, &p.undoManager);
+    voicing->setBounds (12, 212, 236, 166);
+    content.addAndMakeVisible (*voicing);
+    addKnob (k::input, "ENTRADA", 56, false, 24, 390, 78, db());
+    addKnob (k::mix, "MEZCLA", 56, false, 90, 390, 78, percent());
+    addKnob (k::output, "SALIDA", 56, false, 156, 390, 78, db());
 
-    addKnob (k::input, "ENTRADA", 56, false, 24, 248, 78, db());
-    addKnob (k::mix, "MEZCLA", 56, false, 90, 248, 78, percent());
-    addKnob (k::output, "SALIDA", 56, false, 156, 248, 78, db());
-    vuIn = std::make_unique<VuNeedle> (palette, "ENTRADA");
-    vuIn->setFaceBounds ({ 32, 344, 96, 62 });
-    content.addAndMakeVisible (*vuIn);
-    vuOut = std::make_unique<VuNeedle> (palette, "SALIDA");
-    vuOut->setFaceBounds ({ 136, 344, 96, 62 });
-    content.addAndMakeVisible (*vuOut);
-
-    addKnob (k::vuRef, "REF. VU", 44, false, 90, 424, 78, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
-
-    // Cuatro módulos de banda.
+    // Cuatro módulos de banda: válvula, placa con el rango, Drive, y Dinámica y Nivel.
     const char* names[] = { "CUERPO", "MEDIOS", "PRESENCIA", "AIRE" };
     for (int b = 0; b < k::numBands; ++b)
     {
         const int x = 268 + b * 196;
-        addKnob (k::bandId ("drive", b), names[b], 84, true, x + 30, 84, 110, plain());
-        addKnob (k::bandId ("dyn", b), "DINÁMICA", 50, false, x + 4, 250, 80, signedInt());
-        addKnob (k::bandId ("mix", b), "NIVEL", 50, false, x + 100, 250, 80, percent());
-        auto tube = std::make_unique<Tube>();
-        tube->setBounds (x + 74, 212, 26, 36);
+        auto tube = std::make_unique<mcpoti::ui::GlassTube>();
+        tube->setBounds (x + 65, 68, 40, 86);
         content.addAndMakeVisible (*tube);
         tubes.push_back (std::move (tube));
-        addToggle (k::bandId ("on", b), "ON", x + 18, 360, 70);
-        addToggle (k::bandId ("solo", b), "SOLO", x + 98, 360, 70);
+        auto plate = std::make_unique<mcpoti::ui::BandPlate> (names[b]);
+        plate->setBounds (x + 15, 160, 140, 38);
+        content.addAndMakeVisible (*plate);
+        plates.push_back (std::move (plate));
+        addKnob (k::bandId ("drive", b), "DRIVE", 84, true, x + 30, 204, 110, plain());
+        addKnob (k::bandId ("dyn", b), "DINÁMICA", 50, false, x + 4, 340, 80, signedInt());
+        addKnob (k::bandId ("mix", b), "NIVEL", 50, false, x + 100, 340, 80, percent());
+        addToggle (k::bandId ("on", b), "ON", x + 18, 428, 70);
+        addToggle (k::bandId ("solo", b), "SOLO", x + 98, 428, 70);
     }
-    addKnob (k::xo1, "CRUCE 1", 40, false, 268 + 150, 400, 70, hz());
-    addKnob (k::xo2, "CRUCE 2", 40, false, 268 + 150 + 196, 400, 70, hz());
-    addKnob (k::xo3, "CRUCE 3", 40, false, 268 + 150 + 392, 400, 70, hz());
+    // Los cruces van entre los módulos, a la altura del Drive.
+    for (int c = 0; c < 3; ++c)
+        addKnob (std::array { k::xo1, k::xo2, k::xo3 }[static_cast<size_t> (c)], (U ("CRUCE ") + juce::String (c + 1)).toRawUTF8(), 40, false, 268 + c * 196 + 148, 236, 70, hz());
 
-    // Columna derecha.
+    // Derecha: vúmetros y los controles de lo añadido.
+    vuIn = std::make_unique<VuNeedle> (palette, "ENTRADA");
+    vuIn->setFaceBounds ({ 1076, 74, 96, 62 });
+    content.addAndMakeVisible (*vuIn);
+    vuOut = std::make_unique<VuNeedle> (palette, "SALIDA");
+    vuOut->setFaceBounds ({ 1196, 74, 96, 62 });
+    content.addAndMakeVisible (*vuOut);
+
     const int rx = 1074;
-    addKnob (k::tune, "SINTONIZ.", 50, false, rx, 84, 80, hz());
-    addKnob (k::phase, "FASE", 50, false, rx + 90, 84, 80, percent());
-    addKnob (k::color, "COLOR", 50, false, rx + 180, 84, 80, signedInt());
-    addKnob (k::soften, "SUAVIZAR", 50, false, rx, 200, 80, hz());
-    guardKnob = &addKnob (k::guard, "GUARDA", 50, false, rx + 90, 200, 80, percent());
-    widthKnob = &addKnob (k::width, "ANCHO", 50, false, rx + 180, 200, 80, percent());
-    airKnob = &addKnob (k::airCorner, "ESQUINA", 50, false, rx, 316, 80, hz());
-    addKnob (k::link, "ENLACE", 50, false, rx + 90, 316, 80, percent());
+    addKnob (k::tune, "SINTONIZ.", 50, false, rx, 166, 80, hz());
+    addKnob (k::phase, "FASE", 50, false, rx + 90, 166, 80, percent());
+    addKnob (k::color, "COLOR", 50, false, rx + 180, 166, 80, signedInt());
+    addKnob (k::soften, "SUAVIZAR", 50, false, rx, 264, 80, hz());
+    guardKnob = &addKnob (k::guard, "GUARDA", 50, false, rx + 90, 264, 80, percent());
+    widthKnob = &addKnob (k::width, "ANCHO", 50, false, rx + 180, 264, 80, percent());
+    airKnob = &addKnob (k::airCorner, "ESQUINA", 50, false, rx, 362, 80, hz());
+    addKnob (k::link, "ENLACE", 50, false, rx + 90, 362, 80, percent());
+    addKnob (k::vuRef, "REF. VU", 50, false, rx + 180, 362, 80, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
+
+    harmonics = std::make_unique<Harmonics> (palette, p);
+    harmonics->setGlassBounds ({ 268, 486, 780, 38 });
+    content.addAndMakeVisible (*harmonics);
 
     // Pie.
     seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 30, 548);
@@ -250,29 +230,28 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
         chipX += 62;
     }
 
-    harmonics = std::make_unique<Harmonics> (palette, p);
-    harmonics->setGlassBounds ({ 268, 492, 780, 44 });
-    content.addAndMakeVisible (*harmonics);
-
     timerCallback();
     startTimerHz (20);
 }
 
 DraMcPotiEditor::~DraMcPotiEditor() { stopTimer(); }
 
-/** Comportamiento por modo y era (sección 6 de la ficha): atenúa lo que no actúa y rotula el carácter. */
+/** Comportamiento por modo y era (sección 6 de la ficha): atenúa lo que no actúa, actualiza los rangos y las válvulas. */
 void DraMcPotiEditor::timerCallback()
 {
     const auto raw = [this] (const char* id) { return owner.apvts.getRawParameterValue (id)->load(); };
     const bool master = juce::roundToInt (raw (k::mode)) == k::Master;
     const int era = juce::roundToInt (raw (k::era)), voice = juce::roundToInt (raw (k::voice));
-    constexpr const char* names[2][4] = { { "CLÁSICO", "CINTA", "VÁLVULA", "TRANSISTOR" }, { "DINÁMICO", "ADAPTATIVO", "SEDA", "AIRE" } };
-    voiceName.setText (U (names[juce::jlimit (0, 1, era)][juce::jlimit (0, 3, voice)]), juce::dontSendNotification);
 
     guardKnob->setAlpha (master ? 0.35f : 1.0f);   // Guarda: solo Vocal
     widthKnob->setAlpha (master ? 1.0f : 0.35f);   // Ancho y Mono seguro: solo Master
     monoButton->setAlpha (master ? 1.0f : 0.35f);
     airKnob->setAlpha (era == k::Moderno && voice == 3 ? 1.0f : 0.35f); // Esquina de aire: solo con el carácter Aire
+    voicing->refresh();                              // los nombres cambian con la era
+
+    const float edges[5] = { 40.0f, raw (k::xo1), raw (k::xo2), raw (k::xo3), 20000.0f };
+    for (size_t b = 0; b < plates.size(); ++b)
+        plates[b]->setRange (edges[b], edges[b + 1]);
 
     // Vúmetros: 0 VU = Referencia VU (dBFS), con la balística de 65 ms del motor.
     const float ref = raw (k::vuRef);
@@ -281,6 +260,7 @@ void DraMcPotiEditor::timerCallback()
     vuOut->setValue (toVu (owner.getEngine().outputVuLevel()));
 
     const bool bypassed = raw (k::bypass) >= 0.5f;
+    jewel->setLit (! bypassed);
     for (size_t b = 0; b < tubes.size(); ++b)
     {
         const float level = owner.getEngine().addedLevel (static_cast<int> (b));

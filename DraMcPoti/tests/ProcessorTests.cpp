@@ -120,9 +120,11 @@ TEST_CASE ("Dra. McPoti: el cambio de modo aplica su plantilla a lo que no se to
     CHECK (get ("monoSafe") > 0.5f);
     CHECK (get ("xo2") == Catch::Approx (1600.0f).margin (2.0f));
 
+    set ("os", 3.0f);     // un solo paso de diferencia (8× frente a 4×) ya es un valor tocado
     set ("mode", 0.0f);   // de vuelta a Vocal: tune vuelve; guard sigue como lo dejó el usuario
     p.syncModeTemplate();
     CHECK (get ("tune") == Catch::Approx (4000.0f).margin (2.0f));
     CHECK (get ("monoSafe") < 0.5f);
     CHECK (get ("guard") == Catch::Approx (30.0f).margin (0.6f));
+    CHECK (get ("os") > 2.5f); // el 8× elegido se respeta
 }

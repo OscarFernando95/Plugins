@@ -80,7 +80,7 @@ Pendiente: ajustar el detector con voces grabadas (M6; hi-hat y «t» activan el
 Pendiente: escucharlo (ruido musical), probar en Ableton, Logic y Pro Tools, STOI y comparación con NS1 (no medidos), el estimador se infla ≈ 7 dB con voz continua y el Rango no se alcanza (≈ 21,5 dB), y validar y firmar el AAX.
 
 ### Dra. McPoti — motor completo, interfaz sin cerrar (0.9.0)
-Pendiente: cerrar la interfaz (paleta propia, selector de pala, perillas de cruce entre módulos, chips de tamaño, rotulado de Drive con Seda y Aire, válvulas con Bypass), escucharlo y afinar de oído (coeficientes, umbrales de la guarda, plantillas, presets), probar en Ableton, Logic y Pro Tools, y validar y firmar el AAX. Descartado con razón: el 5 % de pares de Aire y las esquinas de Aire sobre Nyquist (ver su ficha). El oversampling por defecto es 4× (2× queda a −61,1 dB, por debajo de su meta de −70).
+Pendiente: detalles de la interfaz frente a la maqueta (logotipo en cursiva, número ámbar y A→B en la pantalla de presets, ventana de armónicos arriba a la derecha con título, rejilla de los tubos, lectura de latencia, rotulado de Drive con Seda y Aire), escucharlo y afinar de oído (coeficientes, umbrales de la guarda, plantillas, presets), probar en Ableton, Logic y Pro Tools, y validar y firmar el AAX. Descartado con razón: el 5 % de pares de Aire y las esquinas de Aire sobre Nyquist (ver su ficha). El oversampling por defecto es 4× (2× queda a −61,1 dB, por debajo de su meta de −70).
 
 ### Pendiente en ambos
 - Revisar las condiciones de licencia de JUCE antes de distribuir.
