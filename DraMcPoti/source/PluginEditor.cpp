@@ -178,27 +178,27 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
         content.addAndMakeVisible (*s);
         segments.push_back (std::move (s));
     };
-    seg (k::mode, { "VOCAL", "MASTER" }, 78, 30, 84);
-    seg (k::era, { "VINTAGE", "MODERNO" }, 78, 30, 124);
-    seg (k::voice, { "1", "2", "3", "4" }, 39, 30, 164);
+    addLever (k::mode, { "MODO", "VOCAL", "MASTER", {}, true }, 20, 70, 110, 120);
+    addLever (k::era, { "ERA", "VINTAGE", "MODERNO", {}, true }, 136, 70, 110, 120);
+    seg (k::voice, { "1", "2", "3", "4" }, 39, 30, 198);
 
-    voiceName.setBounds (30, 192, 160, 16);
+    voiceName.setBounds (30, 226, 160, 16);
     voiceName.setJustificationType (juce::Justification::centredLeft);
     voiceName.setFont (juce::FontOptions (12.0f));
     voiceName.setColour (juce::Label::textColourId, juce::Colour (0xff2b2118));
     content.addAndMakeVisible (voiceName);
 
-    addKnob (k::input, "ENTRADA", 56, false, 24, 214, 78, db());
-    addKnob (k::mix, "MEZCLA", 56, false, 90, 214, 78, percent());
-    addKnob (k::output, "SALIDA", 56, false, 156, 214, 78, db());
+    addKnob (k::input, "ENTRADA", 56, false, 24, 248, 78, db());
+    addKnob (k::mix, "MEZCLA", 56, false, 90, 248, 78, percent());
+    addKnob (k::output, "SALIDA", 56, false, 156, 248, 78, db());
     vuIn = std::make_unique<VuNeedle> (palette, "ENTRADA");
-    vuIn->setFaceBounds ({ 32, 322, 96, 62 });
+    vuIn->setFaceBounds ({ 32, 344, 96, 62 });
     content.addAndMakeVisible (*vuIn);
     vuOut = std::make_unique<VuNeedle> (palette, "SALIDA");
-    vuOut->setFaceBounds ({ 136, 322, 96, 62 });
+    vuOut->setFaceBounds ({ 136, 344, 96, 62 });
     content.addAndMakeVisible (*vuOut);
 
-    addKnob (k::vuRef, "REF. VU", 44, false, 90, 410, 78, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
+    addKnob (k::vuRef, "REF. VU", 44, false, 90, 424, 78, [] (float v) { return ferb::fmt::comma (v, 1) + " dBFS"; });
 
     // Cuatro módulos de banda.
     const char* names[] = { "CUERPO", "MEDIOS", "PRESENCIA", "AIRE" };
@@ -232,11 +232,11 @@ DraMcPotiEditor::DraMcPotiEditor (DraMcPotiProcessor& p)
 
     // Pie.
     seg (k::os, { "1X", "2X", "4X", "8X" }, 40, 30, 548);
-    addToggle (k::linPhase, "FASE LINEAL", 220, 548, 110);
-    addToggle (k::delta, "DELTA", 340, 548, 80);
-    addToggle (k::match, "IGUALAR", 430, 548, 90);
-    addToggle (k::monoSafe, "MONO SEGURO", 530, 548, 136);
-    monoButton = buttons.back().get();
+    addLever (k::linPhase, { {}, {}, {}, "FASE LINEAL", false }, 215, 538, 150, 44);
+    addLever (k::delta, { {}, {}, {}, "DELTA", false }, 375, 538, 120, 44);
+    addLever (k::match, { {}, {}, {}, "IGUALAR", false }, 505, 538, 130, 44);
+    addLever (k::monoSafe, { {}, {}, {}, "MONO SEGURO", false }, 645, 538, 170, 44);
+    monoButton = levers.back().get();
 
     // Chips de tamaño: el redimensionado de 75 % a 200 % también se hace arrastrando la esquina de la ventana.
     int chipX = 1130;
@@ -299,11 +299,20 @@ VKnob& DraMcPotiEditor::addKnob (const juce::String& id, const char* label, int 
     spec.big = big;
     spec.format = std::move (format);
     auto& parameter = *dynamic_cast<juce::RangedAudioParameter*> (owner.apvts.getParameter (id));
-    auto knob = std::make_unique<VKnob> (parameter, palette, spec, &owner.undoManager);
+    auto knob = std::make_unique<mcpoti::ui::ScaleKnob> (parameter, palette, spec, &owner.undoManager);
     knob->setBounds (x, y, w, VKnob::heightFor (spec));
     content.addAndMakeVisible (*knob);
     knobs.push_back (std::move (knob));
     return *knobs.back();
+}
+
+void DraMcPotiEditor::addLever (const juce::String& id, mcpoti::ui::ChromeToggle::Spec spec, int x, int y, int w, int h)
+{
+    auto& parameter = *dynamic_cast<juce::RangedAudioParameter*> (owner.apvts.getParameter (id));
+    auto lever = std::make_unique<mcpoti::ui::ChromeToggle> (parameter, palette, std::move (spec), &owner.undoManager);
+    lever->setBounds (x, y, w, h);
+    content.addAndMakeVisible (*lever);
+    levers.push_back (std::move (lever));
 }
 
 void DraMcPotiEditor::addToggle (const juce::String& id, const char* text, int x, int y, int w)

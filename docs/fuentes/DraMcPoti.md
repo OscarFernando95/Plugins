@@ -1,6 +1,6 @@
 # Visión general {.pb}
 
-**Dra. McPoti** es un excitador armónico multibanda y dinámico. Reúne en un solo aparato el sonido de los excitadores clásicos (un generador de armónicos que se mezcla en paralelo con la señal intacta) y lo que exige hoy el mastering: sobremuestreo, dinámica por banda, estéreo mono-compatible y compensación de sonoridad. Se ve como una unidad de rack de válvulas: placa crema, perillas de baquelita, cuatro válvulas que brillan con lo que se añade (a media luz con Bypass) y dos vúmetros de aguja.
+**Dra. McPoti** es un excitador armónico multibanda y dinámico. Reúne en un solo aparato el sonido de los excitadores clásicos (un generador de armónicos que se mezcla en paralelo con la señal intacta) y lo que exige hoy el mastering: sobremuestreo, dinámica por banda, estéreo mono-compatible y compensación de sonoridad. Se ve como una unidad de rack de válvulas: placa gris pizarra con orejas de acero, perillas de baquelita negra con la escala grabada, palancas cromadas, cuatro indicadores de válvula que brillan con lo que se añade (a media luz con Bypass) y dos vúmetros de aguja.
 
 Un interruptor elige el **mundo** (Vocal o Master), otro la **era** (Vintage o Moderno) y un selector de cuatro posiciones el **carácter** dentro de la era: ocho caracteres en total, disponibles en los dos modos.
 
@@ -11,7 +11,9 @@ Un interruptor elige el **mundo** (Vocal o Master), otro la **era** (Vintage o M
 <div><b>21</b><span>Presets de fábrica (20 más Init)</span></div>
 </div>
 
-<figure class="shot"><img src="{{img}}/dramcpoti.png" style="width:100%"><figcaption>Interfaz de Dra. McPoti (1400 × 600 px base; la ventana se redimensiona del 75 % al 200 %). Captura con el preset «Radio setentas» y unos segundos de audio de prueba. La interfaz es todavía provisional: falta acercarla a la maqueta (ver las limitaciones).</figcaption></figure>
+<figure class="shot"><img src="{{img}}/dramcpoti.png" style="width:100%"><figcaption>Interfaz implementada de Dra. McPoti (1400 × 600 px base; la ventana se redimensiona del 75 % al 200 %). Captura real con el preset «Radio setentas» y unos segundos de audio de prueba.</figcaption></figure>
+
+<figure class="shot"><img src="{{img}}/dramcpoti-maqueta.png" style="width:100%"><figcaption>Maqueta aprobada de la interfaz (<code>Dra. McPoti — maqueta.html</code>, 1400 × 540 px), que es la referencia visual. <b>La implementación todavía no la iguala:</b> comparten la paleta pizarra con orejas de acero, la cabecera con presets y A/B, las perillas negras con escala de 0 a 10, las palancas cromadas, los dos vúmetros y la ventana de armónicos; faltan las diferencias que se detallan en las limitaciones.</figcaption></figure>
 
 ## Características
 
@@ -66,10 +68,10 @@ Cada compilación copia el plugin a esas carpetas y lo firma «ad hoc». Si el p
 | Zona | Contenido |
 | --- | --- |
 | Cabecera | Logo, presets (anterior, nombre, siguiente), A/B, deshacer, rehacer y Bypass del anfitrión |
-| Izquierda | Modo, Era, selector de carácter, Entrada, Mezcla y Salida; vúmetros de entrada y salida con su Referencia VU |
+| Izquierda | Palancas de Modo (Vocal / Master) y de Era (Vintage / Moderno), selector de carácter, Entrada, Mezcla y Salida; vúmetros de entrada y salida con su Referencia VU |
 | Centro | Cuatro módulos de banda: válvula, perilla grande de Drive, Dinámica, Nivel, ON y Solo; los tres cruces y la ventana de armónicos |
 | Derecha | Sintonización, Fase, Color, Suavizar, Guarda, Ancho, Esquina de aire y Enlace |
-| Pie | Oversampling (1× a 8×), Fase lineal, Delta, Igualar, Mono seguro y los chips de tamaño (75, 100, 150 y 200 %) |
+| Pie | Oversampling (1× a 8×), palancas de Fase lineal, Delta, Igualar y Mono seguro, y los chips de tamaño (75, 100, 150 y 200 %) |
 
 Lo que no actúa en el modo o carácter actual se ve atenuado: la **Guarda** en Master; **Ancho** y **Mono seguro** en Vocal; **Esquina de aire** salvo con el carácter Aire.
 
@@ -258,7 +260,7 @@ Pendiente: comprobación manual en Ableton Live, Logic Pro y Pro Tools.
 - **Dinámico:** el umbral del compander es fijo (−20 dB); la ficha original pedía que lo fijara Drive.
 - **Guarda:** detector simplificado y sin planitud espectral; lookahead de ≈ 1 ms, no 2 ms. Sin afinar con voz real.
 - **Fase lineal:** la FIR es fija (2049 coeficientes) a cualquier frecuencia de muestreo; su transición es de ≈ 516 Hz a 192 kHz. Cambia la latencia (+1024 muestras).
-- **Interfaz sin cerrar:** usa la paleta de Cremita; faltan el selector de pala, el marco y el rotulado de la maqueta y las perillas de cruce entre los módulos (hoy están bajo ellos). La etiqueta de Drive no cambia a «Ganancia del shelf» con Seda y Aire. Las válvulas miden en dB absolutos, no relativos a la entrada de la banda. El vúmetro de salida no indica si Igualar está activo.
+- **Interfaz sin cerrar: no es todavía la de la maqueta.** La implementación se construyó al principio solo desde la ficha, sin abrir la maqueta, y luego se acercó (paleta pizarra, perillas con escala numerada y palancas cromadas hechas con la referencia de rack clásico que se indicó). **Lo que sigue distinto de la maqueta:** las válvulas son cápsulas ámbar y no tubos de vidrio con base; el selector de carácter es una fila de cuatro botones y no un selector rotativo con los nombres alrededor; los vúmetros tienen esfera crema con marco claro y no el marco negro de la maqueta; la pantalla de presets es una ventana oscura sencilla, sin el rótulo numerado en ámbar ni el botón Guardar visible; falta la joya roja de «Encendido»; las perillas de cruce están bajo los módulos y no entre ellos; faltan el rango de frecuencias bajo el nombre de cada banda y la lectura de latencia al pie; el logotipo usa la tipografía del kit y no la cursiva de la maqueta; y A/B no tiene el botón «A→B». La etiqueta de Drive no cambia a «Ganancia del shelf» con Seda y Aire. Las válvulas miden en dB absolutos, no relativos a la entrada de la banda. El vúmetro de salida no indica si Igualar está activo.
 - **Igualar:** integrador exponencial de 3 s; no se probó contra el criterio de 0,5 LU.
 - **AAX (Pro Tools):** compila (SDK de AAX 2.8.0, arm64) y se instala sin firmar; **sin validar**, **sin firma PACE** y **sin probar en Pro Tools**.
 - **Distribución:** firma ad hoc, sin notarización. Antes de distribuirlo hay que revisar las condiciones de licencia de JUCE.
